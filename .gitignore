@@ -1,0 +1,16 @@
+output_files/*
+!output_files/.gitkeep
+draft_jugs/
+__pycache__/
+hub/
+.idea/
+.vscode/
+
+
+new_*.geojson
+# input_files/*.geojson
+# !input_files/.gitkeep
+
+*.pyc
+
+itest_*.py
