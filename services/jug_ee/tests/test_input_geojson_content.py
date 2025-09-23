@@ -1,0 +1,26 @@
+import os
+import json
+import unittest
+from input_geojson_content import InputGeoJsonContent
+
+
+class TestInputGeoJsonContent(unittest.TestCase):
+    def test_content_as_string(self):
+        path_str = "/path/to/file.geojson"
+        geo = InputGeoJsonContent(path_str)
+        self.assertEqual(geo.content, path_str)
+
+    def test_content_as_dict(self):
+        data = {"type": "FeatureCollection", "features": []}
+        geo = InputGeoJsonContent(data)
+
+        # _content should now be a temp file path
+        self.assertTrue(os.path.exists(geo.content))
+        self.assertTrue(geo.content.endswith(".geojson"))
+
+        # File should contain the same JSON
+        with open(geo.content, "r", encoding="utf8") as f:
+            loaded = json.load(f)
+        self.assertEqual(loaded, data)
+
+        os.remove(geo.content)
