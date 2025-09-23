@@ -2,6 +2,7 @@ output_files/*
 !output_files/.gitkeep
 draft_jugs/
 __pycache__/
+.pytest_cache/
 hub/
 .idea/
 .vscode/
