@@ -1,6 +1,6 @@
 from unittest import TestCase
 from unittest.mock import Mock, patch, call
-from lca_carbon_workflow import LCACarbonWorkflow
+from jugs_ee.lca_carbon_workflow import LCACarbonWorkflow
 from tests.fixtures import (
     make_building, make_surface, make_boundary, make_layer, with_openings
 )

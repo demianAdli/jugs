@@ -1,7 +1,8 @@
 import os
 import json
 import unittest
-from input_geojson_content import InputGeoJsonContent
+from jugs_ee.life_cycle_assessment.input_geojson_content\
+    import InputGeoJsonContent
 
 
 class TestInputGeoJsonContent(unittest.TestCase):

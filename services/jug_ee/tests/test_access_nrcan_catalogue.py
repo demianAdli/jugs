@@ -1,7 +1,8 @@
 from unittest import TestCase
 from pathlib import Path
 
-from life_cycle_assessment.access_nrcan_catalogue import AccessNrcanCatalog
+from jugs_ee.life_cycle_assessment.access_nrcan_catalogue\
+    import AccessNrcanCatalog
 
 
 class TestAccessNRCANCatalog(TestCase):

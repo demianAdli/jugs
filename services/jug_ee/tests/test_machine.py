@@ -1,5 +1,6 @@
 from unittest import TestCase
-from life_cycle_assessment.machine import Machine
+from jugs_ee.life_cycle_assessment.machine\
+    import Machine
 
 
 class TestMachine(TestCase):

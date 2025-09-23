@@ -1,7 +1,8 @@
 from unittest import TestCase
 from unittest.mock import MagicMock
 
-from life_cycle_assessment.lca_end_of_life_carbon import EndOfLifeEmission
+from jugs_ee.life_cycle_assessment.lca_end_of_life_carbon\
+    import EndOfLifeEmission
 
 
 DEMOLITION = 4.3577325

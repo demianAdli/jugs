@@ -1,5 +1,6 @@
 from unittest import TestCase
-from life_cycle_assessment.opening_emission import OpeningEmission
+from jugs_ee.life_cycle_assessment.opening_emission\
+    import OpeningEmission
 
 
 class TestOpeningEmission(TestCase):
