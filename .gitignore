@@ -1,17 +1,74 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+
+
+# Build artifacts
+*.egg-info/
+*.egg
+build/
+dist/
+.eggs/
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# Logs
+*.log
+logs/
+
+# Jupyter notebooks checkpoints
+.ipynb_checkpoints
+
+# IDEs / Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# System files
+.DS_Store
+Thumbs.db
+
+# My ignores
 output_files/*
 !output_files/.gitkeep
 draft_jugs/
-__pycache__/
-.pytest_cache/
-hub/
-.idea/
-.vscode/
-
-
+draft_*/
 new_*.geojson
+itest_*.py
+
+
+# Hub ignores
+hub/
+
+
+
 # input_files/*.geojson
 # !input_files/.gitkeep
 
-*.pyc
 
-itest_*.py
+
