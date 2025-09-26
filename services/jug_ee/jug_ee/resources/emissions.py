@@ -2,9 +2,9 @@ from flask import request, jsonify
 from flask.views import MethodView
 from flask_smorest import Blueprint, abort
 
-from schemas import LCAInputDataSchema
+from jug_ee.schemas.schemas import LCAInputDataSchema
 
-from lca_carbon_workflow import LCACarbonWorkflow
+from jug_ee.lca_carbon_workflow import LCACarbonWorkflow
 
 blp = Blueprint('Emissions', 
                 __name__, 
