@@ -1,4 +1,7 @@
 """
+JUGS project
+jug_ee project
+jug_ee package
 lca_carbon_workflow module
 Returns the summarize of envelope and energy systems
 SPDX - License - Identifier: LGPL - 3.0 - or -later
@@ -11,19 +14,19 @@ Mohammad Seyedabadi mohammad.seyedabadi@mail.concordia.ca
 import logging
 from pathlib import Path
 
-from input_geojson_content import InputGeoJsonContent
-
 from hub.imports.geometry_factory import GeometryFactory
 from hub.imports.construction_factory import ConstructionFactory
 from hub.helpers.dictionaries import Dictionaries
 
-from life_cycle_assessment.access_nrcan_catalogue \
+from jug_ee.life_cycle_assessment.input_geojson_content \
+  import InputGeoJsonContent
+from jug_ee.life_cycle_assessment.access_nrcan_catalogue \
   import AccessNrcanCatalog
-from life_cycle_assessment.opening_emission \
+from jug_ee.life_cycle_assessment.opening_emission \
   import OpeningEmission
-from life_cycle_assessment.envelope_emission \
+from jug_ee.life_cycle_assessment.envelope_emission \
   import EnvelopeEmission
-from life_cycle_assessment.lca_end_of_life_carbon \
+from jug_ee.life_cycle_assessment.lca_end_of_life_carbon \
   import EndOfLifeEmission
 
 
