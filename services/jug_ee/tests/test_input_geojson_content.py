@@ -1,7 +1,7 @@
 import os
 import json
 import unittest
-from jugs_ee.life_cycle_assessment.input_geojson_content\
+from jug_ee.life_cycle_assessment.input_geojson_content\
     import InputGeoJsonContent
 
 
