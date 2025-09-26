@@ -1,7 +1,7 @@
 from flask import Flask
 from flask_smorest import Api
 
-from jugs_ee.resources.emissions import blp as EmissionsBlueprint
+from jug_ee.resources.emissions import blp as EmissionsBlueprint
 
 app = Flask(__name__)
 
