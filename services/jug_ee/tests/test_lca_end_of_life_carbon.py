@@ -1,7 +1,7 @@
 from unittest import TestCase
 from unittest.mock import MagicMock
 
-from jugs_ee.life_cycle_assessment.lca_end_of_life_carbon\
+from jug_ee.life_cycle_assessment.lca_end_of_life_carbon\
     import EndOfLifeEmission
 
 
