@@ -1,7 +1,7 @@
 """
 JUGS project
 jug_ee project
-jugs_ee package
+jug_ee package
 envelope_emission module
 Project developer: Alireza Adli alireza.adli4@gmail.com
 Theoritical Support: Mohammad Reza Seyedabadi 

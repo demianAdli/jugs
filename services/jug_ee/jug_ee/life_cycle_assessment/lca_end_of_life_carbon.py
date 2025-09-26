@@ -1,7 +1,7 @@
 """
 JUGS project
 jug_ee project
-jugs_ee package
+jug_ee package
 lca_end_of_life_carbon module
 Machine emission of different methods can be a default argument, because,
 at this phase we use the average emission of different machines emission
