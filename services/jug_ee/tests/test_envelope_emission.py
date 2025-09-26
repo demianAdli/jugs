@@ -1,5 +1,5 @@
 from unittest import TestCase
-from jugs_ee.life_cycle_assessment.envelope_emission\
+from jug_ee.life_cycle_assessment.envelope_emission\
     import EnvelopeEmission
 
 
