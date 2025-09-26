@@ -54,8 +54,10 @@ logs/
 Thumbs.db
 
 # My ignores
-output_files/*
-!output_files/.gitkeep
+output_files/
+input_files/
+input_files/*.geojson
+# !output_files/.gitkeep
 draft_jugs/
 draft_*/
 new_*.geojson
@@ -67,7 +69,7 @@ hub/
 
 
 
-# input_files/*.geojson
+# 
 # !input_files/.gitkeep
 
 
