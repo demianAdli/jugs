@@ -6,7 +6,21 @@ from flask import Flask, request, g
 from flask_smorest import Api
 
 from jug_ee.resources.emissions import blp as emissions_blueprint
-from jug_chassis.logging.config import configure_logging, set_request_id, get_request_id
+# from jug_chassis.logging.config import configure_logging, set_request_id, get_request_id
+# from flask import has_request_context
+
+
+def configure_logging():
+    logging.basicConfig(level=logging.INFO)
+
+
+def set_request_id(rid):
+    g.request_id = rid
+
+
+def get_request_id():
+    return getattr(g, "request_id", None)
+
 
 configure_logging()
 logger = logging.getLogger(__name__)
