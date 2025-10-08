@@ -1,5 +1,6 @@
 import os, sys, json, time, logging, contextvars
 from logging.config import dictConfig
+from pathlib import Path
 
 # ---------- Correlation ID (per-request / per-context) ----------
 _request_id = contextvars.ContextVar("request_id", default="-")
@@ -36,42 +37,17 @@ class JsonFormatter(logging.Formatter):
             payload["stack"] = self.formatException(record.exc_info)
         return json.dumps(payload, ensure_ascii=False)
 
-def configure_logging() -> None:
-    """
-    Call once at process start (e.g., top of a service's app.py).
-    Sets the ROOT logger so every module logger inherits it.
-    """
-    # Root level defaults to DEBUG in dev so you "cover all log types"
-    log_level  = os.getenv("LOG_LEVEL", "DEBUG").upper()
-    log_format = os.getenv("LOG_FORMAT", "json")  # "json" or "plain"
 
-    fmt_name = "json_fmt" if log_format == "json" else "plain_fmt"
-    formatters = {
-        "json_fmt": {"()": JsonFormatter},
-        "plain_fmt": {"format": "%(asctime)s %(levelname)s %(service)s %(env)s "
-                                "%(name)s [req:%(request_id)s] - %(message)s"}
-    }
+def configure_logging(path=None):
+    if path is None:
+        path = Path(__file__).with_name("logging_config.json")
 
-    dictConfig({
-        "version": 1,
-        "disable_existing_loggers": False, 
-        "filters": {"ctx": {"()": ContextFilter}},
-        "formatters": formatters,
-        "handlers": {
-            "stdout": {
-                "class": "logging.StreamHandler",
-                "stream": sys.stdout,
-                "formatter": fmt_name,
-                "filters": ["ctx"],
-            }
-        },
-        "root": {"level": log_level, "handlers": ["stdout"]},
-        "loggers": {
-            # Quiet noisy libs if needed
-            "werkzeug": {"level": os.getenv("WERKZEUG_LEVEL", "INFO")},
-            "urllib3": {"level": "WARNING"},
-            "marshmallow": {"level": "WARNING"},
-        },
-    })
+    with open(path) as f:
+        cfg = json.load(f)
 
+    # patch environment-specific values
+    cfg["root"]["level"] = os.getenv("LOG_LEVEL", "INFO")
+    cfg["loggers"]["werkzeug"]["level"] = os.getenv("WERKZEUG_LEVEL", "INFO")
+
+    logging.config.dictConfig(cfg)
     logging.captureWarnings(True)  # route Python warnings into logging
