@@ -54,7 +54,7 @@ def configure_logging() -> None:
 
     dictConfig({
         "version": 1,
-        "disable_existing_loggers": False,  # keep 3rd-party loggers visible
+        "disable_existing_loggers": False, 
         "filters": {"ctx": {"()": ContextFilter}},
         "formatters": formatters,
         "handlers": {
