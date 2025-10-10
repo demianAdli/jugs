@@ -310,6 +310,7 @@ class LCACarbonWorkflow:
       The keys in the dictionary correspond to the different types of 
       emissions calculated. 
     """
+    logger.info(f'Calculated emissions for all buildings are being exported.')
     self.calculate_emission()
     emissions = (
         self.building_opening_emission,
