@@ -40,14 +40,37 @@ class JsonFormatter(logging.Formatter):
 
 def configure_logging(path=None):
     if path is None:
-        path = Path(__file__).with_name("logging_config.json")
+        path = Path(__file__).with_name("logging_file_stdout_config.json")
+    else:
+        path = Path(path)
 
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         cfg = json.load(f)
 
-    # patch environment-specific values
-    cfg["root"]["level"] = os.getenv("LOG_LEVEL", "INFO")
-    cfg["loggers"]["werkzeug"]["level"] = os.getenv("WERKZEUG_LEVEL", "INFO")
+    # env overrides
+    cfg["root"]["level"] = os.getenv("LOG_LEVEL", cfg["root"].get("level", "INFO"))
+    cfg.setdefault("loggers", {}).setdefault("werkzeug", {})["level"] = os.getenv("WERKZEUG_LEVEL", "INFO")
 
-    logging.config.dictConfig(cfg)
-    logging.captureWarnings(True)  # route Python warnings into logging
+    # --- normalize & prepare file handler ---
+    fh = cfg.get("handlers", {}).get("file")
+    if fh and "filename" in fh:
+        base = Path(os.getenv("LOG_DIR_BASE", Path(__file__).resolve().parent))
+        file_path = Path(fh["filename"])
+        if not file_path.is_absolute():
+            file_path = base / file_path
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        fh["filename"] = str(file_path)
+        fh.setdefault("encoding", "utf-8")
+        fh.setdefault("mode", "a")
+
+    # --- APPLY the config (always) ---
+    try:
+        dictConfig(cfg)
+    except Exception:
+        import traceback, pprint
+        print("stderr handler cfg:")
+        pprint.pp(cfg.get("handlers", {}).get("stderr"))
+        traceback.print_exc()
+        raise
+
+    logging.captureWarnings(True)
