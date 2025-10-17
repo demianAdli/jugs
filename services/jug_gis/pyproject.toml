@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jug_gis"
+version = "0.1.0"
+description = "Geospatial data cleaning."
+authors = [
+  { name = "Alireza Adli" }
+]
+readme = "README.md"
+requires-python = ">=3.10,<3.11"  
+
+
+dependencies = [
+  "flask==3.1.1",            
+  "flask-smorest==0.46.1",
+  "marshmallow",
+  "geopandas",        
+  "shapely>=2",
+  "pyproj",
+  "requests",
+]
