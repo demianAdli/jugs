@@ -12,6 +12,8 @@ a wf class that compare the results with census data. I also
 need to load files in another class like read_geojson_content in jug_ee
 so the wf can work either it is in the middle of the cleaning wf,
 or receiving data through api or receiving just a geojson content/file
+
+In this module, I refer to the fsa code as code
 """
 from pathlib import Path
 import pandas as pd
@@ -36,13 +38,13 @@ class ValidateHouseholds:
         self.district = gpd.read_file(the_district_path)
         self.district_units_num = len(self.district)
 
-        self.district_fsa_codes = self.return_all_fsa_codes()
+        self.district_codes = self.return_all_codes()
 
-    def return_all_fsa_codes(self):
-        all_fsa = set()
+    def return_all_codes(self):
+        all_codes = set()
         for unit in range(len(self.district)):
-            all_fsa.add(self.district.iloc[unit]['CODE_POSTA'][:3])
-        return list(all_fsa)
+            all_codes.add(self.district.iloc[unit]['CODE_POSTA'][:3])
+        return list(all_codes)
 
     def none_num(self):
         total_nones = 0
@@ -53,40 +55,34 @@ class ValidateHouseholds:
         nones_percentage = total_nones * 100 / len(self.district)
         return total_nones, nones_percentage
 
-    def summarize_fsa_area(self, fsa_code):
-        fsa_total_area = 0
+    def summarize_code_area(self, code):
+        code_total_area = 0
         code_unit_nums = 0
         for unit in range(self.district_units_num):
-            if self.district.iloc[unit]['CODE_POSTA'][:3] == fsa_code:
+            if self.district.iloc[unit]['CODE_POSTA'][:3] == code:
                 code_unit_nums += 1
-                fsa_total_area += self.district.iloc[unit]['total_area']
-        return code_unit_nums, fsa_total_area
+                code_total_area += self.district.iloc[unit]['total_area']
+        return code_unit_nums, code_total_area
 
     def summarize_area_for_all(self):
         areas_and_units_num = []
-        for fsa_code in self.district_fsa_codes:
-            areas_and_units_num.append(self.summarize_fsa_area(fsa_code))
+        for code in self.district_codes:
+            areas_and_units_num.append(self.summarize_code_area(code))
         return areas_and_units_num
 
     def calculate_code_units_frequency_ratio(self):
-        code_frequencies = [info[0] for info in self.summarize_area_for_all()]
+        code_frequencies = \
+            [info[0] for info in self.summarize_area_for_all()]
         district_units_num = sum(code_frequencies)
         return [code_frequency * 100 / district_units_num
                 for code_frequency in code_frequencies]
 
     def calculate_code_area_frequency_ratio(self):
-        code_area_frequencies = [info[1] for info in self.summarize_area_for_all()]
+        code_area_frequencies = \
+            [info[1] for info in self.summarize_area_for_all()]
         district_total_area = sum(code_area_frequencies)
-        return [code_frequency * 100 / district_total_area
-                for code_frequency in code_area_frequencies]
+        return [area_frequency * 100 / district_total_area
+                for area_frequency in code_area_frequencies]
 
-
-
-
-
-
-
-
-
-
-
+    def allocate_none_code_units(self):
+        
