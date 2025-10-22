@@ -98,7 +98,7 @@ class ValidateHouseholds:
     def allocate_none_code_units(self):
         none_nums = self.none_codes()[0]
         codes_unit_ratio = self.calculate_codes_unit_frequency_ratio()
-        allocated_nones = [round(21 * ratio / 100) for ratio in codes_unit_ratio]
+        allocated_nones = [round(none_nums * ratio / 100) for ratio in codes_unit_ratio]
         code_units = self.calculate_codes_frequency()
         zip_codes_and_nones = zip(code_units, allocated_nones)
         return [units for units in zip_codes_and_nones]
