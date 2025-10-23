@@ -11,28 +11,28 @@ class DistrictGeoJSONAnalysis:
 
         self.district_codes = self.return_all_codes()
 
-    def return_all_codes(self):
+    def return_all_codes(self, postal_code):
         all_codes = set()
         for unit in range(len(self.district)):
-            all_codes.add(self.district.iloc[unit]['CODE_POSTA'][:3])
+            all_codes.add(self.district.iloc[unit][postal_code][:3])
         return list(all_codes)
 
-    def none_codes(self):
+    def none_codes(self, postal_code, function_key, function_value):
         total_nones = 0
         for unit in range(self.district_units_num):
-            if self.district.iloc[unit]['CODE_POSTA'] == 'None' \
-                    and self.district.iloc[unit]['function'] == 'Logement':
+            if self.district.iloc[unit][postal_code] == 'None' \
+                    and self.district.iloc[unit][function_key] == function_value:
                 total_nones += 1
         nones_percentage = total_nones * 100 / len(self.district)
         return total_nones, nones_percentage
 
-    def summarize_code_unit_and_area(self, code):
+    def summarize_code_unit_and_area(self, postal_code, code, area):
         code_total_area = 0
         code_unit_nums = 0
         for unit in range(self.district_units_num):
-            if self.district.iloc[unit]['CODE_POSTA'][:3] == code:
+            if self.district.iloc[unit][postal_code][:3] == code:
                 code_unit_nums += 1
-                code_total_area += self.district.iloc[unit]['total_area']
+                code_total_area += self.district.iloc[unit][area]
         return code_unit_nums, code_total_area
 
     def summarize_area_and_unit_for_all(self):
