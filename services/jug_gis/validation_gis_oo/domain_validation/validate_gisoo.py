@@ -2,6 +2,7 @@ from pathlib import Path
 import pandas as pd
 import geopandas as gpd
 
+from .query_census_data_csv import QueryCensusDataCSV
 from .district_geojson_analysis import DistrictGeoJSONAnalysis
 
 
@@ -13,11 +14,13 @@ class ValidateGISOO:
     census_data_path = base_dir / 'input_files' / census_data_csv
     the_district_path = base_dir / 'input_files' / district_data_geojson
 
-    self.census_data = pd.read_csv(
+    self.load_census_data = pd.read_csv(
       census_data_path,
       encoding="cp1252",
       encoding_errors="replace",
       low_memory=False)
+
+    self.census_data = QueryCensusDataCSV(self.load_census_data)
 
     self.load_district = gpd.read_file(the_district_path)
 
