@@ -5,41 +5,32 @@ In this module, I refer to the fsa code as code
 
 class DistrictGeoJSONAnalysis:
     def __init__(self, district):
-
         self.district = district
         self.district_units_num = len(self.district)
 
-        self.district_codes = self.return_all_codes()
-
-    def return_all_codes(self, postal_code):
+    def return_all_codes(self, postal_code_key):
         all_codes = set()
         for unit in range(len(self.district)):
-            all_codes.add(self.district.iloc[unit][postal_code][:3])
+            all_codes.add(self.district.iloc[unit][postal_code_key][:3])
         return list(all_codes)
 
-    def none_codes(self, postal_code, function_key, function_value):
+    def none_codes(self, postal_code_key, function_key, function_value):
         total_nones = 0
         for unit in range(self.district_units_num):
-            if self.district.iloc[unit][postal_code] == 'None' \
+            if self.district.iloc[unit][postal_code_key] == 'None' \
                     and self.district.iloc[unit][function_key] == function_value:
                 total_nones += 1
         nones_percentage = total_nones * 100 / len(self.district)
         return total_nones, nones_percentage
 
-    def summarize_code_unit_and_area(self, postal_code, code, area):
+    def summarize_code_unit_and_area(self, postal_code_key, area, postal_code_value):
         code_total_area = 0
         code_unit_nums = 0
         for unit in range(self.district_units_num):
-            if self.district.iloc[unit][postal_code][:3] == code:
+            if self.district.iloc[unit][postal_code_key][:3] == postal_code_value:
                 code_unit_nums += 1
                 code_total_area += self.district.iloc[unit][area]
         return code_unit_nums, code_total_area
-
-    def summarize_area_and_unit_for_all(self):
-        areas_and_units_num = []
-        for code in self.district_codes:
-            areas_and_units_num.append(self.summarize_code_unit_and_area(code))
-        return areas_and_units_num
 
     def calculate_codes_frequency(self):
         return [info[0] for info in self.summarize_area_and_unit_for_all()]
