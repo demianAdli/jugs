@@ -102,3 +102,4 @@ class ValidateHouseholds:
         code_units = self.calculate_codes_frequency()
         zip_codes_and_nones = zip(code_units, allocated_nones)
         return [units for units in zip_codes_and_nones]
+# How can I use the address or other geojson fields to allocate the nones to the actual fsa

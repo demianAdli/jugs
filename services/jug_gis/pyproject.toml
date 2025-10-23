@@ -17,8 +17,10 @@ dependencies = [
   "flask==3.1.1",            
   "flask-smorest==0.46.1",
   "marshmallow",
-  "geopandas",        
+  "geopandas",
   "shapely>=2",
   "pyproj",
   "requests",
+  "geopandas",
+  "pandas"
 ]
