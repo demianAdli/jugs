@@ -60,14 +60,20 @@ input_files/*.geojson
 # !output_files/.gitkeep
 draft_jugs/
 draft_*/
+input_data/
+output_data/
+drafts_gisoo/
 new_*.geojson
 itest_*.py
+*_test.py
 
 
 # Hub ignores
 hub/
 
 
+# Others
+symbology-style.db
 
 # 
 # !input_files/.gitkeep
