@@ -2,9 +2,12 @@ from pathlib import Path
 import pandas as pd
 import geopandas as gpd
 
+from district_geojson_analysis import DistrictGeoJSONAnalysis
+
 
 class ValidateGISOO:
-  def __init__(self, census_data_csv, district_data_geojson):
+  def __init__(self, census_data_csv, district_data_geojson,
+               postal_code_key, function_key, function_value, area):
     base_dir = Path(__file__).resolve().parent.parent
 
     census_data_path = base_dir / 'input_files' / census_data_csv
@@ -16,5 +19,12 @@ class ValidateGISOO:
       encoding_errors="replace",
       low_memory=False)
 
-    self.district = gpd.read_file(the_district_path)
-    self.district_units_num = len(self.district)
+    self.load_district = gpd.read_file(the_district_path)
+    self.district_units_num = len(self.load_district)
+
+    self.postal_code_key = postal_code_key
+    self.function_key = function_key
+    self.function_value = function_value
+    self.area = area
+
+    self.district = DistrictGeoJSONAnalysis(self.load_district)
