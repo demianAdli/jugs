@@ -1,50 +1,12 @@
 """
-Let's firstly just code the business-value part then we move on to make it
-clean by loading file in another module and think through what
-to do (maybe we have to move the read json or path kinda module of
-the cap to the chassis) chassis can have a component that handles
-input/output data
-Chassis can have another component that handles dbms needs
-
-IMPORTANT: I have to change the function of the below class to
-extract geojson area info then I will make a wf or
-a wf class that compare the results with census data. I also
-need to load files in another class like read_geojson_content in jug_ee
-so the wf can work either it is in the middle of the cleaning wf,
-or receiving data through api or receiving just a geojson content/file
-
-I think it makes more sense to have number of units as the base
-for distributing Nones, rather than total_area. Because, it makes more
-sense if we say, an area that has more units should take more of
-Nones (more units) rather than an area which has more total _area.
-
-At the end, assign the methods which depends on a lot of methods
-in the wf class
-
-
 In this module, I refer to the fsa code as code
 """
-from pathlib import Path
-import pandas as pd
-import geopandas as gpd
 
 
 class DistrictGeoJSONAnalysis:
-    def __init__(self, census_data, district):
-        base_dir = Path(__file__).resolve().parent
-        # the class needs to read both path and file
-        # (or we'll do the loading in the workflow)
-        # 'census_data.csv' 'Beauport.geojson'
-        census_data_path = base_dir / 'input_files' / census_data
-        the_district_path = base_dir / 'input_files' / district
+    def __init__(self, district):
 
-        self.census_data = pd.read_csv(
-            census_data_path,
-            encoding="cp1252",
-            encoding_errors="replace",
-            low_memory=False)
-
-        self.district = gpd.read_file(the_district_path)
+        self.district = district
         self.district_units_num = len(self.district)
 
         self.district_codes = self.return_all_codes()
