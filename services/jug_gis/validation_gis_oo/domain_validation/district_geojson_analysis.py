@@ -1,6 +1,8 @@
 """
 In this module, I refer to the fsa code as code
 """
+import numpy as np
+import pandas as pd
 
 
 class DistrictGeoJSONAnalysis:
@@ -8,21 +10,20 @@ class DistrictGeoJSONAnalysis:
         self.load_district = load_district
         self.district_units_num = len(self.load_district)
 
-    def return_all_codes(self, postal_code_key):
-        all_codes = set()
-        for unit in range(len(self.load_district)):
-            all_codes.add(self.load_district.iloc[unit][postal_code_key][:3])
-        return list(all_codes)
+    def return_all_codes(self, postal_code_key: str, prefix_len: int = 3, sort: bool = False):
 
-    def none_codes(self, postal_code_key, function_key, function_value):
-        total_nones = 0
-        for unit in range(self.district_units_num):
-            if self.load_district.iloc[unit][postal_code_key] == 'None' \
-                    and self.load_district.iloc[unit][function_key] == \
-                    function_value:
-                total_nones += 1
-        nones_percentage = total_nones * 100 / len(self.load_district)
-        return total_nones, nones_percentage
+        s = self.load_district[postal_code_key]
+        mask = s.notna()  
+
+        prefixes = pd.Series(index=s.index, dtype=object)
+        prefixes.loc[mask] = (
+            s.loc[mask].astype(str).str.replace(r'\s+', '', regex=True).str[:prefix_len]
+        )
+
+        uniq = pd.unique(prefixes.dropna())
+        if sort:
+            uniq = np.sort(uniq)
+        return uniq.tolist()
 
     def match_key_value(
             self, match_key, match_value, unit):
@@ -36,37 +37,41 @@ class DistrictGeoJSONAnalysis:
             self,
             postal_code_key: str,
             return_key: str,
-            codes: list[str],
+            codes: list[str] | None,
             prefix_len: int = 3,
             function_key: str | None = None,
             function_value: object | None = None,
     ):
-        """
-        Summarize count and sum(return_key) by postal-code prefix for the given `codes`.
-        If function_key and function_value are provided, only include rows where
-        df[function_key] == function_value.
-        """
+
         the_district = self.load_district
+        codes_series = the_district[postal_code_key]
+        mask = codes_series.notna()
 
-
-        df2 = (
-            the_district.assign(_prefix=the_district[postal_code_key].astype(str).str[:prefix_len])
-            .loc[lambda d: d['_prefix'].notna() & d['_prefix'].isin(codes)]
+        prefix = pd.Series(index=the_district.index, dtype=object)
+        prefix.loc[mask] = (
+            codes_series.loc[mask].astype(str).str.replace(
+                r'\s+', '', regex=True).str[:prefix_len]
         )
 
         if function_key is not None:
-            df2 = df2.loc[df2[function_key].eq(function_value)]
+            sel = the_district[function_key].eq(function_value)
+            the_district = the_district.loc[sel]
+            prefix = prefix.loc[sel]
 
         grouped = (
-            df2.groupby('_prefix', dropna=False)
-            .agg(
-                count=(postal_code_key, lambda s: s.notna().sum()),
-                sum=(return_key, 'sum'),
-            )
-            .reindex(codes, fill_value=0)
+            pd.DataFrame(
+                {'_prefix': prefix, return_key: the_district[return_key]})
+            .dropna(subset=['_prefix'])
+            .groupby('_prefix', dropna=False)
+            .agg(count=('_prefix', 'size'), sum=(return_key, 'sum'))
         )
+
+        if codes is not None:
+            grouped = grouped.reindex(pd.Index(codes), fill_value=0)
 
         grouped['sum'] = grouped['sum'].fillna(0.0).astype(float)
         grouped['count'] = grouped['count'].astype(int)
 
-        return {code: (int(row['count']), float(row['sum'])) for code, row in grouped.iterrows()}
+        return {
+            codes: (int(values['count']), float(values['sum']))
+            for codes, values in grouped.to_dict("index").items()}
