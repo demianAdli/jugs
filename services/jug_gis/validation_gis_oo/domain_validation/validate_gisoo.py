@@ -32,7 +32,13 @@ class ValidateGISOO:
     self.district = DistrictGeoJSONAnalysis(self.load_district)
     self.district_codes = self.district.return_all_codes(self.postal_code_key)
     self.all_codes_dict = self.district.summarize_all_codes_dict(
-      self.postal_code_key, self.area_key, self.district_codes, prefix_len=3)
+      postal_code_key=self.postal_code_key,
+      return_key=self.area_key,
+      codes=self.district_codes,
+      prefix_len=3,
+      function_key=self.function_key,
+      function_value=self.function_value 
+    )
 
   def calculate_codes_unit_frequency_ratio(self):
     district_total_area = sum([index[0] for index in self.all_codes_dict.values()])
@@ -44,15 +50,15 @@ class ValidateGISOO:
     return {code: self.all_codes_dict[code][1] * 100 / district_total_area
             for code in self.all_codes_dict.keys()}
 
-  # def allocate_none_codes(self):
-  #   none_nums = self.district.none_codes(
-  #     self.postal_code_key, self.function_key, self.function_value)[0]
-  #   codes_unit_ratio = self.calculate_codes_unit_frequency_ratio()
-  #   allocated_nones = [
-  #     round(none_nums * ratio / 100) for ratio in codes_unit_ratio]
-  #   code_units = self.calculate_codes_frequency()
-  #   zip_codes_and_nones = zip(code_units, allocated_nones)
-  #   return [units for units in zip_codes_and_nones]
+  def allocate_none_codes(self):
+    none_nums = self.district.none_codes(
+      self.postal_code_key, self.function_key, self.function_value)[0]
+    codes_unit_ratio = self.calculate_codes_unit_frequency_ratio()
+    allocated_nones = [
+      round(none_nums * ratio / 100) for ratio in codes_unit_ratio]
+    code_units = self.calculate_codes_frequency()
+    zip_codes_and_nones = zip(code_units, allocated_nones)
+    return [units for units in zip_codes_and_nones]
 
   def allocate_none_codes_address_base(self):
     """ How can I use the address or other geojson fields

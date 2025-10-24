@@ -32,12 +32,41 @@ class DistrictGeoJSONAnalysis:
         else:
             return True
 
-    def summarize_all_codes_dict(self, postal_code_key, return_key, codes, prefix_len=3):
+    def summarize_all_codes_dict(
+            self,
+            postal_code_key: str,
+            return_key: str,
+            codes: list[str],
+            prefix_len: int = 3,
+            function_key: str | None = None,
+            function_value: object | None = None,
+    ):
+        """
+        Summarize count and sum(return_key) by postal-code prefix for the given `codes`.
+        If function_key and function_value are provided, only include rows where
+        df[function_key] == function_value.
+        """
+        the_district = self.load_district
+
+
+        df2 = (
+            the_district.assign(_prefix=the_district[postal_code_key].astype(str).str[:prefix_len])
+            .loc[lambda d: d['_prefix'].notna() & d['_prefix'].isin(codes)]
+        )
+
+        if function_key is not None:
+            df2 = df2.loc[df2[function_key].eq(function_value)]
+
         grouped = (
-            self.load_district
-            .assign(_prefix=self.load_district[postal_code_key].astype(str).str[:prefix_len])
-            .groupby('_prefix', dropna=False)
-            .agg(count=('_prefix', 'size'), sum=(return_key, 'sum'))
+            df2.groupby('_prefix', dropna=False)
+            .agg(
+                count=(postal_code_key, lambda s: s.notna().sum()),
+                sum=(return_key, 'sum'),
+            )
             .reindex(codes, fill_value=0)
         )
+
+        grouped['sum'] = grouped['sum'].fillna(0.0).astype(float)
+        grouped['count'] = grouped['count'].astype(int)
+
         return {code: (int(row['count']), float(row['sum'])) for code, row in grouped.iterrows()}
