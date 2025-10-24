@@ -32,11 +32,23 @@ class ValidateGISOO:
     self.district = DistrictGeoJSONAnalysis(self.load_district)
     self.district_codes = self.district.return_all_codes(self.postal_code_key)
 
+  def summarize_area_and_unit_for_all_new_2(self):
+    return self.district.summarize_all_codes(
+      self.postal_code_key, self.area_key, self.district_codes, prefix_len=3)
+
   def summarize_area_and_unit_for_all(self):
       areas_and_units_num = []
       for code in self.district_codes:
           areas_and_units_num.append(
               self.district.summarize_code_unit_and_area(
+                self.postal_code_key, self.area_key, match_value=code))
+      return areas_and_units_num
+
+  def summarize_area_and_unit_for_all_new(self):
+      areas_and_units_num = []
+      for code in self.district_codes:
+          areas_and_units_num.append(
+              self.district.summarize_code_unit_and_area_new(
                 self.postal_code_key, self.area_key, match_value=code))
       return areas_and_units_num
 
