@@ -25,12 +25,12 @@ class DistrictGeoJSONAnalysis:
         return total_nones, nones_percentage
 
     def summarize_code_unit_and_area(
-            self, postal_code_key, area, postal_code_value):
+            self, match_key, return_value, match_value):
         code_total_area = 0
         code_unit_nums = 0
         for unit in range(self.district_units_num):
-            if self.district.iloc[unit][postal_code_key][:3] == \
-                    postal_code_value:
+            if self.district.iloc[unit][match_key][:3] == \
+                    match_value:
                 code_unit_nums += 1
-                code_total_area += float(self.district.iloc[unit][area])
+                code_total_area += float(self.district.iloc[unit][return_value])
         return code_unit_nums, code_total_area

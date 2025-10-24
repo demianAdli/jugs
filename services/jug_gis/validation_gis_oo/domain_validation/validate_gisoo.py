@@ -37,7 +37,7 @@ class ValidateGISOO:
       for code in self.district_codes:
           areas_and_units_num.append(
               self.district.summarize_code_unit_and_area(
-                self.postal_code_key, self.area_key, postal_code_value=code))
+                self.postal_code_key, self.area_key, match_value=code))
       return areas_and_units_num
 
   def calculate_codes_frequency(self):
