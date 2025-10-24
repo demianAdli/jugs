@@ -41,12 +41,14 @@ class ValidateGISOO:
     )
 
   def calculate_codes_unit_frequency_ratio(self):
-    district_total_area = sum([index[0] for index in self.all_codes_dict.values()])
+    district_total_area = sum(
+      [index[0] for index in self.all_codes_dict.values()])
     return {code: self.all_codes_dict[code][0] * 100 / district_total_area
             for code in self.all_codes_dict.keys()}
 
   def calculate_codes_area_frequency_ratio(self):
-    district_total_area = sum([index[1] for index in self.all_codes_dict.values()])
+    district_total_area = sum(
+      [index[1] for index in self.all_codes_dict.values()])
     return {code: self.all_codes_dict[code][1] * 100 / district_total_area
             for code in self.all_codes_dict.keys()}
 
