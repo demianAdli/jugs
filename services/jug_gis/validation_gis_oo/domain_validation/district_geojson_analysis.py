@@ -12,26 +12,18 @@ class DistrictGeoJSONAnalysis:
 
     def return_all_codes(self, postal_code_key: str, prefix_len: int = 3, sort: bool = False):
 
-        s = self.load_district[postal_code_key]
-        mask = s.notna()  
+        codes_series = self.load_district[postal_code_key]
+        mask = codes_series.notna()
 
-        prefixes = pd.Series(index=s.index, dtype=object)
+        prefixes = pd.Series(index=codes_series.index, dtype=object)
         prefixes.loc[mask] = (
-            s.loc[mask].astype(str).str.replace(r'\s+', '', regex=True).str[:prefix_len]
-        )
+            codes_series.loc[mask].astype(str).str.replace(
+                r'\s+', '', regex=True).str[:prefix_len])
 
         uniq = pd.unique(prefixes.dropna())
         if sort:
             uniq = np.sort(uniq)
         return uniq.tolist()
-
-    def match_key_value(
-            self, match_key, match_value, unit):
-        if not self.load_district.iloc[unit][match_key][:3] == \
-               match_value:
-            return False
-        else:
-            return True
 
     def summarize_all_codes_dict(
             self,
@@ -40,8 +32,7 @@ class DistrictGeoJSONAnalysis:
             codes: list[str] | None,
             prefix_len: int = 3,
             function_key: str | None = None,
-            function_value: object | None = None,
-    ):
+            function_value: object | None = None,):
 
         the_district = self.load_district
         codes_series = the_district[postal_code_key]
@@ -50,8 +41,7 @@ class DistrictGeoJSONAnalysis:
         prefix = pd.Series(index=the_district.index, dtype=object)
         prefix.loc[mask] = (
             codes_series.loc[mask].astype(str).str.replace(
-                r'\s+', '', regex=True).str[:prefix_len]
-        )
+                r'\s+', '', regex=True).str[:prefix_len])
 
         if function_key is not None:
             sel = the_district[function_key].eq(function_value)

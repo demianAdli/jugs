@@ -51,18 +51,3 @@ class ValidateGISOO:
       [index[1] for index in self.all_codes_dict.values()])
     return {code: self.all_codes_dict[code][1] * 100 / district_total_area
             for code in self.all_codes_dict.keys()}
-
-  # def allocate_none_codes(self):
-  #   none_nums = self.district.none_codes(
-  #     self.postal_code_key, self.function_key, self.function_value)[0]
-  #   codes_unit_ratio = self.calculate_codes_unit_frequency_ratio()
-  #   allocated_nones = [
-  #     round(none_nums * ratio / 100) for ratio in codes_unit_ratio]
-  #   code_units = self.calculate_codes_frequency()
-  #   zip_codes_and_nones = zip(code_units, allocated_nones)
-  #   return [units for units in zip_codes_and_nones]
-
-  def allocate_none_codes_address_base(self):
-    """ How can I use the address or other geojson fields
-    to allocate the nones to the actual fsa"""
-    pass
