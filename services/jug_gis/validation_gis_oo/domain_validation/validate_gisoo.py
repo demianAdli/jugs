@@ -28,6 +28,8 @@ class ValidateGISOO:
                                           self.census_code_field_title,
                                           self.census_units_num_title)
 
+    self.census_units_num_all = self.census_units_num_all()
+
     self.load_district = gpd.read_file(the_district_path)
 
     self.postal_code_key = postal_code_key
@@ -62,8 +64,14 @@ class ValidateGISOO:
     return {code: self.all_codes_dict[code][1] * 100 / district_total_area
             for code in self.all_codes_dict.keys()}
 
-  def census_vs_clean_district(self, code):
+  def census_vs_clean_district_unit(self, code):
     pass
 
-  def census_vs_clean_districts(self):
+  def census_vs_clean_districts_unit(self):
+    pass
+
+  def census_vs_clean_district_area(self, code):
+    pass
+
+  def census_vs_clean_districts_area(self):
     pass
