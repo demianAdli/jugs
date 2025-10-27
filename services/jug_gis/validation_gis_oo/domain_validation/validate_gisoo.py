@@ -71,10 +71,21 @@ class ValidateGISOO:
     return difference, difference_ratio
 
   def clean_districts_vs_census_unit(self):
-    pass
+    all_differences_unit = dict()
+    for code in self.district_codes:
+      all_differences_unit[code] = self.clean_district_vs_census_unit(code)
+    return all_differences_unit
 
-  def clean_district_vs_census_area(self, code):
-    pass
+  def clean_district_vs_census_area(self, code, avg_area):
+    clean_district_area = self.all_codes_dict[code][1]
+    census_units_to_area = self.census_units_num_all_dict[code] * avg_area
+    difference = clean_district_area - census_units_to_area
+    difference_ratio = abs(difference) * 100 / census_units_to_area
+    return difference, difference_ratio
 
-  def clean_districts_vs_census_area(self):
-    pass
+  def clean_districts_vs_census_area(self, avg_area):
+    all_differences_area = dict()
+    for code in self.district_codes:
+      all_differences_area[code] = \
+        self.clean_district_vs_census_area(code, avg_area)
+    return all_differences_area
