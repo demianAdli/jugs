@@ -24,14 +24,10 @@ class ValidateGISOO:
 
     self.district = DistrictGeoJSONAnalysis(self.load_district)
     self.district_codes = self.district.return_all_codes(self.postal_code_key)
-    self.all_codes_dict = self.district.summarize_all_codes_dict(
-      postal_code_key=self.postal_code_key,
-      return_key=self.area_key,
-      codes=self.district_codes,
-      prefix_len=3,
-      function_key=self.function_key,
-      function_value=self.function_value
-    )
+    self.district_codes_info = self.codes_info()[0]
+    self.district_nones = self.codes_info()[1]
+    if 'Non' in self.district_codes:
+      self.district_codes.remove('Non')
 
     self.load_census_data = pd.read_csv(
       census_data_path,
@@ -52,20 +48,34 @@ class ValidateGISOO:
     units_num = self.census_data.lookup.reindex(self.district_codes)
     return units_num.to_dict()
 
+  def codes_info(self):
+    info = self.district.summarize_all_codes_dict(
+      postal_code_key=self.postal_code_key,
+      return_key=self.area_key,
+      codes=self.district_codes,
+      prefix_len=3,
+      function_key=self.function_key,
+      function_value=self.function_value
+    )
+    nones_info = 0, 0
+    if 'Non' in info:
+      nones_info = info.pop('Non')
+    return info, nones_info
+
   def calculate_codes_unit_frequency_ratio(self):
     district_total_area = sum(
-      [index[0] for index in self.all_codes_dict.values()])
-    return {code: self.all_codes_dict[code][0] * 100 / district_total_area
-            for code in self.all_codes_dict.keys()}
+      [index[0] for index in self.district_codes_info.values()])
+    return {code: self.district_codes_info[code][0] * 100 / district_total_area
+            for code in self.district_codes_info.keys()}
 
   def calculate_codes_area_frequency_ratio(self):
     district_total_area = sum(
-      [index[1] for index in self.all_codes_dict.values()])
-    return {code: self.all_codes_dict[code][1] * 100 / district_total_area
-            for code in self.all_codes_dict.keys()}
+      [index[1] for index in self.district_codes_info.values()])
+    return {code: self.district_codes_info[code][1] * 100 / district_total_area
+            for code in self.district_codes_info.keys()}
 
   def clean_district_vs_census_unit(self, code):
-    clean_district_unit = self.all_codes_dict[code][0]
+    clean_district_unit = self.district_codes_info[code][0]
     difference = clean_district_unit - self.census_units_num_all_dict[code]
     difference_ratio = abs(difference) * 100 / clean_district_unit
     return difference, difference_ratio
@@ -77,7 +87,7 @@ class ValidateGISOO:
     return all_differences_unit
 
   def clean_district_vs_census_area(self, code, avg_area):
-    clean_district_area = self.all_codes_dict[code][1]
+    clean_district_area = self.district_codes_info[code][1]
     census_units_to_area = self.census_units_num_all_dict[code] * avg_area
     difference = clean_district_area - census_units_to_area
     difference_ratio = abs(difference) * 100 / census_units_to_area
