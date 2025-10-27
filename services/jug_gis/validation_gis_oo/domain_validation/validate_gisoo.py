@@ -12,23 +12,8 @@ class ValidateGISOO:
                postal_code_key, function_key, function_value, area_key):
     base_dir = Path(__file__).resolve().parent.parent
 
-    census_data_path = base_dir / 'input_files' / census_data_csv
     the_district_path = base_dir / 'input_files' / district_data_geojson
-
-    self.load_census_data = pd.read_csv(
-      census_data_path,
-      encoding="cp1252",
-      encoding_errors="replace",
-      low_memory=False)
-
-    self.census_code_field_title = census_code_field_title
-    self.census_units_num_title = census_units_num_title
-
-    self.census_data = QueryCensusDataCSV(self.load_census_data,
-                                          self.census_code_field_title,
-                                          self.census_units_num_title)
-
-    self.census_units_num_all = self.census_units_num_all()
+    census_data_path = base_dir / 'input_files' / census_data_csv
 
     self.load_district = gpd.read_file(the_district_path)
 
@@ -48,6 +33,21 @@ class ValidateGISOO:
       function_value=self.function_value
     )
 
+    self.load_census_data = pd.read_csv(
+      census_data_path,
+      encoding="cp1252",
+      encoding_errors="replace",
+      low_memory=False)
+
+    self.census_code_field_title = census_code_field_title
+    self.census_units_num_title = census_units_num_title
+
+    self.census_data = QueryCensusDataCSV(self.load_census_data,
+                                          self.census_code_field_title,
+                                          self.census_units_num_title)
+
+    self.census_units_num_all = self.census_units_num_all()
+
   def census_units_num_all(self):
     units_num = self.census_data.lookup.reindex(self.district_codes)
     return units_num.to_dict()
@@ -64,14 +64,14 @@ class ValidateGISOO:
     return {code: self.all_codes_dict[code][1] * 100 / district_total_area
             for code in self.all_codes_dict.keys()}
 
-  def census_vs_clean_district_unit(self, code):
+  def clean_district_vs_census_unit(self, code):
     pass
 
-  def census_vs_clean_districts_unit(self):
+  def clean_districts_vs_census_unit(self):
     pass
 
-  def census_vs_clean_district_area(self, code):
+  def clean_district_vs_census_area(self, code):
     pass
 
-  def census_vs_clean_districts_area(self):
+  def clean_districts_vs_census_area(self):
     pass
