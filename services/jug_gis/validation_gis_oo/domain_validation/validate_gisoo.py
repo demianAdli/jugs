@@ -46,7 +46,7 @@ class ValidateGISOO:
                                           self.census_code_field_title,
                                           self.census_units_num_title)
 
-    self.census_units_num_all = self.census_units_num_all()
+    self.census_units_num_all_dict = self.census_units_num_all()
 
   def census_units_num_all(self):
     units_num = self.census_data.lookup.reindex(self.district_codes)
@@ -65,7 +65,10 @@ class ValidateGISOO:
             for code in self.all_codes_dict.keys()}
 
   def clean_district_vs_census_unit(self, code):
-    pass
+    clean_district_unit = self.all_codes_dict[code][0]
+    difference = clean_district_unit - self.census_units_num_all_dict[code]
+    difference_ratio = abs(difference) * 100 / clean_district_unit
+    return difference, difference_ratio
 
   def clean_districts_vs_census_unit(self):
     pass
