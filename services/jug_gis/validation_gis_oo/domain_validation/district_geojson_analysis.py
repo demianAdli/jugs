@@ -1,5 +1,5 @@
 """
-In this module, I refer to the fsa code as code
+In this module, I refer to the fsa code as code.
 """
 import numpy as np
 import pandas as pd
