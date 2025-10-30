@@ -1,6 +1,7 @@
 **Project Developer: Alireza Adli**
 
 alireza.adli4@gmail.com
+
 alireza.adli@mail.concordia.ca
 
 ## Table of Contents
@@ -18,24 +19,12 @@ This module is the essence of the mtl_gis_oo project. It encompasses required fu
 
 <a name="#workflowpy"/>
 
-## Building Cleanup Workflow
+## Handle MTL DS Workflow
 
 This is the process of cleaning and aggregating Montreal buildings datasets. This workflow is backed up by ScrubLayer. After defining the paths, running the module outputs the updated and integrated dataset (map layer).
 
-<a name="helpers"/>
-
-## Helpers
-
-The module contains several functions that cannot be defines as a method of ScrubLayer class but are useful and sometimes necessary for a method or a part of the workflow (building_cleanup_workflow.py).
-Creating folders, finding a type of files and merging layers are examples of the module's functionalities.
-
-<a name="config"/>
-
-## Config
-
-This module contains the QGIS installation path, and two dictionaries for holding input and output layers paths. The module will be modified completely to address paths in a general way instead of locally.
-
 <a name="scrubmtl"/>
+
 ## ScrubMTL
 
 This module is not being used or developed right now.
