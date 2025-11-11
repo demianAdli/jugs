@@ -1,6 +1,9 @@
 from pathlib import Path
 import pandas as pd
 import geopandas as gpd
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.ticker import FuncFormatter
 
 from .query_census_data_csv import QueryCensusDataCSV
 from .district_geojson_analysis import DistrictGeoJSONAnalysis
@@ -86,6 +89,16 @@ class ValidateGISOO:
       all_differences_unit[code] = self.clean_district_vs_census_unit(code)
     return all_differences_unit
 
+  def clean_district_and_census_unit(self, code):
+    return self.district_codes_info[code][0],\
+        self.census_units_num_all_dict[code]
+
+  def clean_districts_and_census_unit(self):
+    both_units = dict()
+    for code in self.district_codes:
+      both_units[code] = self.clean_district_and_census_unit(code)
+    return both_units
+
   def clean_district_vs_census_area(self, code, avg_area):
     clean_district_area = self.district_codes_info[code][1]
     census_units_to_area = self.census_units_num_all_dict[code] * avg_area
@@ -99,3 +112,46 @@ class ValidateGISOO:
       all_differences_area[code] = \
         self.clean_district_vs_census_area(code, avg_area)
     return all_differences_area
+
+  def clean_district_and_census_area(self, code, avg_area):
+    return self.district_codes_info[code][1],\
+           self.census_units_num_all_dict[code] * avg_area
+
+  def clean_districts_and_census_area(self, avg_area):
+    both_areas = dict()
+    for code in self.district_codes:
+      both_areas[code] = \
+        self.clean_district_and_census_area(code, avg_area)
+    return both_areas
+
+  @staticmethod
+  def plot_area_comparison(
+          codes_info,
+          areas,
+          census_areas,
+          *,
+          title='Area comparison',
+          y_label='Area (m²)',
+          x_label=''
+  ):
+    if not (len(codes_info) == len(areas) == len(census_areas)):
+      raise ValueError("codes, areas, and census_areas must have the same length")
+
+    n = len(codes_info)
+    x = np.arange(n)
+    width = 0.39
+
+    fig, ax = plt.subplots(figsize=(max(5.0, n * 1.2), 4.5))
+    rects1 = ax.bar(x - width / 2, areas, width, label=x_label)
+    rects2 = ax.bar(x + width / 2, census_areas, width, label='Census')
+
+    ax.set_xlabel('Code')
+    ax.set_ylabel(y_label)
+    ax.set_title(title)
+    ax.set_xticks(x, codes_info)
+    ax.legend()
+
+    # Format y-axis with thousands separators
+    ax.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f'{int(v):,}'))
+    fig.tight_layout()
+    return fig, ax
