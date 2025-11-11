@@ -83,9 +83,12 @@ class ValidateGISOO:
     difference_ratio = abs(difference) * 100 / clean_district_unit
     return difference, difference_ratio
 
-  def clean_districts_vs_census_unit(self):
+  def clean_districts_vs_census_unit(self, codes=None):
+    if codes is None:
+      codes = self.district_codes
+
     all_differences_unit = dict()
-    for code in self.district_codes:
+    for code in codes:
       all_differences_unit[code] = self.clean_district_vs_census_unit(code)
     return all_differences_unit
 
@@ -93,9 +96,12 @@ class ValidateGISOO:
     return self.district_codes_info[code][0],\
         self.census_units_num_all_dict[code]
 
-  def clean_districts_and_census_unit(self):
+  def clean_districts_and_census_unit(self, codes=None):
+    if codes is None:
+      codes = self.district_codes
+
     both_units = dict()
-    for code in self.district_codes:
+    for code in codes:
       both_units[code] = self.clean_district_and_census_unit(code)
     return both_units
 
@@ -106,9 +112,12 @@ class ValidateGISOO:
     difference_ratio = abs(difference) * 100 / census_units_to_area
     return difference, difference_ratio
 
-  def clean_districts_vs_census_area(self, avg_area):
+  def clean_districts_vs_census_area(self, avg_area, codes=None):
+    if codes is None:
+      codes = self.district_codes
+
     all_differences_area = dict()
-    for code in self.district_codes:
+    for code in codes:
       all_differences_area[code] = \
         self.clean_district_vs_census_area(code, avg_area)
     return all_differences_area
@@ -117,9 +126,12 @@ class ValidateGISOO:
     return self.district_codes_info[code][1],\
            self.census_units_num_all_dict[code] * avg_area
 
-  def clean_districts_and_census_area(self, avg_area):
+  def clean_districts_and_census_area(self, avg_area, codes=None):
+    if codes is None:
+      codes = self.district_codes
+
     both_areas = dict()
-    for code in self.district_codes:
+    for code in codes:
       both_areas[code] = \
         self.clean_district_and_census_area(code, avg_area)
     return both_areas
@@ -155,3 +167,22 @@ class ValidateGISOO:
     ax.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f'{int(v):,}'))
     fig.tight_layout()
     return fig, ax
+
+  def comparison_table(self, codes, avg_area) -> dict:
+    return {'FSA': codes,
+            'Cleaned Units Num':
+            [self.district_codes_info[code][0] for code in codes],
+            'Census Units Num':
+            [self.census_units_num_all_dict[code] for code in codes],
+            'Cleaned vs. Census Units':
+            [value[0] for value in self.clean_districts_vs_census_unit(codes)],
+            'Cleaned Total Area':
+            [self.district_codes_info[code][1] for code in codes],
+            f'Census Total Area (avg={avg_area})':
+            [self.census_units_num_all_dict[code] * avg_area
+             for code in codes],
+            'Cleaned vs. Census Areas':
+            [value[0] for value in
+             self.clean_districts_vs_census_area(avg_area, codes)]
+            }
+
