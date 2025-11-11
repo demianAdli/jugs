@@ -63,5 +63,5 @@ class DistrictGeoJSONAnalysis:
         grouped['count'] = grouped['count'].astype(int)
 
         return {
-            codes: (int(values['count']), float(values['sum']))
+            codes: (int(values['count']), round(float(values['sum']), 2))
             for codes, values in grouped.to_dict("index").items()}
