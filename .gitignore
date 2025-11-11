@@ -63,9 +63,12 @@ draft_*/
 input_data/
 output_data/
 drafts_gisoo/
+drafts/
 new_*.geojson
 itest_*.py
 *_test.py
+symbology-style.db
+*.png
 
 
 # Hub ignores

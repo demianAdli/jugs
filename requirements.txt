@@ -7,3 +7,4 @@ apispec>=6.6.1
 numpy
 pandas
 geopandas
+matplotlib
