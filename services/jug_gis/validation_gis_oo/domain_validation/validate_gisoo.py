@@ -80,7 +80,10 @@ class ValidateGISOO:
   def clean_district_vs_census_unit(self, code):
     clean_district_unit = self.district_codes_info[code][0]
     difference = clean_district_unit - self.census_units_num_all_dict[code]
-    difference_ratio = abs(difference) * 100 / clean_district_unit
+    if clean_district_unit == 0:
+      difference_ratio = 0
+    else:
+      difference_ratio = abs(difference) * 100 / clean_district_unit
     return difference, difference_ratio
 
   def clean_districts_vs_census_unit(self, codes=None):
@@ -168,7 +171,7 @@ class ValidateGISOO:
     fig.tight_layout()
     return fig, ax
 
-  def comparison_table(self, codes, avg_area) -> dict:
+  def comparison_table(self, codes, avg_area=90) -> dict:
     return {'FSA': codes,
             'Cleaned Units Num':
             [self.district_codes_info[code][0] for code in codes],
