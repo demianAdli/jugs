@@ -10,7 +10,10 @@ class DistrictGeoJSONAnalysis:
         self.load_district = load_district
         self.district_units_num = len(self.load_district)
 
-    def return_all_codes(self, postal_code_key: str, prefix_len: int = 3, sort: bool = False):
+    def return_all_codes(self,
+                         postal_code_key: str,
+                         prefix_len: int = 3,
+                         sort: bool = False):
 
         codes_series = self.load_district[postal_code_key]
         mask = codes_series.notna()
