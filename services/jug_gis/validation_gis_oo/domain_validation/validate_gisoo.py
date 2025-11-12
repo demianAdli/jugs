@@ -110,7 +110,7 @@ class ValidateGISOO:
     census_units_to_area = self.census_units_num_all_dict[code] * avg_area
     difference = clean_district_area - census_units_to_area
     difference_ratio = abs(difference) * 100 / census_units_to_area
-    return difference, difference_ratio
+    return round(difference, 2), difference_ratio
 
   def clean_districts_vs_census_area(self, avg_area, codes=None):
     if codes is None:
@@ -175,7 +175,8 @@ class ValidateGISOO:
             'Census Units Num':
             [self.census_units_num_all_dict[code] for code in codes],
             'Cleaned vs. Census Units':
-            [value[0] for value in self.clean_districts_vs_census_unit(codes)],
+            [value[0] for value in
+             self.clean_districts_vs_census_unit(codes).values()],
             'Cleaned Total Area':
             [self.district_codes_info[code][1] for code in codes],
             f'Census Total Area (avg={avg_area})':
@@ -183,6 +184,9 @@ class ValidateGISOO:
              for code in codes],
             'Cleaned vs. Census Areas':
             [value[0] for value in
-             self.clean_districts_vs_census_area(avg_area, codes)]
+             self.clean_districts_vs_census_area(avg_area, codes).values()]
             }
 
+  def comparison_csv(self, codes, avg_area, distric_name):
+    comparison_df = pd.DataFrame(self.comparison_table(codes, avg_area))
+    comparison_df.to_csv(f'{distric_name}_validation.csv', index=False)
