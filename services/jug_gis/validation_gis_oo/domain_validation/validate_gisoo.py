@@ -12,7 +12,8 @@ from .district_geojson_analysis import DistrictGeoJSONAnalysis
 class ValidateGISOO:
   def __init__(self, census_data_csv, district_data_geojson,
                census_code_field_title, census_units_num_title,
-               postal_code_key, function_key, function_value, area_key):
+               postal_code_key, function_key, function_value,
+               area_key, floor_num_key):
     base_dir = Path(__file__).resolve().parent.parent
 
     the_district_path = base_dir / 'input_files' / district_data_geojson
@@ -24,6 +25,7 @@ class ValidateGISOO:
     self.function_key = function_key
     self.function_value = function_value
     self.area_key = area_key
+    self.floor_num_key = floor_num_key
 
     self.district = DistrictGeoJSONAnalysis(self.load_district)
     self.district_codes = self.district.return_all_codes(self.postal_code_key)
@@ -55,6 +57,7 @@ class ValidateGISOO:
     info = self.district.summarize_all_codes_dict(
       postal_code_key=self.postal_code_key,
       return_key=self.area_key,
+      floor_num_key=self.floor_num_key,
       codes=self.district_codes,
       prefix_len=3,
       function_key=self.function_key,
