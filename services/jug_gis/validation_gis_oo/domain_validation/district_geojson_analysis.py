@@ -32,10 +32,11 @@ class DistrictGeoJSONAnalysis:
             self,
             postal_code_key: str,
             return_key: str,
+            floor_num_key: str,
             codes: list[str] | None,
             prefix_len: int = 3,
             function_key: str | None = None,
-            function_value: object | None = None,):
+            function_value: object | None = None):
 
         the_district = self.load_district
         codes_series = the_district[postal_code_key]
@@ -43,28 +44,44 @@ class DistrictGeoJSONAnalysis:
 
         prefix = pd.Series(index=the_district.index, dtype=object)
         prefix.loc[mask] = (
-            codes_series.loc[mask].astype(str).str.replace(
-                r'\s+', '', regex=True).str[:prefix_len])
+            codes_series.loc[mask].astype(str)
+                .str.replace(r'\s+', '', regex=True)
+                .str[:prefix_len]
+        )
 
         if function_key is not None:
             sel = the_district[function_key].eq(function_value)
             the_district = the_district.loc[sel]
             prefix = prefix.loc[sel]
 
+        # NEW: multiply floor area (return_key) by number of floors (floor_num_key)
+        effective_value = (
+                pd.to_numeric(the_district[return_key], errors="coerce") *
+                pd.to_numeric(the_district[floor_num_key], errors="coerce")
+        )
+
         grouped = (
             pd.DataFrame(
-                {'_prefix': prefix, return_key: the_district[return_key]})
-            .dropna(subset=['_prefix'])
-            .groupby('_prefix', dropna=False)
-            .agg(count=('_prefix', 'size'), sum=(return_key, 'sum'))
+                {
+                    "_prefix": prefix,
+                    "effective_value": effective_value,
+                }
+            )
+                .dropna(subset=["_prefix"])
+                .groupby("_prefix", dropna=False)
+                .agg(
+                count=("_prefix", "size"),
+                sum=("effective_value", "sum"),
+            )
         )
 
         if codes is not None:
             grouped = grouped.reindex(pd.Index(codes), fill_value=0)
 
-        grouped['sum'] = grouped['sum'].fillna(0.0).astype(float)
-        grouped['count'] = grouped['count'].astype(int)
+        grouped["sum"] = grouped["sum"].fillna(0.0).astype(float)
+        grouped["count"] = grouped["count"].astype(int)
 
         return {
-            codes: (int(values['count']), round(float(values['sum']), 2))
-            for codes, values in grouped.to_dict("index").items()}
+            code: (int(values["count"]), round(float(values["sum"]), 2))
+            for code, values in grouped.to_dict("index").items()
+        }
