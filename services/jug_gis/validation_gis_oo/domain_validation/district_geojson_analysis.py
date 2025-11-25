@@ -67,9 +67,9 @@ class DistrictGeoJSONAnalysis:
                     "effective_value": effective_value,
                 }
             )
-                .dropna(subset=["_prefix"])
-                .groupby("_prefix", dropna=False)
-                .agg(
+            .dropna(subset=["_prefix"])
+            .groupby("_prefix", dropna=False)
+            .agg(
                 count=("_prefix", "size"),
                 sum=("effective_value", "sum"),
             )
@@ -85,3 +85,60 @@ class DistrictGeoJSONAnalysis:
             code: (int(values["count"]), round(float(values["sum"]), 2))
             for code, values in grouped.to_dict("index").items()
         }
+
+    def height_to_floor_proxy(
+            self,
+            height_field: str,
+            divisor: float,
+    ) -> tuple[list[int], int, float, int, float]:
+        """
+        Use a height field to estimate floor numbers.
+
+        Parameters
+        ----------
+        height_field : str
+            Name of the column containing building heights.
+        divisor : float
+            Value by which heights are divided (e.g. average floor height).
+
+        Returns
+        -------
+        tuple[list[int], int, float, int, float]
+            - List of integer floor-count proxies for each feature
+              (same length as load_district).
+            - Number of entries where height was missing or non-numeric (NaN).
+            - Percentage of such entries in [0, 100].
+            - Number of entries where height equals exactly zero.
+            - Percentage of such entries in [0, 100].
+        """
+        if divisor == 0:
+            raise ValueError("divisor must be non-zero")
+
+        # Safely convert to numeric; non-numeric becomes NaN
+        heights = pd.to_numeric(self.load_district[height_field], errors="coerce")
+
+        total = len(heights)
+
+        # NaNs -> "nones"
+        mask_nones = heights.isna()
+        num_nones = int(mask_nones.sum())
+        pct_nones = (num_nones / total * 100.0) if total > 0 else 0.0
+
+        # Zeros -> problematic as well
+        mask_zeros = heights.eq(0)
+        num_zeros = int(mask_zeros.sum())
+        pct_zeros = (num_zeros / total * 100.0) if total > 0 else 0.0
+
+        # Divide and round to nearest integer
+        floors = (heights / float(divisor)).round()
+
+        # Replace NaN with 0, cast to ints
+        floors = floors.fillna(0).astype(int)
+
+        return (
+            floors.tolist(),
+            num_nones,
+            round(pct_nones, 2),
+            num_zeros,
+            round(pct_zeros, 2),
+        )
