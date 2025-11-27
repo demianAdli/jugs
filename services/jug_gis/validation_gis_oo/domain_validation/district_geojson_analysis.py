@@ -142,3 +142,77 @@ class DistrictGeoJSONAnalysis:
             num_zeros,
             round(pct_zeros, 2),
         )
+
+    def summarize_all_codes_with_multipliers(
+            self,
+            postal_code_key: str,
+            return_key: str,
+            multipliers: list[float] | tuple[float, ...],
+            codes: list[str] | None,
+            prefix_len: int = 3,
+            function_key: str | None = None,
+            function_value: object | None = None,
+    ):
+        the_district = self.load_district
+
+        # Safety check: length of multipliers must match number of features
+        if len(multipliers) != len(the_district):
+            raise ValueError(
+                f"Length of multipliers ({len(multipliers)}) does not match "
+                f"number of features ({len(the_district)})"
+            )
+
+        # Postal code prefix as before
+        codes_series = the_district[postal_code_key]
+        mask = codes_series.notna()
+
+        prefix = pd.Series(index=the_district.index, dtype=object)
+        prefix.loc[mask] = (
+            codes_series.loc[mask]
+                .astype(str)
+                .str.replace(r"\s+", "", regex=True)
+                .str[:prefix_len]
+        )
+
+        # Convert your list to a Series aligned with the_district
+        multiplier_series = pd.Series(multipliers, index=the_district.index)
+        multiplier_series = pd.to_numeric(multiplier_series, errors="coerce")
+
+        # Optional filter by function_key / function_value
+        if function_key is not None:
+            sel = the_district[function_key].eq(function_value)
+            the_district = the_district.loc[sel]
+            prefix = prefix.loc[sel]
+            multiplier_series = multiplier_series.loc[sel]
+
+        # Multiply area by the provided multipliers (your custom "floors")
+        effective_value = (
+                pd.to_numeric(the_district[return_key], errors="coerce")
+                * multiplier_series
+        )
+
+        grouped = (
+            pd.DataFrame(
+                {
+                    "_prefix": prefix,
+                    "effective_value": effective_value,
+                }
+            )
+                .dropna(subset=["_prefix"])
+                .groupby("_prefix", dropna=False)
+                .agg(
+                count=("_prefix", "size"),
+                sum=("effective_value", "sum"),
+            )
+        )
+
+        if codes is not None:
+            grouped = grouped.reindex(pd.Index(codes), fill_value=0)
+
+        grouped["sum"] = grouped["sum"].fillna(0.0).astype(float)
+        grouped["count"] = grouped["count"].astype(int)
+
+        return {
+            code: (int(values["count"]), round(float(values["sum"]), 2))
+            for code, values in grouped.to_dict("index").items()
+        }
