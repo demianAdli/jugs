@@ -1,3 +1,17 @@
+"""
+JUGS project
+jug_ee project
+jug_ee package
+validate_gisoo module
+ValidateGISOO class supports an interactove workflow
+to validate cleaned geospatial data.
+Project Designer and Developer: Alireza Adli
+alireza.adli@mail.concordia.ca
+
+Update considerations:
+- Python>=3.8 need to be added to the requirements.
+"""
+
 from pathlib import Path
 import pandas as pd
 import geopandas as gpd
