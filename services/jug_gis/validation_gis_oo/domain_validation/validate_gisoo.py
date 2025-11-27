@@ -31,6 +31,8 @@ class ValidateGISOO:
     self.district_codes = self.district.return_all_codes(self.postal_code_key)
     self.district_codes_info = self.codes_info()[0]
     self.district_nones = self.codes_info()[1]
+    self.district_codes_info_proxy = self.codes_info_proxy()[0]
+    self.district_nones_proxy = self.codes_info_proxy()[1]
     if 'Non' in self.district_codes:
       self.district_codes.remove('Non')
 
@@ -58,6 +60,21 @@ class ValidateGISOO:
       postal_code_key=self.postal_code_key,
       return_key=self.area_key,
       floor_num_key=self.floor_num_key,
+      codes=self.district_codes,
+      prefix_len=3,
+      function_key=self.function_key,
+      function_value=self.function_value
+    )
+    nones_info = 0, 0
+    if 'Non' in info:
+      nones_info = info.pop('Non')
+    return info, nones_info
+
+  def codes_info_proxy(self):
+    info = self.district.summarize_all_codes_with_multipliers(
+      postal_code_key=self.postal_code_key,
+      return_key=self.area_key,
+      multipliers=self.district.height_to_floor_proxy('height', 3.5)[0],
       codes=self.district_codes,
       prefix_len=3,
       function_key=self.function_key,
@@ -184,6 +201,8 @@ class ValidateGISOO:
             [value[0] for value in
              self.clean_districts_vs_census_unit(codes).values()],
             'Cleaned Total Area':
+            [self.district_codes_info_proxy[code][1] for code in codes],
+            'Cleaned Total Area 2':
             [self.district_codes_info[code][1] for code in codes],
             f'Census Total Area (avg={avg_area})':
             [self.census_units_num_all_dict[code] * avg_area
