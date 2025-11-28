@@ -1,7 +1,7 @@
 """
 JUGS project
-jug_ee project
-jug_ee package
+jug_gis project
+jug_gis package
 validate_gisoo module
 ValidateGISOO class supports an interactove workflow
 to validate cleaned geospatial data.
@@ -33,37 +33,35 @@ class ValidateGISOO:
     the_district_path = base_dir / 'input_files' / district_data_geojson
     census_data_path = base_dir / 'input_files' / census_data_csv
 
-    self.load_district = gpd.read_file(the_district_path)
-
+    # Configuration
     self.postal_code_key = postal_code_key
     self.function_key = function_key
     self.function_value = function_value
     self.area_key = area_key
     self.floor_num_key = floor_num_key
+    self.census_code_field_title = census_code_field_title
+    self.census_units_num_title = census_units_num_title
 
+    # Clean District Data
+    self.load_district = gpd.read_file(the_district_path)
     self.district = DistrictGeoJSONAnalysis(self.load_district)
-    self.district_codes = self.district.return_all_codes(self.postal_code_key)
-    self.district_codes_info = self.codes_info()[0]
-    self.district_nones = self.codes_info()[1]
-    self.district_codes_info_proxy = self.codes_info_proxy()[0]
-    self.district_nones_proxy = self.codes_info_proxy()[1]
-    if 'Non' in self.district_codes:
-      self.district_codes.remove('Non')
 
-    self.load_census_data = pd.read_csv(
+    district_codes = self.district.return_all_codes(self.postal_code_key)
+    self._district_codes = list(district_codes)
+    if "Non" in self._district_codes:
+      self._district_codes.remove("Non")
+
+    # Validation Data
+    self._load_census_data = pd.read_csv(
       census_data_path,
       encoding="cp1252",
       encoding_errors="replace",
       low_memory=False)
 
-    self.census_code_field_title = census_code_field_title
-    self.census_units_num_title = census_units_num_title
-
-    self.census_data = QueryCensusDataCSV(self.load_census_data,
-                                          self.census_code_field_title,
-                                          self.census_units_num_title)
-
-    self.census_units_num_all_dict = self.census_units_num_all()
+    self._census_data = QueryCensusDataCSV(
+      self._load_census_data,
+      self.census_code_field_title,
+      self.census_units_num_title)
 
   def census_units_num_all(self):
     units_num = self.census_data.lookup.reindex(self.district_codes)
