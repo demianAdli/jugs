@@ -13,6 +13,8 @@ Update considerations:
 """
 
 from pathlib import Path
+from functools import cached_property
+
 import pandas as pd
 import geopandas as gpd
 import matplotlib.pyplot as plt
@@ -43,10 +45,10 @@ class ValidateGISOO:
     self.census_units_num_title = census_units_num_title
 
     # Clean District Data
-    self.load_district = gpd.read_file(the_district_path)
-    self.district = DistrictGeoJSONAnalysis(self.load_district)
+    self._load_district = gpd.read_file(the_district_path)
+    self._district = DistrictGeoJSONAnalysis(self._load_district)
 
-    district_codes = self.district.return_all_codes(self.postal_code_key)
+    district_codes = self._district.return_all_codes(self.postal_code_key)
     self._district_codes = list(district_codes)
     if "Non" in self._district_codes:
       self._district_codes.remove("Non")
@@ -63,41 +65,90 @@ class ValidateGISOO:
       self.census_code_field_title,
       self.census_units_num_title)
 
-  def census_units_num_all(self):
-    units_num = self.census_data.lookup.reindex(self.district_codes)
-    return units_num.to_dict()
+  @property
+  def district_codes(self):
+    """FSA codes present in the district (no 'Non')."""
+    # immutable -> no changes in the workflow
+    return tuple(self._district_codes)
 
-  def codes_info(self):
-    info = self.district.summarize_all_codes_dict(
+  @cached_property
+  def _codes_info(self):
+    """
+    Internal cached (info, nones_info) for height-from-floor_num workflow.
+
+    info: dict[FSA] -> (units_num, total_area)
+    nones_info: tuple(units_num_with_None_or_zero, area_with_None_or_zero)
+    """
+    info = self._district.summarize_all_codes_dict(
       postal_code_key=self.postal_code_key,
       return_key=self.area_key,
       floor_num_key=self.floor_num_key,
-      codes=self.district_codes,
+      codes=self._district_codes,
       prefix_len=3,
       function_key=self.function_key,
-      function_value=self.function_value
+      function_value=self.function_value,
     )
-    nones_info = 0, 0
-    if 'Non' in info:
-      nones_info = info.pop('Non')
+
+    nones_info = (0, 0)
+    if "Non" in info:
+      nones_info = info.pop("Non")
+
     return info, nones_info
 
-  def codes_info_proxy(self):
-    info = self.district.summarize_all_codes_with_multipliers(
+  @property
+  def district_codes_info(self):
+    """dict[FSA] -> (units_num, total_area) using floor_num."""
+    return self._codes_info[0]
+
+  @property
+  def district_nones(self):
+    """(units_with_none_or_zero, area_with_none_or_zero)
+    For floor_num workflow.
+    """
+    return self._codes_info[1]
+
+  @cached_property
+  def _codes_info_proxy(self):
+    """
+    Internal cached (info, nones_info) for height-to-floor proxy workflow.
+    """
+    multipliers = self._district.height_to_floor_proxy("height", 3.5)[0]
+    info = self._district.summarize_all_codes_with_multipliers(
       postal_code_key=self.postal_code_key,
       return_key=self.area_key,
-      multipliers=self.district.height_to_floor_proxy('height', 3.5)[0],
-      codes=self.district_codes,
+      multipliers=multipliers,
+      codes=self._district_codes,
       prefix_len=3,
       function_key=self.function_key,
-      function_value=self.function_value
+      function_value=self.function_value,
     )
-    nones_info = 0, 0
-    if 'Non' in info:
-      nones_info = info.pop('Non')
+
+    nones_info = (0, 0)
+    if "Non" in info:
+      nones_info = info.pop("Non")
+
     return info, nones_info
 
-  def calculate_codes_unit_frequency_ratio(self):
+  @property
+  def district_codes_info_proxy(self):
+    """dict[FSA] -> (units_num, total_area) using height-to-floor proxy."""
+    return self._codes_info_proxy[0]
+
+  @property
+  def district_nones_proxy(self):
+    """(units_with_none_or_zero, area_with_none_or_zero) for proxy workflow."""
+    return self._codes_info_proxy[1]
+
+  @cached_property
+  def census_units_num_all_dict(self):
+    """
+    dict[FSA] -> census units count, reindexed to district_codes.
+    """
+    # TempComment: replaces census_units_num_all()
+    units_num = self._census_data.lookup.reindex(self._district_codes)
+    return units_num.to_dict()
+
+  def calculate_codes_unit_frequency_percentage(self):
     district_total_area = sum(
       [index[0] for index in self.district_codes_info.values()])
     return {code: self.district_codes_info[code][0] * 100 / district_total_area
