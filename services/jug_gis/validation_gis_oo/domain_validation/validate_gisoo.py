@@ -154,7 +154,7 @@ class ValidateGISOO:
     return {code: self.district_codes_info[code][0] * 100 / district_total_area
             for code in self.district_codes_info.keys()}
 
-  def calculate_codes_area_frequency_ratio(self):
+  def calculate_codes_area_frequency_percentage(self):
     district_total_area = sum(
       [index[1] for index in self.district_codes_info.values()])
     return {code: self.district_codes_info[code][1] * 100 / district_total_area
