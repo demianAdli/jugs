@@ -3,7 +3,7 @@
 **Project Developer:**  
 **Alireza Adli**  
 alireza.adli4@gmail.com  
-alireza.adli@mail.concordia.ca
+alireza.adli@mail.concordia.ca  
 www.demianadli.com
 
 ---
