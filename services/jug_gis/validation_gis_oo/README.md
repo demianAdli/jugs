@@ -4,6 +4,7 @@
 **Alireza Adli**  
 alireza.adli4@gmail.com  
 alireza.adli@mail.concordia.ca
+www.demianadli.com
 
 ---
 
@@ -33,7 +34,6 @@ https://github.com/demianAdli/jugs/tree/main/services/jug_gis/validation_gis_oo
 - [Recommended Usage](#recommended-usage)
 - [Outputs](#outputs)
 - [Architecture](#architecture)
-- [Contributing](#contributing)
 - [Contact](#contact)
 
 ---
@@ -113,18 +113,6 @@ The validation component fits into the broader **CityGISOO / JUGS microservices 
 - Uses a generic, city-agnostic workflow structure
 - Can be executed standalone or embedded in a more automated sequence
 - Supports the architectural goals of JUGS: modularity, reusability, and scalability
-
----
-
-## Contributing
-
-To extend or customize the validation component:
-
-- Follow CityGISOO’s object-oriented design conventions
-- Add new validation strategies via clearly encapsulated classes
-- Maintain reproducibility by avoiding mutation of internal state
-
-Suggestions and pull requests are welcome.
 
 ---
 
