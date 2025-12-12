@@ -19,26 +19,15 @@ jobs:
           git config user.name "github-actions"
           git config user.email "actions@users.noreply.github.com"
 
-      - name: Add Gitea remote and push --mirror
+      - name: Push all branches and tags to Gitea (no deletes)
         env:
           GITEA_TOKEN: ${{ secrets.GITEA_TOKEN }}
         run: |
-          # CHANGE THESE THREE: GITEA_HOST, OWNER, REPO
-          # Example:
-          # GITEA_HOST=ngci.encs.concordia.ca/gitea
-          # OWNER=a_adli
-          # REPO=jugs
-          GITEA_HOST="YOUR.GITEA.HOST/PATH"
-          OWNER="YOUR_GITEA_USERNAME_OR_ORG"
-          REPO="DEST_REPO_NAME"
+          set -euo pipefail
 
+          # Your real remote
           git remote add gitea https://a_adli:${GITEA_TOKEN}@ngci.encs.concordia.ca/gitea/a_adli/jugs.git
-          git push --mirror gitea
 
-      - name: Push LFS objects (if you use Git LFS)
-        if: ${{ always() }}
-        run: |
-          if command -v git-lfs >/dev/null 2>&1; then
-            git lfs fetch --all
-            git lfs push --all gitea || true
-          fi
+          # Push all branches and tags, but DO NOT delete remote-only refs (no --mirror)
+          git push gitea --all
+          git push gitea --tags
