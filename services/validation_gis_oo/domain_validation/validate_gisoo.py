@@ -112,7 +112,7 @@ class ValidateGISOO:
     """
     Internal cached (info, nones_info) for height-to-floor proxy workflow.
     """
-    multipliers = self._district.height_to_floor_proxy("height", 3.5)[0]
+    multipliers = self._district.height_to_floor_proxy('height', 3.5)[0]
     info = self._district.summarize_all_codes_with_multipliers(
       postal_code_key=self.postal_code_key,
       return_key=self.area_key,
@@ -124,8 +124,8 @@ class ValidateGISOO:
     )
 
     nones_info = (0, 0)
-    if "Non" in info:
-      nones_info = info.pop("Non")
+    if 'Non' in info:
+      nones_info = info.pop('Non')
 
     return info, nones_info
 
@@ -233,7 +233,7 @@ class ValidateGISOO:
           x_label=''
   ):
     if not (len(codes_info) == len(areas) == len(census_areas)):
-      raise ValueError("codes, areas, and census_areas must have the same length")
+      raise ValueError('codes, areas, and census_areas must have the same length')
 
     n = len(codes_info)
     x = np.arange(n)
