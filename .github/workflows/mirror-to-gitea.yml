@@ -5,6 +5,10 @@ on:
     branches: ["**"]
     tags: ["**"]
 
+concurrency:
+  group: mirror-to-gitea
+  cancel-in-progress: false
+
 jobs:
   mirror:
     runs-on: ubuntu-latest
