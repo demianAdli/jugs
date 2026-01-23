@@ -25,7 +25,7 @@ class QueryCensusDataCSV:
           self,
           census_data: pd.DataFrame,
           census_code_field_title: str,
-          cencus_code_units_num_field_title: str,
+          census_code_units_num_field_title: str,
           *,
           characteristic_name_field: str = 'CHARACTERISTIC_NAME',
           characteristic_id_field: str = 'CHARACTERISTIC_ID',
@@ -35,7 +35,7 @@ class QueryCensusDataCSV:
           config: Optional[CensusAreaConfig] = None,
   ):
     self.code_field = census_code_field_title
-    self.count_field = cencus_code_units_num_field_title
+    self.count_field = census_code_units_num_field_title
     self.characteristic_name_field = characteristic_name_field
     self.characteristic_id_field = characteristic_id_field
     self.use_characteristic_id = use_characteristic_id
