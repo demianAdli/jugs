@@ -44,7 +44,7 @@ class QueryCensusDataCSV:
     base_cfg = config or CensusAreaConfig.defaults()
     if area_by_characteristic is not None:
       merged = dict(base_cfg.avg_area_by_characteristic)
-      merged.update(area_by_characteristic)  
+      merged.update(area_by_characteristic)
       base_cfg = CensusAreaConfig(
         avg_area_by_characteristic=merged,
         total_private_dwellings_label=base_cfg.total_private_dwellings_label,
@@ -54,3 +54,17 @@ class QueryCensusDataCSV:
     self.cfg = base_cfg
 
     df = census_data.copy()
+
+    if not use_characteristic_id:
+      if normalize_whitespace:
+        # remove leading/trailing spaces and collapse internal whitespace
+        s = df[self.characteristic_name_field].astype(str)
+        s = s.str.replace(r"\s+", " ", regex=True).str.strip()
+        df[self.characteristic_name_field] = s
+      char_key = self.characteristic_name_field
+    else:
+      # IDs are typically stable + faster; keep as int where possible
+      df[self.characteristic_id_field] = pd.to_numeric(
+        df[self.characteristic_id_field], errors="coerce"
+      )
+      char_key = self.characteristic_id_field
