@@ -91,3 +91,6 @@ class QueryCensusDataCSV:
 
     total_private = col_or_zeros(self.cfg.total_private_dwellings_label)
     total_households = col_or_zeros(self.cfg.total_households_label)
+
+    remaining = (total_private - total_households).clip(lower=0)
+    
