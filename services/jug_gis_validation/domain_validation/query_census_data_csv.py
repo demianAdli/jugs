@@ -57,14 +57,37 @@ class QueryCensusDataCSV:
 
     if not use_characteristic_id:
       if normalize_whitespace:
-        # remove leading/trailing spaces and collapse internal whitespace
         s = df[self.characteristic_name_field].astype(str)
         s = s.str.replace(r"\s+", " ", regex=True).str.strip()
         df[self.characteristic_name_field] = s
       char_key = self.characteristic_name_field
     else:
-      # IDs are typically stable + faster; keep as int where possible
       df[self.characteristic_id_field] = pd.to_numeric(
         df[self.characteristic_id_field], errors="coerce"
       )
       char_key = self.characteristic_id_field
+
+    wide = (
+      df.pivot_table(
+        index=self.code_field,
+        columns=char_key,
+        values=self.count_field,
+        aggfunc="sum",
+        dropna=False,
+      ).sort_index()
+    )
+
+    # Helper to safely fetch a column (missing -> zeros)
+    def col_or_zeros(column_key) -> pd.Series:
+      if column_key in wide.columns:
+        return wide[column_key].fillna(0)
+      return pd.Series(0, index=wide.index, dtype='float64')
+
+    if use_characteristic_id:
+      raise ValueError(
+        'use_characteristic_id=True requires you to map totals by ID. '
+        'Keep it False unless you add an ID mapping.'
+      )
+
+    total_private = col_or_zeros(self.cfg.total_private_dwellings_label)
+    total_households = col_or_zeros(self.cfg.total_households_label)
