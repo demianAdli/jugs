@@ -63,7 +63,7 @@ class QueryCensusDataCSV:
       char_key = self.characteristic_name_field
     else:
       df[self.characteristic_id_field] = pd.to_numeric(
-        df[self.characteristic_id_field], errors="coerce"
+        df[self.characteristic_id_field], errors='coerce'
       )
       char_key = self.characteristic_id_field
 
@@ -94,6 +94,45 @@ class QueryCensusDataCSV:
 
     remaining = (total_private - total_households).clip(lower=0)
 
-    #    units = total_households unless remaining != 0, then units = total_private
-    units_num = np.where(remaining.to_numpy() != 0, total_private.to_numpy(), total_households.to_numpy())
+    #    units = total_households unless remaining != 0,
+    #    then units = total_private_dwellings
+    units_num = np.where(
+      remaining.to_numpy() != 0,
+      total_private.to_numpy(),
+      total_households.to_numpy())
     units_num = pd.Series(units_num, index=wide.index).astype(float)
+
+    area = pd.Series(0.0, index=wide.index)
+
+    for typ, avg in self.cfg.avg_area_by_characteristic.items():
+      if typ == self.cfg.remaining_dwellings_label:
+        continue
+      area = area.add(col_or_zeros(typ) * float(avg), fill_value=0)
+
+    area = area + remaining * \
+        float(
+          self.cfg.avg_area_by_characteristic.get(
+            self.cfg.remaining_dwellings_label, 0.0))
+
+    self._wide = wide
+    self.remaining_dwellings = remaining
+    self.units_num = units_num
+    self.total_area = area
+
+  def census_code_units_num(self, census_code):
+    return self.units_num.get(census_code)
+
+  def census_code_total_area(self, census_code):
+    return self.total_area.get(census_code)
+
+  @property
+  def units_num_all_dict(self) -> Dict[str, float]:
+    return self.units_num.to_dict()
+
+  @property
+  def total_area_all_dict(self) -> Dict[str, float]:
+    return self.total_area.to_dict()
+
+  @property
+  def remaining_dwellings_all_dict(self) -> Dict[str, float]:
+    return self.remaining_dwellings.to_dict()
