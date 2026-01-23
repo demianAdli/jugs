@@ -93,4 +93,7 @@ class QueryCensusDataCSV:
     total_households = col_or_zeros(self.cfg.total_households_label)
 
     remaining = (total_private - total_households).clip(lower=0)
-    
+
+    #    units = total_households unless remaining != 0, then units = total_private
+    units_num = np.where(remaining.to_numpy() != 0, total_private.to_numpy(), total_households.to_numpy())
+    units_num = pd.Series(units_num, index=wide.index).astype(float)
