@@ -68,7 +68,7 @@ class ValidateGISOO:
       area_by_characteristic=census_avg_area_by_type,
       normalize_whitespace=True,
     )
-    
+
   @property
   def district_codes(self):
     """FSA codes present in the district (no 'Non')."""
@@ -132,6 +132,11 @@ class ValidateGISOO:
       nones_info = info.pop('Non')
 
     return info, nones_info
+
+  @cached_property
+  def census_total_area_all_dict(self):
+    areas = self._census_data.total_area.reindex(self._district_codes)
+    return areas.to_dict()
 
   @property
   def district_codes_info_proxy(self):
