@@ -268,22 +268,18 @@ class ValidateGISOO:
   def comparison_table(self, codes, avg_area=90) -> dict:
     return {'FSA': codes,
             'Cleaned Units Num':
-            [self.district_codes_info[code][0] for code in codes],
+              [self.district_codes_info[code][0] for code in codes],
             'Census Units Num':
-            [self.census_units_num_all_dict[code] for code in codes],
+              [self.census_units_num_all_dict[code] for code in codes],
             'Cleaned vs. Census Units':
-            [value[0] for value in
-             self.clean_districts_vs_census_unit(codes).values()],
+              [value[0] for value in
+               self.clean_districts_vs_census_unit(codes).values()],
             'Cleaned Total Area':
-            [self.district_codes_info_proxy[code][1] for code in codes],
-            'Cleaned Total Area 2':
-            [self.district_codes_info[code][1] for code in codes],
-            f'Census Total Area (avg={avg_area})':
-            [self.census_units_num_all_dict[code] * avg_area
-             for code in codes],
-            'Cleaned vs. Census Areas':
-            [value[0] for value in
-             self.clean_districts_vs_census_area(avg_area, codes).values()]
+              [self.district_codes_info_proxy[code][1] for code in codes],
+            'Cleaned Total Area (with proxy)':
+              [self.district_codes_info[code][1] for code in codes],
+            'Census Total Area (by type)':
+              [self.census_total_area_all_dict[code] for code in codes],
             }
 
   def comparison_csv(self, codes, avg_area, distric_name):
