@@ -152,9 +152,11 @@ class ValidateGISOO:
   def census_units_num_all_dict(self):
     """
     dict[FSA] -> census units count, reindexed to district_codes.
+    Uses the units rule:
+      - if remaining_dwellings != 0 => Total private dwellings
+      - else => Total - Private households by household size - 100% data
     """
-    # TempComment: replaces census_units_num_all()
-    units_num = self._census_data.lookup.reindex(self._district_codes)
+    units_num = self._census_data.units_num.reindex(self._district_codes).fillna(0)
     return units_num.to_dict()
 
   def calculate_codes_unit_frequency_percentage(self):
