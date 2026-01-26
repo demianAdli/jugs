@@ -29,7 +29,8 @@ class ValidateGISOO:
   def __init__(self, census_data_csv, district_data_geojson,
                census_code_field_title, census_units_num_title,
                postal_code_key, function_key, function_value,
-               area_key, floor_num_key):
+               area_key, floor_num_key,
+               census_avg_area_by_type=None):
     base_dir = Path(__file__).resolve().parent.parent
 
     the_district_path = base_dir / 'input_files' / district_data_geojson
@@ -63,8 +64,11 @@ class ValidateGISOO:
     self._census_data = QueryCensusDataCSV(
       self._load_census_data,
       self.census_code_field_title,
-      self.census_units_num_title)
-
+      self.census_units_num_title,
+      area_by_characteristic=census_avg_area_by_type,
+      normalize_whitespace=True,
+    )
+    
   @property
   def district_codes(self):
     """FSA codes present in the district (no 'Non')."""
