@@ -65,8 +65,7 @@ class ValidateGISOO:
       self._load_census_data,
       self.census_code_field_title,
       self.census_units_num_title,
-      area_by_characteristic=census_avg_area_by_type,
-      normalize_whitespace=True,
+      area_by_characteristic=census_avg_area_by_type
     )
 
   @property
