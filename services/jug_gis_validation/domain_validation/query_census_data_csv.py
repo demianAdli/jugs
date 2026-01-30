@@ -58,7 +58,7 @@ class QueryCensusDataCSV:
     if not use_characteristic_id:
       if normalize_whitespace:
         s = df[self.characteristic_name_field].astype(str)
-        s = s.str.replace(r"\s+", " ", regex=True).str.strip()
+        s = s.str.replace(r'\s+', ' ', regex=True).str.strip()
         df[self.characteristic_name_field] = s
       char_key = self.characteristic_name_field
     else:
@@ -72,7 +72,7 @@ class QueryCensusDataCSV:
         index=self.code_field,
         columns=char_key,
         values=self.count_field,
-        aggfunc="sum",
+        aggfunc='sum',
         dropna=False,
       ).sort_index()
     )
