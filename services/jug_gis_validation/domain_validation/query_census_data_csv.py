@@ -75,10 +75,14 @@ class QueryCensusDataCSV:
 
     remaining = (total_private - total_households).clip(lower=0)
 
-    #    units = total_households unless remaining != 0,
+    remaining_avg = float(
+      self.cfg.avg_area_by_characteristic.get(
+        self.cfg.remaining_dwellings_label, 0.0))
+
+    #    units = total_households unless remaining_avg != 0,
     #    then units = total_private_dwellings
     units_num = np.where(
-      remaining.to_numpy() != 0,
+      remaining_avg != 0,
       total_private.to_numpy(),
       total_households.to_numpy())
     units_num = pd.Series(units_num, index=wide.index).astype(float)
@@ -90,10 +94,7 @@ class QueryCensusDataCSV:
         continue
       area = area.add(col_or_zeros(typ) * float(avg), fill_value=0)
 
-    area = area + remaining * \
-        float(
-          self.cfg.avg_area_by_characteristic.get(
-            self.cfg.remaining_dwellings_label, 0.0))
+    area = area + remaining * remaining_avg
 
     self._wide = wide
     self.remaining_dwellings = remaining
