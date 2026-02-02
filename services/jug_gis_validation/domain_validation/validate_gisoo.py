@@ -218,18 +218,18 @@ class ValidateGISOO:
         self.clean_district_vs_census_area(code)
     return all_differences_area
 
-  def clean_district_and_census_area(self, code, avg_area):
+  def clean_district_and_census_area(self, code):
     return self.district_codes_info[code][1],\
-           self.census_units_num_all_dict[code] * avg_area
+           self.census_total_area_all_dict[code]
 
-  def clean_districts_and_census_area(self, avg_area, codes=None):
+  def clean_districts_and_census_area(self, codes=None):
     if codes is None:
       codes = self.district_codes
 
     both_areas = dict()
     for code in codes:
       both_areas[code] = \
-        self.clean_district_and_census_area(code, avg_area)
+        self.clean_district_and_census_area(code)
     return both_areas
 
   @staticmethod
