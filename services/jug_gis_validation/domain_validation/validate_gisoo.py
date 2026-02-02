@@ -57,8 +57,8 @@ class ValidateGISOO:
     # Validation Data
     self._load_census_data = pd.read_csv(
       census_data_path,
-      encoding="cp1252",
-      encoding_errors="replace",
+      encoding='cp1252',
+      encoding_errors='replace',
       low_memory=False)
 
     self._census_data = QueryCensusDataCSV(
@@ -201,21 +201,21 @@ class ValidateGISOO:
       both_units[code] = self.clean_district_and_census_unit(code)
     return both_units
 
-  def clean_district_vs_census_area(self, code, avg_area):
+  def clean_district_vs_census_area(self, code):
     clean_district_area = self.district_codes_info[code][1]
-    census_units_to_area = self.census_units_num_all_dict[code] * avg_area
+    census_units_to_area = self.census_total_area_all_dict[code]
     difference = clean_district_area - census_units_to_area
     difference_ratio = abs(difference) * 100 / census_units_to_area
     return round(difference, 2), difference_ratio
 
-  def clean_districts_vs_census_area(self, avg_area, codes=None):
+  def clean_districts_vs_census_area(self, codes=None):
     if codes is None:
       codes = self.district_codes
 
     all_differences_area = dict()
     for code in codes:
       all_differences_area[code] = \
-        self.clean_district_vs_census_area(code, avg_area)
+        self.clean_district_vs_census_area(code)
     return all_differences_area
 
   def clean_district_and_census_area(self, code, avg_area):
