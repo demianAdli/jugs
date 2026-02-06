@@ -8,6 +8,7 @@ version = "0.1.0"
 description = "Shared chassis (logging, etc.) for JUGS services"
 requires-python = ">=3.10"
 dependencies = []
+license = { file = "LICENSE" }
 
 [tool.setuptools.packages.find]
 where = ["src"]
