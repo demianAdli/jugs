@@ -3,12 +3,15 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "jug-chassis"               # published/distribution name (hyphen OK)
+name = "jugs-chassis"               
 version = "0.1.0"
 description = "Shared chassis (logging, etc.) for JUGS services"
 requires-python = ">=3.10"
 dependencies = []
 
 [tool.setuptools.packages.find]
-where = ["."]
-include = ["jug_chassis*"]
+where = ["src"]
+include = ["jugs_chassis*"]
+
+[tool.setuptools.package-data]
+jugs_chassis = ["logging/logging_config.json"]

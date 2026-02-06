@@ -7,6 +7,8 @@ global-exclude *.egg-info
 # Exclude dev artifacts
 exclude .env
 recursive-exclude tests *
+recursive-exclude logs *
 
 # Include docs or configs if needed later
 include README.md
+include src/jugs_chassis/logging/logging_config.json
