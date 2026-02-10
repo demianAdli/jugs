@@ -283,4 +283,4 @@ class ValidateGISOO:
 
   def comparison_csv(self, codes, avg_area, distric_name):
     comparison_df = pd.DataFrame(self.comparison_table(codes, avg_area))
-    comparison_df.to_csv(f'{distric_name}_validation.csv', index=False)
+    comparison_df.to_csv(f'validate_{distric_name}_gi.csv', index=False)
