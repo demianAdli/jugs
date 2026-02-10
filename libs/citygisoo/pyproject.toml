@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "citygisoo"
+version = "0.1.0"
+description = "PyQGIS utilities and cleaning workflows for CityGISOO"
+requires-python = ">=3.10"
+dependencies = []
+license = { file = "LICENSE" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["citygisoo*"]
