@@ -69,6 +69,7 @@ itest_*.py
 *_test.py
 symbology-style.db
 *.png
+validate_*.csv
 
 
 # Hub ignores
