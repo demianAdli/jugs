@@ -1,18 +1,21 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ['setuptools>=68', 'wheel']
+build-backend = 'setuptools.build_meta'
 
 [project]
-name = "jugs-chassis"               
-version = "0.1.0"
-description = "Shared chassis (logging, etc.) for JUGS services"
-requires-python = ">=3.10"
+name = 'jugs-chassis'
+version = '0.1.0'
+description = 'Shared chassis (logging, etc.) for JUGS services'
+requires-python = '>=3.10'
 dependencies = []
-license = { file = "LICENSE" }
+license = { file = 'LICENSE' }
+
+[tool.setuptools]
+package-dir = { '' = 'src' }
 
 [tool.setuptools.packages.find]
-where = ["src"]
-include = ["jugs_chassis*"]
+where = ['src']
+include = ['jugs_chassis*']
 
 [tool.setuptools.package-data]
-jugs_chassis = ["logging/logging_config.json"]
+jugs_chassis = ['logging/logging_config.json']
