@@ -264,7 +264,7 @@ class ValidateGISOO:
     fig.tight_layout()
     return fig, ax
 
-  def comparison_table(self, codes, avg_area=90) -> dict:
+  def comparison_table(self, codes) -> dict:
     return {'FSA': codes,
             'Cleaned Units Num':
               [self.district_codes_info[code][0] for code in codes],
@@ -281,6 +281,6 @@ class ValidateGISOO:
               [self.census_total_area_all_dict[code] for code in codes],
             }
 
-  def comparison_csv(self, codes, avg_area, distric_name):
-    comparison_df = pd.DataFrame(self.comparison_table(codes, avg_area))
+  def comparison_csv(self, codes, distric_name):
+    comparison_df = pd.DataFrame(self.comparison_table(codes))
     comparison_df.to_csv(f'validate_{distric_name}_gi.csv', index=False)
