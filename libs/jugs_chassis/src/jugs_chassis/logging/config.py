@@ -14,7 +14,7 @@ except Exception:  # pragma: no cover
     ir_files = None  # type: ignore[assignment]
 
 
-DEFAULT_CONFIG_RESOURCE = 'defaults/logging_file_stdout_config.json'
+DEFAULT_CONFIG_RESOURCE = 'logging_config.json'
 
 
 def infer_service_name() -> str:
