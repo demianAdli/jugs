@@ -2,7 +2,8 @@
   "version": 1,
   "disable_existing_loggers": false,
   "filters": {
-    "ctx": { "()": "jugs_chassis.logging.filters.ContextFilter" }
+    "ctx": { "()": "jugs_chassis.logging.filters.ContextFilter" },
+    "strip_ansi": { "()": "jugs_chassis.logging.filters.StripANSIFilter" }
   },
   "formatters": {
     "json": { "()": "jugs_chassis.logging.formatters.JsonFormatter" }
@@ -13,13 +14,13 @@
       "stream": "ext://sys.stdout",
       "level": "INFO",
       "formatter": "json",
-      "filters": ["ctx"]
+      "filters": ["ctx", "strip_ansi"]
     },
     "file": {
       "class": "logging.handlers.RotatingFileHandler",
       "level": "DEBUG",
       "formatter": "json",
-      "filters": ["ctx"],
+      "filters": ["ctx", "strip_ansi"],
       "filename": "logs/jugs.log",
       "maxBytes": 3000000,
       "backupCount": 10,
