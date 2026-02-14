@@ -9,6 +9,7 @@ It is designed for cross-cutting concerns that should be imported directly by se
 In JUGS, some capabilities are best delivered as code dependencies rather than API calls.
 
 Using `jugs-chassis` as a dependency makes it easier to:
+
 - Reuse the same behavior across services.
 - Keep service internals consistent.
 - Ship functionality (not inter-service data exchange) in a versioned Python package.
@@ -21,36 +22,37 @@ The logging setup is currently tuned for one service context. As the microservic
 
 ## Installation
 
-### From PyPI
+### Dockerizing and using in services independently
 
 ```bash
 pip install jugs-chassis
 ```
 
-### From source (monorepo)
+### Installing as a dependency (e.g., inside Dockerized services)
 
 ```bash
 cd libs/jugs_chassis
 pip install .
 ```
 
-## Basic usage
+### Developing locally (cloning the repository)
 
 ```python
 from jugs_chassis.logging import configure_logging, set_request_id
 
 configure_logging()
-set_request_id("req-123")
+set_request_id('req-123')
 ```
 
 Optional environment variables commonly used by the logging module include:
+
 - `LOG_LEVEL`
 - `WERKZEUG_LEVEL`
 - `LOG_SERVICE`
 - `LOG_ENV`
 - `LOG_DIR_BASE`
 
-## Briefly: what is JUGS?
+## JUGS
 
 JUGS is a sector-based carbon-emission evaluation framework built with a microservices architecture.
 
@@ -58,4 +60,4 @@ Each module runs as an independent service (a "jug"). Current services focus on 
 
 ## Roadmap note
 
-`jugs-chassis` will continue to grow as the shared foundation for JUGS services, with future versions expanding beyond logging into additional standardized service utilities.
+`jugs-chassis` will continue to grow as a shared library for JUGS services, with future versions expanding beyond logging into additional standardized service utilities.
