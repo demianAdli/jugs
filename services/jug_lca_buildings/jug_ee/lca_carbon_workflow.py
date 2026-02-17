@@ -69,8 +69,15 @@ class LCACarbonWorkflow:
       :param building_parameters: Parameters used for using the catalog (in
       this case three default arguments)
     """
-    self.file_path = Path(__file__).parent / 'input_files' / InputGeoJsonContent(
-      city_path).content
+    city_candidate = InputGeoJsonContent(city_path).content
+    p = Path(city_candidate)
+    if not p.is_absolute() and not p.exists():
+      p = Path(__file__).parent / 'input_files' / p
+    try:
+      self.file_path = p.resolve()
+    except OSError:
+      self.file_path = p
+
     self.catalogs_path = Path(__file__).parent / 'input_files'
     self.archetypes_catalog_file_name = archetypes_catalog_file_name
     self.constructions_catalog_file = constructions_catalog_file
