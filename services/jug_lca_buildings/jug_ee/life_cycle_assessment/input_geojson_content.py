@@ -21,7 +21,25 @@ class InputGeoJsonContent:
   @content.setter
   def content(self, content):
     if isinstance(content, str):
-      self._content = content
+      content = content.strip()
+      if content.startswith('{') or content.startswith('['):
+        try:
+          parsed_obj = json.loads(content)
+        except json.JSONDecodeError:
+          # Not valid JSON; keep current behavior and treat as a file path.
+          self._content = content
+        else:
+          # Valid JSON string; persist to a temporary GeoJSON file.
+          temp_file = tempfile.NamedTemporaryFile(
+            delete=False, suffix='.geojson', mode='w', encoding='utf8')
+          try:
+            json.dump(parsed_obj, temp_file)
+            temp_file.flush()
+            self._content = temp_file.name
+          finally:
+            temp_file.close()
+      else:
+        self._content = content
     else:
       temp_file = \
         tempfile.NamedTemporaryFile(
