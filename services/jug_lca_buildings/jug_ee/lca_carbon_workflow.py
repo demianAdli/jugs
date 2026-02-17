@@ -69,14 +69,30 @@ class LCACarbonWorkflow:
       :param building_parameters: Parameters used for using the catalog (in
       this case three default arguments)
     """
-    city_candidate = InputGeoJsonContent(city_path).content
+    city_input = InputGeoJsonContent(city_path)
+    city_candidate = city_input.content
     p = Path(city_candidate)
+    used_input_files_fallback = False
     if not p.is_absolute() and not p.exists():
       p = Path(__file__).parent / 'input_files' / p
+      used_input_files_fallback = True
     try:
       self.file_path = p.resolve()
     except OSError:
       self.file_path = p
+    if city_input.is_temp_file:
+      logger.info('City input resolved to a temporary GeoJSON file.')
+    elif used_input_files_fallback:
+      logger.info('City input resolved under package input_files.')
+    elif self.file_path.exists():
+      logger.info('City input resolved to an existing path.')
+    else:
+      logger.debug('City input path resolved.')
+    logger.debug(f'City input path: {self.file_path}')
+    if not city_input.is_temp_file and not self.file_path.exists():
+      raise FileNotFoundError(
+        f'City input file not found after normalization: {self.file_path}'
+      )
 
     self.catalogs_path = Path(__file__).parent / 'input_files'
     self.archetypes_catalog_file_name = archetypes_catalog_file_name
