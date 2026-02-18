@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jug_sim"
+version = "0.1.0"
+description = "Framework for designing and executing carbon emissions estimation scenarios. Currently under development."
+authors = [
+  { name = "Alireza Adli" }
+]
+readme = "README.md"
+requires-python = ">=3.9"
+
+dependencies = [
+  "cerc-hub==0.2.0.8",
+  "flask==3.1.1",
+  "flask-smorest==0.46.1",
+]
