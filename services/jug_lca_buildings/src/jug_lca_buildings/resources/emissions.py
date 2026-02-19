@@ -6,8 +6,8 @@ from flask.views import MethodView
 from flask_smorest import Blueprint, abort
 from werkzeug.exceptions import HTTPException
 
-from jug_ee.schemas.schemas import LCAInputDataSchema
-from jug_ee.lca_carbon_workflow import LCACarbonWorkflow
+from ..schemas.schemas import LCAInputDataSchema
+from ..lca_carbon_workflow import LCACarbonWorkflow
 
 logger = logging.getLogger(__name__)
 DEV_MODE = os.getenv('LOG_ENV', 'dev') == 'dev'
@@ -38,6 +38,6 @@ class Emissions(MethodView):
             raise
 
         except Exception as e:
-            logger.exception("emissions_request_failed", extra={'feature_count': feature_count})
+            logger.exception("emissions_request_failed")
             public_msg = str(e) if (DEV_MODE or current_app.debug) else "Failed to compute emissions"
             abort(500, message=public_msg)

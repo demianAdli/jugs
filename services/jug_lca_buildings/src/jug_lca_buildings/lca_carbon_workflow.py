@@ -18,16 +18,11 @@ from hub.imports.geometry_factory import GeometryFactory
 from hub.imports.construction_factory import ConstructionFactory
 from hub.helpers.dictionaries import Dictionaries
 
-from jug_ee.life_cycle_assessment.input_geojson_content \
-  import InputGeoJsonContent
-from jug_ee.life_cycle_assessment.access_nrcan_catalogue \
-  import AccessNrcanCatalog
-from jug_ee.life_cycle_assessment.opening_emission \
-  import OpeningEmission
-from jug_ee.life_cycle_assessment.envelope_emission \
-  import EnvelopeEmission
-from jug_ee.life_cycle_assessment.lca_end_of_life_carbon \
-  import EndOfLifeEmission
+from .life_cycle_assessment.input_geojson_content import InputGeoJsonContent
+from .life_cycle_assessment.access_nrcan_catalogue import AccessNrcanCatalog
+from .life_cycle_assessment.opening_emission import OpeningEmission
+from .life_cycle_assessment.envelope_emission import EnvelopeEmission
+from .life_cycle_assessment.lca_end_of_life_carbon import EndOfLifeEmission
 
 
 logger = logging.getLogger(__name__)
