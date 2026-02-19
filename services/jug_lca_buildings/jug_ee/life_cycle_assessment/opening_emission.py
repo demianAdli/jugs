@@ -1,7 +1,6 @@
 """
 JUGS project
-jug_ee project
-jug_ee package
+jug_lca_buildings package
 opening_emission module
 Returns the summarize of all surfaces openings' emissions
 The returned value will be used to calculate the building component emission.

@@ -1,7 +1,6 @@
 """
 JUGS project
-jug_ee project
-jug_ee package
+jug_lca_buildings package
 lca_end_of_life_carbon module
 Machine emission of different methods can be a default argument, because,
 at this phase we use the average emission of different machines emission
@@ -13,7 +12,7 @@ in the setters.
 For next phases, we can use a Machine object to find the corresponding
 emission.
 Project developer: Alireza Adli alireza.adli4@gmail.com
-Theoritical Support: Mohammad Reza Seyedabadi 
+Theoritical Support for LCA emissions: Mohammad Reza Seyedabadi
 """
 
 

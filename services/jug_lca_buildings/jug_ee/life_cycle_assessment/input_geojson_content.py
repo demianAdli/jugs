@@ -1,7 +1,6 @@
 """
 JUGS project
-jug_ee project
-jug_ee package
+jug_lca_buildings package
 input_geojson_content module
 Returns a temporary path to input the GeometryFactory
 Project developer: Alireza Adli alireza.adli4@gmail.com

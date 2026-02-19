@@ -1,15 +1,15 @@
 """
 JUGS project
-jug_ee project
-jug_ee package
+jug_lca_buildings package
 lca_carbon_workflow module
+Currently calculates Embodied and End-of-Life
 Returns the summarize of envelope and energy systems
 SPDX - License - Identifier: LGPL - 3.0 - or -later
 Copyright © 2024 Concordia CERC group
 Project Designer and Developer: Alireza Adli
 alireza.adli@mail.concordia.ca
-Theoritical Support for LCA emissions:
-Mohammad Seyedabadi mohammad.seyedabadi@mail.concordia.ca
+alireza.adli4@gmail.com
+www.demianadli.com
 """
 import logging
 from pathlib import Path

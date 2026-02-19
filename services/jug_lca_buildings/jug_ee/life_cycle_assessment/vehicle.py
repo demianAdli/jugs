@@ -1,10 +1,9 @@
 """
 JUGS project
-jug_ee project
-jug_ee package
+jug_lca_buildings package
 vehicle module
 Project developer: Alireza Adli alireza.adli4@gmail.com
-Theoritical Support: Mohammad Reza Seyedabadi
+Theoritical Support for LCA emissions: Mohammad Reza Seyedabadi
 """
 
 

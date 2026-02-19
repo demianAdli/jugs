@@ -1,6 +1,6 @@
 """
 JUGS project
-jug_ee project
+jug_lca_buildings package
 jug_ee package
 access_nrcan_catalog module
 Project developer: Alireza Adli alireza.adli4@gmail.com
