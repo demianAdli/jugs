@@ -6,7 +6,9 @@ from unittest.mock import patch
 from flask import Flask
 from flask_smorest import Api
 
-from src.jug_lca_buildings.resources.emissions import blp as emissions_blueprint
+from src.jug_lca_buildings.resources.emissions import (
+    blp as emissions_blueprint,
+)
 
 
 def _build_test_app():
@@ -55,18 +57,20 @@ class TestEmissionsApi(unittest.TestCase):
         }
         self.workflow_result = [
             {
-                "opening_embodied_emissions": 1.0,
-                "envelope_embodied_emissions": 2.0,
-                "component_embodied_emissions": 3.0,
-                "opening_end_of_life_emissions": 4.0,
-                "envelope_end_of_life_emissions": 5.0,
-                "component_end_of_life_emissions": 6.0
+                'opening_embodied_emissions': 1.0,
+                'envelope_embodied_emissions': 2.0,
+                'component_embodied_emissions': 3.0,
+                'opening_end_of_life_emissions': 4.0,
+                'envelope_end_of_life_emissions': 5.0,
+                'component_end_of_life_emissions': 6.0
             }
         ]
 
     @patch('src.jug_lca_buildings.resources.emissions.LCACarbonWorkflow')
     def test_post_emissions_json_contract(self, workflow_cls_mock):
-        workflow_cls_mock.return_value.export_emissions.return_value = self.workflow_result
+        workflow_cls_mock.return_value.export_emissions.return_value = (
+            self.workflow_result
+        )
 
         response = self.client.post('/emissions', json=self.valid_payload)
 
@@ -80,7 +84,9 @@ class TestEmissionsApi(unittest.TestCase):
 
     @patch('src.jug_lca_buildings.resources.emissions.LCACarbonWorkflow')
     def test_post_emissions_upload_multipart_contract(self, workflow_cls_mock):
-        workflow_cls_mock.return_value.export_emissions.return_value = self.workflow_result
+        workflow_cls_mock.return_value.export_emissions.return_value = (
+            self.workflow_result
+        )
         file_obj = io.BytesIO(json.dumps(self.valid_payload).encode('utf-8'))
 
         response = self.client.post(
@@ -107,7 +113,10 @@ class TestEmissionsApi(unittest.TestCase):
         )
 
         self.assertEqual(response.status_code, 400)
-        self.assertIn('Invalid JSON content in geojson_file', response.get_data(as_text=True))
+        self.assertIn(
+            'Invalid JSON content in geojson_file',
+            response.get_data(as_text=True),
+        )
 
     def test_post_emissions_upload_schema_validation_error(self):
         invalid_payload = {
@@ -127,7 +136,7 @@ class TestEmissionsApi(unittest.TestCase):
                             ]
                         ]
                     }
-                    # "properties" intentionally missing to trigger schema error
+                    # "properties" intentionally missing for schema error
                 }
             ]
         }
@@ -140,4 +149,5 @@ class TestEmissionsApi(unittest.TestCase):
         )
 
         self.assertEqual(response.status_code, 422)
-        self.assertIn('Invalid GeoJSON payload', response.get_data(as_text=True))
+        self.assertIn('Invalid GeoJSON payload',
+                      response.get_data(as_text=True))
