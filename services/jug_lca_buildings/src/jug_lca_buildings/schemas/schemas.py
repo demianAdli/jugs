@@ -34,3 +34,11 @@ class LCAInputDataSchema(Schema):
     """Define variables that come from user input."""
     type = fields.String(required=True)
     features = fields.List(fields.Nested(FeatureSchema), required=True)
+
+
+class GeoJSONUploadSchema(Schema):
+    """Schema for multipart GeoJSON upload payload."""
+    geojson_file = fields.Field(
+        required=True,
+        metadata={"type": "string", "format": "binary"}
+    )
