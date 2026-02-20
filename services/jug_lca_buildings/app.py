@@ -4,6 +4,7 @@ from time import perf_counter
 
 from flask import Flask, request, g
 from flask_smorest import Api
+from werkzeug.exceptions import HTTPException
 
 from src.jug_lca_buildings.resources.emissions \
     import blp as emissions_blueprint
@@ -61,5 +62,7 @@ def _after(resp):
 
 @app.errorhandler(Exception)
 def _unhandled(e):
+    if isinstance(e, HTTPException):
+        return e
     logger.exception("unhandled_exception")
     return {"message": "Internal Server Error"}, 500
