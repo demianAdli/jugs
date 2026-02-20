@@ -6,8 +6,12 @@ from flask import Flask, request, g
 from flask_smorest import Api
 from werkzeug.exceptions import HTTPException
 
-from src.jug_lca_buildings.resources.emissions \
-    import blp as emissions_blueprint
+try:
+    from jug_lca_buildings.resources.emissions \
+        import blp as emissions_blueprint
+except ModuleNotFoundError:
+    from src.jug_lca_buildings.resources.emissions \
+        import blp as emissions_blueprint
 
 from jugs_chassis.logging.config import configure_logging
 from jugs_chassis.logging.context import set_request_id, get_request_id
