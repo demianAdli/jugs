@@ -8,7 +8,10 @@ from flask_smorest import Blueprint, abort
 from marshmallow import ValidationError
 from werkzeug.exceptions import HTTPException
 
-from ..schemas.schemas import LCAInputDataSchema, GeoJSONUploadSchema
+from ..schemas.schemas import (
+    GeoJSONUploadSchema,
+    LCAInputDataSchema,
+)
 from ..lca_carbon_workflow import LCACarbonWorkflow
 
 logger = logging.getLogger(__name__)
@@ -17,11 +20,17 @@ DEV_MODE = os.getenv('LOG_ENV', 'dev') == 'dev'
 blp = Blueprint(
     'Emissions',
     __name__,
-    description='Exporting embodied and end-of-life emissions data for buildings'
+    description=(
+        'Exporting embodied and end-of-life emissions data for buildings'
+    ),
 )
 
 
-def _run_emissions_workflow(request_city, request_received_log, request_failed_log):
+def _run_emissions_workflow(
+    request_city,
+    request_received_log,
+    request_failed_log,
+):
     logger.info(request_received_log)
     try:
         emissions_data = LCACarbonWorkflow(
@@ -29,16 +38,22 @@ def _run_emissions_workflow(request_city, request_received_log, request_failed_l
             'nrcan_archetypes.json',
             'nrcan_constructions_cap_3.json'
         ).export_emissions()
-        logger.info("emissions_request_succeeded", extra={'buildings': len(emissions_data)})
+        logger.info(
+            "emissions_request_succeeded",
+            extra={'buildings': len(emissions_data)},
+        )
         return jsonify(emissions_data), 201
 
     except HTTPException:
-        # If something upstream already called abort(...), preserve that response.
+        # If something upstream already called abort(...), preserve response.
         raise
 
     except Exception as e:
         logger.exception(request_failed_log)
-        public_msg = str(e) if (DEV_MODE or current_app.debug) else "Failed to compute emissions"
+        public_msg = (
+            str(e) if (DEV_MODE or current_app.debug)
+            else "Failed to compute emissions"
+        )
         abort(500, message=public_msg)
 
 
@@ -66,14 +81,20 @@ class EmissionsUpload(MethodView):
             request_city = json.load(geojson_file.stream)
         except json.JSONDecodeError:
             abort(400, message="Invalid JSON content in geojson_file")
-
-        try:
-            validated_request_city = LCAInputDataSchema().load(request_city)
-        except ValidationError as err:
-            abort(422, message="Invalid GeoJSON payload", errors=err.messages)
-
-        return _run_emissions_workflow(
-            validated_request_city,
-            request_received_log='emissions_upload_request_received',
-            request_failed_log='emissions_upload_request_failed',
-        )
+        else:
+            try:
+                validated_request_city = LCAInputDataSchema().load(
+                    request_city
+                )
+            except ValidationError as err:
+                abort(
+                    422,
+                    message="Invalid GeoJSON payload",
+                    errors=err.messages,
+                )
+            else:
+                return _run_emissions_workflow(
+                    validated_request_city,
+                    request_received_log='emissions_upload_request_received',
+                    request_failed_log='emissions_upload_request_failed',
+                )
