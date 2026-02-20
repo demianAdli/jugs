@@ -1,6 +1,6 @@
 from unittest import TestCase
 from unittest.mock import Mock, patch, call
-from jug_ee.lca_carbon_workflow import LCACarbonWorkflow
+from src.jug_lca_buildings.lca_carbon_workflow import LCACarbonWorkflow
 from tests.fixtures import (
     make_building, make_surface, make_boundary, make_layer, with_openings
 )
@@ -62,8 +62,8 @@ class TestLCACarbonWorkflow(TestCase):
             lambda window_type, opaque: windows[(window_type, opaque)]
 
     # eol is short for end-of-life
-    @patch('jug_ee.lca_carbon_workflow.EndOfLifeEmission')
-    @patch('jug_ee.lca_carbon_workflow.EnvelopeEmission')
+    @patch('src.jug_lca_buildings.lca_carbon_workflow.EndOfLifeEmission')
+    @patch('src.jug_lca_buildings.lca_carbon_workflow.EnvelopeEmission')
     def test_calculate_envelope_emission(
             self, envelope_emission_mock, envelope_eol_emission_mock):
         # Arrange a boundary using the factory
@@ -99,8 +99,8 @@ class TestLCACarbonWorkflow(TestCase):
         self.assertEqual(len(layer_embodied), 2)
         self.assertEqual(len(layer_eol), 2)
 
-    @patch('jug_ee.lca_carbon_workflow.EndOfLifeEmission')
-    @patch('jug_ee.lca_carbon_workflow.OpeningEmission')
+    @patch('src.jug_lca_buildings.lca_carbon_workflow.EndOfLifeEmission')
+    @patch('src.jug_lca_buildings.lca_carbon_workflow.OpeningEmission')
     def test_calculate_opening_emission_variants(
             self, opening_emission_mock, opening_eol_emission_mock):
         # Shared boundary: two openings of 3.0 m² each;
