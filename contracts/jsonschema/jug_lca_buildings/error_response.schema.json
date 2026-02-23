@@ -1,0 +1,18 @@
+﻿{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/jsonschema/jug_lca_buildings/error_response.schema.json",
+  "title": "JUG API Error Response",
+  "description": "Generic error envelope used by flask-smorest/werkzeug handlers in this service.",
+  "type": "object",
+  "required": ["message"],
+  "properties": {
+    "code": { "type": "integer" },
+    "status": { "type": "string" },
+    "message": { "type": "string" },
+    "errors": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

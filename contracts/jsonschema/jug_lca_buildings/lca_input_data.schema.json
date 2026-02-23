@@ -1,0 +1,87 @@
+﻿{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/jsonschema/jug_lca_buildings/lca_input_data.schema.json",
+  "title": "JUG LCA Buildings Input GeoJSON",
+  "description": "GeoJSON FeatureCollection payload accepted by POST /emissions.",
+  "type": "object",
+  "required": ["type", "features"],
+  "additionalProperties": false,
+  "properties": {
+    "type": {
+      "type": "string",
+      "enum": ["FeatureCollection"]
+    },
+    "features": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/feature" }
+    }
+  },
+  "$defs": {
+    "feature": {
+      "type": "object",
+      "required": ["type", "id", "geometry", "properties"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["Feature"]
+        },
+        "id": {
+          "type": "integer"
+        },
+        "geometry": {
+          "$ref": "#/$defs/geometry"
+        },
+        "properties": {
+          "$ref": "#/$defs/buildingProperties"
+        }
+      }
+    },
+    "geometry": {
+      "type": "object",
+      "required": ["type", "coordinates"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["Polygon"]
+        },
+        "coordinates": {
+          "type": "array",
+          "description": "Polygon coordinates structured as [ring][point][lon, lat].",
+          "items": {
+            "type": "array",
+            "minItems": 4,
+            "items": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "number"
+              }
+            }
+          }
+        }
+      }
+    },
+    "buildingProperties": {
+      "type": "object",
+      "required": [
+        "name",
+        "address",
+        "function",
+        "height",
+        "year_of_construction"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "address": { "type": "string" },
+        "function": { "type": "string" },
+        "height": { "type": "number" },
+        "year_of_construction": { "type": "integer" }
+      }
+    }
+  }
+}
