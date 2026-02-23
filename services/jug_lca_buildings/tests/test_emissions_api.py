@@ -1,5 +1,7 @@
 import io
 import json
+import os
+import tempfile
 import unittest
 from unittest.mock import patch
 
@@ -26,6 +28,12 @@ def _build_test_app():
 
 class TestEmissionsApi(unittest.TestCase):
     def setUp(self):
+        self._artifacts_tmpdir = tempfile.TemporaryDirectory()
+        self._env_patcher = patch.dict(
+            os.environ,
+            {'JUG_LCA_ARTIFACTS_DIR': self._artifacts_tmpdir.name},
+        )
+        self._env_patcher.start()
         self.app = _build_test_app()
         self.client = self.app.test_client()
         self.valid_payload = {
@@ -66,7 +74,13 @@ class TestEmissionsApi(unittest.TestCase):
             }
         ]
 
-    @patch('src.jug_lca_buildings.resources.emissions.LCACarbonWorkflow')
+    def tearDown(self):
+        self._env_patcher.stop()
+        self._artifacts_tmpdir.cleanup()
+
+    @patch(
+        'src.jug_lca_buildings.application.emissions_service.LCACarbonWorkflow'
+    )
     def test_post_emissions_json_contract(self, workflow_cls_mock):
         workflow_cls_mock.return_value.export_emissions.return_value = (
             self.workflow_result
@@ -82,7 +96,76 @@ class TestEmissionsApi(unittest.TestCase):
             'nrcan_constructions_cap_3.json'
         )
 
-    @patch('src.jug_lca_buildings.resources.emissions.LCACarbonWorkflow')
+    @patch(
+        'src.jug_lca_buildings.application.emissions_service.LCACarbonWorkflow'
+    )
+    def test_post_emissions_csv_export_contract(self, workflow_cls_mock):
+        workflow_cls_mock.return_value.export_emissions.return_value = (
+            self.workflow_result
+        )
+
+        response = self.client.post(
+            '/emissions?export=csv',
+            json=self.valid_payload
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.mimetype, 'text/csv')
+        self.assertIn(
+            'attachment; filename=',
+            response.headers.get('Content-Disposition', ''),
+        )
+        csv_body = response.get_data(as_text=True)
+        self.assertIn(
+            'building_index,feature_id,name,address,function',
+            csv_body,
+        )
+        self.assertIn('TOTAL', csv_body)
+        self.assertIn('Building 1', csv_body)
+
+    def test_post_emissions_invalid_export_format(self):
+        response = self.client.post(
+            '/emissions?export=pdf',
+            json=self.valid_payload
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn(
+            'Unsupported export format',
+            response.get_data(as_text=True),
+        )
+
+    @patch(
+        'src.jug_lca_buildings.application.emissions_service.LCACarbonWorkflow'
+    )
+    def test_post_emissions_uses_cached_result_on_repeat(
+        self,
+        workflow_cls_mock,
+    ):
+        workflow_cls_mock.return_value.export_emissions.return_value = (
+            self.workflow_result
+        )
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            with patch.dict(os.environ, {'JUG_LCA_ARTIFACTS_DIR': tmp_dir}):
+                response_1 = self.client.post(
+                    '/emissions',
+                    json=self.valid_payload,
+                )
+                response_2 = self.client.post(
+                    '/emissions',
+                    json=self.valid_payload,
+                )
+
+        self.assertEqual(response_1.status_code, 201)
+        self.assertEqual(response_2.status_code, 201)
+        self.assertEqual(response_1.get_json(), self.workflow_result)
+        self.assertEqual(response_2.get_json(), self.workflow_result)
+        workflow_cls_mock.assert_called_once()
+
+    @patch(
+        'src.jug_lca_buildings.application.emissions_service.LCACarbonWorkflow'
+    )
     def test_post_emissions_upload_multipart_contract(self, workflow_cls_mock):
         workflow_cls_mock.return_value.export_emissions.return_value = (
             self.workflow_result
