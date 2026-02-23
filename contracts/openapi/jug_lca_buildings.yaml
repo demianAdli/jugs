@@ -1,0 +1,206 @@
+﻿openapi: 3.0.2
+info:
+  title: JUG LCA Building API
+  version: v1
+  description: |
+    OpenAPI contract for the building life-cycle assessment service.
+    This service computes embodied and end-of-life emissions from a GeoJSON FeatureCollection of buildings.
+servers:
+  - url: http://localhost:5000
+    description: Local development
+paths:
+  /emissions:
+    post:
+      summary: Compute building emissions from GeoJSON JSON payload
+      operationId: createBuildingEmissions
+      tags: [Emissions]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LCAInputData'
+      responses:
+        '201':
+          description: Emissions calculated successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EmissionResult'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation error for request payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Emissions computation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /emissions/upload:
+    post:
+      summary: Compute building emissions from uploaded GeoJSON file
+      operationId: uploadBuildingEmissions
+      tags: [Emissions]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [geojson_file]
+              properties:
+                geojson_file:
+                  type: string
+                  format: binary
+                  description: GeoJSON file containing a FeatureCollection of building footprints and properties
+      responses:
+        '201':
+          description: Emissions calculated successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EmissionResult'
+        '400':
+          description: Missing file or invalid JSON content in uploaded file
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Uploaded GeoJSON schema validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Emissions computation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  schemas:
+    LCAInputData:
+      type: object
+      required: [type, features]
+      properties:
+        type:
+          type: string
+          example: FeatureCollection
+        features:
+          type: array
+          items:
+            $ref: '#/components/schemas/Feature'
+    Feature:
+      type: object
+      required: [type, id, geometry, properties]
+      properties:
+        type:
+          type: string
+          example: Feature
+        id:
+          type: integer
+          example: 1
+        geometry:
+          $ref: '#/components/schemas/Geometry'
+        properties:
+          $ref: '#/components/schemas/BuildingProperties'
+    Geometry:
+      type: object
+      required: [type, coordinates]
+      properties:
+        type:
+          type: string
+          example: Polygon
+        coordinates:
+          type: array
+          description: Polygon coordinates as [ring][point][lon/lat]
+          items:
+            type: array
+            items:
+              type: array
+              items:
+                type: number
+              minItems: 2
+              maxItems: 2
+    BuildingProperties:
+      type: object
+      required:
+        - name
+        - address
+        - function
+        - height
+        - year_of_construction
+      properties:
+        name:
+          type: string
+          example: Building 1
+        address:
+          type: string
+          example: 123 Test St
+        function:
+          type: string
+          example: Residential
+        height:
+          type: number
+          format: float
+          example: 12.5
+        year_of_construction:
+          type: integer
+          example: 1995
+    EmissionResult:
+      type: object
+      properties:
+        opening_embodied_emissions:
+          type: number
+          format: float
+          example: 1.0
+        envelope_embodied_emissions:
+          type: number
+          format: float
+          example: 2.0
+        component_embodied_emissions:
+          type: number
+          format: float
+          example: 3.0
+        opening_end_of_life_emissions:
+          type: number
+          format: float
+          example: 4.0
+        envelope_end_of_life_emissions:
+          type: number
+          format: float
+          example: 5.0
+        component_end_of_life_emissions:
+          type: number
+          format: float
+          example: 6.0
+      additionalProperties: true
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 400
+        status:
+          type: string
+          example: Bad Request
+        message:
+          type: string
+          example: Invalid GeoJSON payload
+        errors:
+          type: object
+          additionalProperties: true
