@@ -18,6 +18,8 @@ WORKDIR /app/services/jug_lca_buildings
 
 # Keep logs in a predictable mount-friendly location.
 ENV LOG_DIR_BASE=/app
+# Persist cached emissions results and exported reports in a mountable path.
+ENV JUG_LCA_ARTIFACTS_DIR=/app/data/jug_lca_buildings
 
 EXPOSE 5000
 
