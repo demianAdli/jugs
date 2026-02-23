@@ -1,0 +1,5 @@
+﻿{
+  "code": 400,
+  "status": "Bad Request",
+  "message": "Invalid JSON content in geojson_file"
+}

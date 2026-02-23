@@ -1,0 +1,12 @@
+﻿{
+  "code": 422,
+  "status": "Unprocessable Entity",
+  "message": "Invalid GeoJSON payload",
+  "errors": {
+    "files": {
+      "geojson_file": [
+        "Example placeholder; actual flask-smorest validation details may vary."
+      ]
+    }
+  }
+}

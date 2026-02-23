@@ -1,0 +1,27 @@
+﻿{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "id": 1,
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-73.57, 45.5],
+            [-73.56, 45.5],
+            [-73.56, 45.51],
+            [-73.57, 45.5]
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Building 1",
+        "address": "123 Test St",
+        "function": "Residential",
+        "height": 12.5,
+        "year_of_construction": 1995
+      }
+    }
+  ]
+}
