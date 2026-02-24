@@ -79,7 +79,7 @@ class TestEmissionsApi(unittest.TestCase):
         self._artifacts_tmpdir.cleanup()
 
     @patch(
-        'src.jug_lca_buildings.application.emissions_service.LCACarbonWorkflow'
+        'src.jug_lca_buildings.application.jug_lca_buildings.LCACarbonWorkflow'
     )
     def test_post_emissions_json_contract(self, workflow_cls_mock):
         workflow_cls_mock.return_value.export_emissions.return_value = (
@@ -97,7 +97,7 @@ class TestEmissionsApi(unittest.TestCase):
         )
 
     @patch(
-        'src.jug_lca_buildings.application.emissions_service.LCACarbonWorkflow'
+        'src.jug_lca_buildings.application.jug_lca_buildings.LCACarbonWorkflow'
     )
     def test_post_emissions_csv_export_contract(self, workflow_cls_mock):
         workflow_cls_mock.return_value.export_emissions.return_value = (
@@ -136,7 +136,7 @@ class TestEmissionsApi(unittest.TestCase):
         )
 
     @patch(
-        'src.jug_lca_buildings.application.emissions_service.LCACarbonWorkflow'
+        'src.jug_lca_buildings.application.jug_lca_buildings.LCACarbonWorkflow'
     )
     def test_post_emissions_uses_cached_result_on_repeat(
         self,
@@ -164,7 +164,7 @@ class TestEmissionsApi(unittest.TestCase):
         workflow_cls_mock.assert_called_once()
 
     @patch(
-        'src.jug_lca_buildings.application.emissions_service.LCACarbonWorkflow'
+        'src.jug_lca_buildings.application.jug_lca_buildings.LCACarbonWorkflow'
     )
     def test_post_emissions_upload_multipart_contract(self, workflow_cls_mock):
         workflow_cls_mock.return_value.export_emissions.return_value = (
