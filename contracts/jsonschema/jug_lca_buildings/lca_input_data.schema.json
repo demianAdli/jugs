@@ -1,4 +1,4 @@
-﻿{
+{
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "contracts/jsonschema/jug_lca_buildings/lca_input_data.schema.json",
   "title": "JUG LCA Buildings Input GeoJSON",
