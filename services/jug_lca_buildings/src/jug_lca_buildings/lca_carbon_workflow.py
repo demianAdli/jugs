@@ -12,7 +12,9 @@ alireza.adli4@gmail.com
 www.demianadli.com
 """
 import logging
+import os
 from pathlib import Path
+from time import perf_counter
 
 from hub.imports.geometry_factory import GeometryFactory
 from hub.imports.construction_factory import ConstructionFactory
@@ -26,6 +28,14 @@ from .life_cycle_assessment.lca_end_of_life_carbon import EndOfLifeEmission
 
 
 logger = logging.getLogger(__name__)
+
+
+def _env_int(name, default, minimum=1):
+  try:
+    value = int(os.getenv(name, str(default)))
+  except (TypeError, ValueError):
+    return default
+  return max(minimum, value)
 
 
 class LCACarbonWorkflow:
@@ -100,10 +110,12 @@ class LCACarbonWorkflow:
     self.handler = catalog
     self.height, self.year_of_construction, self.function = \
         building_parameters
+    self.progress_log_every = _env_int('LCA_PROGRESS_LOG_EVERY', 100)
 
     logger.info('Calculation started...')
 
     try:
+      city_t0 = perf_counter()
       self.city = GeometryFactory(
                 'geojson',
                 path=self.file_path,
@@ -114,6 +126,8 @@ class LCACarbonWorkflow:
                 montreal_function_to_hub_function
             ).city
       logger.info(f'City was created from {self.file_path}')
+      logger.info(
+        f'City geometry parsing took {perf_counter() - city_t0:.3f}s')
     except (FileNotFoundError, ValueError, OSError) as e:
       logger.error(f'Failed to create city from {self.file_path}: {e}')
       raise RuntimeError(
@@ -121,7 +135,10 @@ class LCACarbonWorkflow:
        f'could not create city from {self.file_path}'
             ) from e
 
+    enrich_t0 = perf_counter()
     ConstructionFactory(self.handler, self.city).enrich()
+    logger.info(
+      f'Construction enrichment took {perf_counter() - enrich_t0:.3f}s')
 
     logger.info(f'There are {len(self.city.buildings)} buildings in the city.')
     logger.debug('City was enriched with construction data.')
@@ -218,7 +235,6 @@ class LCACarbonWorkflow:
       hub.city_model_structure.building_demand.thermal_boundary.ThermalBoundary
       :return: tuple
     """
-    logger.info('Calculating envelope emissions.')
     layer_emission = []
     layer_end_of_life_emission = []
     for layer in boundary.layers:
@@ -269,7 +285,6 @@ class LCACarbonWorkflow:
       :param density: int
       :return: tuple
     """
-    logger.info('Calculating opening emissions.')
     opening_emission = []
     opening_end_of_life_emission = []
     for opening in boundary.thermal_openings:
@@ -301,8 +316,17 @@ class LCACarbonWorkflow:
       constructor method description.
     """
     building_count = 1
+    total_buildings = len(self.city.buildings)
+    calc_t0 = perf_counter()
     for building in self.city.buildings:
-      logger.info(f'Calculating emissions for building {building_count}')
+      if (
+          building_count == 1
+          or building_count == total_buildings
+          or building_count % self.progress_log_every == 0):
+        pct = (building_count / total_buildings * 100) if total_buildings else 0
+        logger.info(
+          f'Building emissions progress: {building_count}/{total_buildings} '
+          f'({pct:.1f}%)')
       envelope_emission, opening_emission, component_emission, \
           envelope_end_of_life_emission, \
           opening_end_of_life_emission, \
@@ -318,6 +342,16 @@ class LCACarbonWorkflow:
       self.building_component_end_of_life_emission.append(
         component_end_of_life_emission)
       building_count += 1
+    elapsed_s = perf_counter() - calc_t0
+    if total_buildings:
+      logger.info(
+        'Building emissions calculation completed: '
+        f'{total_buildings} buildings in {elapsed_s:.3f}s '
+        f'({(elapsed_s / total_buildings) * 1000:.2f} ms/building, '
+        f'{(total_buildings / elapsed_s) if elapsed_s else 0:.2f} '
+        'buildings/s)')
+    else:
+      logger.info('Building emissions calculation completed: 0 buildings')
       
   def export_emissions(self):
     """
@@ -329,6 +363,7 @@ class LCACarbonWorkflow:
       emissions calculated. 
     """
     logger.info(f'Calculated emissions for all buildings are being exported.')
+    export_t0 = perf_counter()
     self.calculate_emission()
     emissions = (
         self.building_opening_emission,
@@ -353,4 +388,7 @@ class LCACarbonWorkflow:
         }
         emissions_data.append(feature_emissions)
 
+    logger.info(
+      f'Emission export payload prepared for {num_features} buildings in '
+      f'{perf_counter() - export_t0:.3f}s')
     return emissions_data
