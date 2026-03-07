@@ -4,25 +4,37 @@ Project Developer: Alireza Adli
 
 ## What Is citygisoo
 
-`citygisoo` is a Python package that leverages PyQGIS functions related to geospatial data cleaning for buildings, with the goal of helping develop automated cleaning pipelines.
+`citygisoo` is a Python package that leverages PyQGIS functions for cleaning building-related geospatial data, with the goal of supporting automated data-cleaning pipelines.
 
 The name `citygisoo` stands for **Object-Oriented Geographic Information System for Cities**.
 
-The package is developed with an object-oriented approach. The main class is `ScrubLayer`, which centralizes key cleaning and transformation operations used in city-scale workflows.
+The package follows an object-oriented design. Its central component is the `ScrubLayer` class, which consolidates key cleaning and transformation operations commonly used in city-scale workflows.
 
 ## Approach and Scope
 
-`citygisoo` uses existing PyQGIS functionalities and, where needed, extends or combines them to support additional operations required for geospatial data-cleaning automation.
+`citygisoo` builds on existing PyQGIS functionality and, where necessary, extends or combines these capabilities to support additional operations required for automated geospatial data cleaning.
 
-This design and methodology will be discussed in more detail in upcoming papers and reports.
+The design principles and methodology behind this approach will be discussed in more detail in upcoming papers and reports.
 
 ## citygisoo in JUGS
 
-`citygisoo` is a shared library and a part of the JUGS project.
+`citygisoo` is a shared library within the JUGS project.
 
-JUGS is a sector-based carbon-emission evaluation framework built with a microservices architecture.
+JUGS is a sector-based carbon-emission evaluation framework built on a microservices architecture.
 
-Each module runs as an independent service (a "jug"). Current services focus on building life-cycle assessment and city-scale geospatial cleaning/validation workflows. Alongside services, JUGS also includes shared Python libraries such as `jugs-chassis` to provide reusable internal functionality.
+Each module runs as an independent service (a “jug”). Current services focus on building life-cycle assessment and city-scale geospatial cleaning and validation workflows. In addition to these services, JUGS includes shared Python libraries such as `jugs-chassis`, which provide reusable internal functionality.
+
+## Testing and Publication Context
+
+`citygisoo` was initially tested using geospatial data from Montréal Island.
+
+It is now being published so that it can be applied to other cities simply by installing the package via `pip`.
+
+## Main Class
+
+### ScrubLayer
+
+`ScrubLayer` is the core class of the package. It wraps and orchestrates essential PyQGIS operations used in geospatial cleaning workflows and provides higher-level methods for automating multi-step tasks.
 
 ## Testing and Publication Context
 
@@ -74,10 +86,10 @@ To use PyQGIS without having the QGIS application run in the background, one nee
 
 ## Name and Dedication
 
-In Farsi, `gisoo` means long hair, especially long or braided hair, often associated with women.
+In Persian, `gisoo` refers to long hair, especially long or braided hair, and the word is most commonly used when speaking about a woman’s hair.
 
-I developed this project after the Woman, Life, Freedom movement in Iran. This movement was initiated after Mahsa Jina Amini was killed by the Islamic Republic police because she did not wear hijab based on their rules.
+I began developing this project in the aftermath of the Woman, Life, Freedom movement in Iran. The movement emerged following the killing of Mahsa Jina Amini, who died in the custody of the Islamic Republic’s morality police after being arrested for allegedly violating the state’s compulsory hijab rules.
 
-The map of Montreal island reminded me of a ponytail of a `gisoo`, and I named the project "Gisoo" in honor of the brave women who have struggled for freedom in Iran.
+Since the Woman, Life, Freedom movement, the enforcement of hijab restrictions in Iran has changed significantly. Although no formal legal reform has been enacted, the rules are no longer enforced in the same way as before.
 
-Since the Woman, Life, Freedom movement, the restrictions around the hijab in Iran are no longer enforced in the same way as before, even though there has been no formal legal change.
+While working with geospatial data of Montréal, the shape of the island on the map reminded me of a ponytail—like a gisoo. This association inspired the name of the project. I chose `gisoo` as a small tribute to the courage of the women in Iran who have struggled for freedom and dignity.
