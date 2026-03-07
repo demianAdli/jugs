@@ -1,15 +1,35 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ['setuptools>=68', 'wheel']
+build-backend = 'setuptools.build_meta'
 
 [project]
-name = "citygisoo"
-version = "0.1.0"
-description = "PyQGIS utilities and cleaning workflows for CityGISOO"
-requires-python = ">=3.10"
+name = 'citygisoo'
+version = '0.1.0'
+description = 'PyQGIS utilities and cleaning workflows for CityGISOO'
+readme = 'README.md'
+requires-python = '>=3.10'
 dependencies = []
-license = { file = "LICENSE" }
+license = { file = 'LICENSE' }
+authors = [{ name = 'Alireza Adli' }]
+classifiers = [
+  'License :: OSI Approved :: Apache Software License',
+  'Programming Language :: Python :: 3',
+  'Programming Language :: Python :: 3.10',
+  'Programming Language :: Python :: 3.11',
+  'Programming Language :: Python :: 3.12',
+  'Programming Language :: Python :: 3.13',
+  'Operating System :: OS Independent',
+]
+
+[tool.setuptools]
+package-dir = { '' = 'src' }
 
 [tool.setuptools.packages.find]
-where = ["src"]
-include = ["citygisoo*"]
+where = ['src']
+include = ['citygisoo*']
+
+[project.urls]
+Homepage = 'https://demianadli.com'
+Repository = 'https://github.com/demianAdli/jugs'
+Source = 'https://github.com/demianAdli/jugs/tree/main/libs/citygisoo'
+Issues = 'https://github.com/demianAdli/jugs/issues'
