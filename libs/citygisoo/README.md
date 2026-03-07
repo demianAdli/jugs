@@ -92,4 +92,4 @@ I began developing this project in the aftermath of the Woman, Life, Freedom mov
 
 Since the Woman, Life, Freedom movement, the enforcement of hijab restrictions in Iran has changed significantly. Although no formal legal reform has been enacted, the rules are no longer enforced in the same way as before.
 
-While working with geospatial data of Montréal, the shape of the island on the map reminded me of a ponytail—like a gisoo. This association inspired the name of the project. I chose `gisoo` as a small tribute to the courage of the women in Iran who have struggled for freedom and dignity.
+While working with geospatial data of Montréal, the shape of the island on the map reminded me of a ponytail—like a gisoo. This association inspired the name of the project. I chose `gisoo` as a small tribute to the courage of the women in Iran who have fought for freedom and human rights.
