@@ -16,7 +16,7 @@ It is the continuation of [hydroquebec_archetype_gispy](https://ngci.encs.concor
 
 The original workflow was developed in ArcGIS by Kartikay Sharma (kartikay.sharma@concordia.ca). This workflow (link) involves steps such as fixing and clipping geometries, removing features from unnecessary parts of the map, splitting sections based on single building footprints, spatially joining datasets, and cleaning the data through processes such as removing duplicates, among others.
 
-GISPy integrates these processes and automates them so that users can update the dataset by running the workflow module (building_cleanup_workflow.py) after acquiring and defining the paths to the mentioned datasets.
+GISPy integrates these processes and automates them so that users can update the dataset by running the workflow module (workflow.py) after acquiring and defining the paths to the mentioned datasets.
 
 GISPy has been written using QGIS Python standalone libraries (PyQGIS). This set of libraries leverages the functionality of QGIS without needing to run the full QGIS desktop application. To use the environment, QGIS needs to be installed, and the environment must be set up ([Setting up an environment to use standalone PyQGIS – How to import qgis.core](#setting-up)).
 
@@ -28,7 +28,7 @@ This is the process of cleaning and aggregating Montreal buildings datasets. Thi
 
 ## Basic Functions
 
-The module contains several functions that cannot be defines as a method of ScrubLayer class but are useful and sometimes necessary for a method or a part of the workflow (handle_mtl_ds_workflow.py).
+The module contains several functions that cannot be defines as a method of ScrubLayer class but are useful and sometimes necessary for a method or a part of the workflow (workflow.py).
 Creating folders, finding a type of files and merging layers are examples of the module's functionalities.
 
 <a name="config"/>

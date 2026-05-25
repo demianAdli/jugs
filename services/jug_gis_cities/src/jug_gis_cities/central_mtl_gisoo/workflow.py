@@ -1,5 +1,5 @@
 """
-handle_mtl_ds_workflow module
+workflow module
 The workflow of cleaning and updating the Montreal Buildings dataset.
 This workflow only processes the Greater Montreal district 111
 which includes our CERC office.
@@ -117,7 +117,7 @@ else:
   # Clipping have to be done in
   # (change the integer to the number_of_partitions' value)
   clipping_property_assessment = """
-    from input_paths_and_layers import *
+    from workflow_config import *
 
     cerc_property_assessment.clip_by_multiple(
       10, output_paths['Splitted CERC NRCans'],

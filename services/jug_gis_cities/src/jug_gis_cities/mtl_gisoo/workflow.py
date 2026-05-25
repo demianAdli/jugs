@@ -1,5 +1,5 @@
 """
-handle_mtl_ds_workflow module
+workflow module
 The workflow of cleaning and updating the Montreal Buildings dataset.
 Project Developer: Alireza Adli 
 alireza.adli@mail.concordia.ca
@@ -78,7 +78,7 @@ nrcan_fixed.split_layer(120, paths.output_paths['Splitted NRCans'])
 
 # Clipping have to be done in
 clipping_property_assessment = """
-from input_paths_and_layers import *
+from workflow_config import *
 
 property_assessment.clip_by_multiple(
   120, output_paths['Splitted NRCans'],

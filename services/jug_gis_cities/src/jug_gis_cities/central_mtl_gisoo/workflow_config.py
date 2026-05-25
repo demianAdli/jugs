@@ -1,5 +1,5 @@
 """
-input_paths_and_layers module
+workflow_config module
 Project Developer: Alireza Adli 
 alireza.adli@mail.concordia.ca
 alireza.adli4@gmail.com

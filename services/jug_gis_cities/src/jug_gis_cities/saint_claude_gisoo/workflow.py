@@ -1,6 +1,6 @@
 """
 Municipality: Saint-Claude
-handle_mtl_ds_workflow module
+workflow module
 The workflow of cleaning and updating the Saint-Claude Buildings dataset.
 Project Developer: Alireza Adli 
 alireza.adli@mail.concordia.ca
