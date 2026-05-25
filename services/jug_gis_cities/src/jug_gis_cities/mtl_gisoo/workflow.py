@@ -8,7 +8,7 @@ www.demianadli.com
 """
 
 from scrub_layer_class import ScrubLayer
-import input_paths_and_layers as paths
+import workflow_config as paths
 
 # Making folders for the output data layers
 paths.create_output_folders(paths.output_paths, paths.output_paths_dir)
