@@ -79,10 +79,16 @@ class ScrubLayer:
   def load_layer(self):
     the_layer = QgsVectorLayer(self.layer_path, self.layer_name, 'ogr')
     if not the_layer.isValid():
+      logger.error(
+        'Failed to load layer %s from %s.',
+        self.layer_name,
+        self.layer_path)
       raise ValueError(
         f'Failed to load layer {self.layer_name} from {self.layer_path}')
     else:
       QgsProject.instance().addMapLayer(the_layer)
+      logger.info(
+        'Loaded layer %s from %s.', self.layer_name, self.layer_path)
     return the_layer
 
   def features_to_layers(self, layers_dir, crs):
@@ -116,6 +122,8 @@ class ScrubLayer:
       'OUTPUT': fixed_layer
     }
     processing.run("native:fixgeometries", fix_geometries_params)
+    logger.info(
+      'Fixed geometries for %s into %s.', self.layer_name, fixed_layer)
 
   def create_spatial_index(self):
     QgsApplication.processingRegistry().addProvider(QgsNativeAlgorithms())
@@ -245,18 +253,30 @@ class ScrubLayer:
   def clip_by_multiple(
           self, number_of_partitions, overlay_layers_dir, clipped_layers_dir):
     create_folders(clipped_layers_dir, number_of_partitions)
+    logger.info(
+      'Started clipping %s by %s partitions.',
+      self.layer_name,
+      number_of_partitions)
     for layer in range(number_of_partitions):
       overlay = overlay_layers_dir + f'/layer_{layer}/layer_{layer}.shp'
       clipped = clipped_layers_dir + f'/layer_{layer}/layer_{layer}.shp'
       self.clip_layer(overlay, clipped)
       clipped_layer = ScrubLayer(self.qgis_path, clipped, 'Temp Layer')
       clipped_layer.create_spatial_index()
+    logger.info(
+      'Completed clipping %s by multiple overlays into %s.',
+      self.layer_name,
+      clipped_layers_dir)
 
   def split_layer(self, number_of_layers, splitted_layers_dir):
     number_of_layers -= 1
     QgsApplication.processingRegistry().addProvider(QgsNativeAlgorithms())
     create_folders(splitted_layers_dir, number_of_layers)
     intervals = self.data_count // number_of_layers
+    logger.info(
+      'Started splitting %s into %s layer partitions.',
+      self.layer_name,
+      number_of_layers + 1)
     for part in range(number_of_layers):
       output_layer_path = \
         splitted_layers_dir + f'/layer_{part}/layer_{part}.shp'
@@ -282,6 +302,10 @@ class ScrubLayer:
     processing.run("native:extractbyexpression", params)
     new_layer = ScrubLayer(self.qgis_path, output_layer_path, 'Temp Layer')
     new_layer.create_spatial_index()
+    logger.info(
+      'Completed splitting %s into %s.',
+      self.layer_name,
+      splitted_layers_dir)
 
   @staticmethod
   def merge_layers(layers_path, mergeded_layer_path):
@@ -293,30 +317,54 @@ class ScrubLayer:
               'OUTPUT': mergeded_layer_path}
 
     processing.run("native:mergevectorlayers", params)
+    logger.info(
+      'Merged %s layers from %s into %s.',
+      len(merging_layers),
+      layers_path,
+      mergeded_layer_path)
 
   def multipart_to_singleparts(self, singleparts_layer_path):
     QgsApplication.processingRegistry().addProvider(QgsNativeAlgorithms())
     params = {'INPUT': self.layer,
               'OUTPUT': singleparts_layer_path}
     processing.run("native:multiparttosingleparts", params)
+    logger.info(
+      'Converted multipart layer %s to singleparts at %s.',
+      self.layer_name,
+      singleparts_layer_path)
 
   def delete_duplicates(self, deleted_duplicates_layer):
     QgsApplication.processingRegistry().addProvider(QgsNativeAlgorithms())
     params = {'INPUT': self.layer_path,
               'OUTPUT': deleted_duplicates_layer}
     processing.run("native:deleteduplicategeometries", params)
+    logger.info(
+      'Deleted duplicate geometries from %s into %s.',
+      self.layer_name,
+      deleted_duplicates_layer)
 
   def delete_field(self, field_name):
     QgsApplication.processingRegistry().addProvider(QgsNativeAlgorithms())
     with edit(self.layer):
       # Get the index of the column to delete
       idx = self.layer.fields().indexFromName(field_name)
+      if idx == -1:
+        logger.warning(
+          'Field %s was not found on %s.', field_name, self.layer_name)
+        return
 
       # Delete the field
-      self.layer.deleteAttribute(idx)
+      deleted = self.layer.deleteAttribute(idx)
 
       # Update layer fields
       self.layer.updateFields()
+    if deleted:
+      logger.info('Deleted field %s from %s.', field_name, self.layer_name)
+    else:
+      logger.error(
+        'Failed to delete field %s from %s.',
+        field_name,
+        self.layer_name)
 
   def rename_field(self, source_field, target_field, strict=True):
     """Rename one attribute field."""
@@ -406,17 +454,43 @@ class ScrubLayer:
 
     request = QgsFeatureRequest().setFilterExpression(
       f'"{field_name}" {operator} {condition}')
+    deleted_count = 0
     with edit(self.layer):
       for feature in self.layer.getFeatures(request):
-        self.layer.deleteFeature(feature.id())
+        if self.layer.deleteFeature(feature.id()):
+          deleted_count += 1
+        else:
+          logger.warning(
+            'Failed to delete feature %s from %s.',
+            feature.id(),
+            self.layer_name)
+    logger.info(
+      'Deleted %s records from %s where %s %s %s.',
+      deleted_count,
+      self.layer_name,
+      field_name,
+      operator,
+      condition)
 
   def add_field(self, new_field_name):
     functionalities = self.layer.dataProvider().capabilities()
 
     if functionalities & QgsVectorDataProvider.AddAttributes:
       new_field = QgsField(new_field_name, QVariant.Double)
-      self.layer.dataProvider().addAttributes([new_field])
+      added = self.layer.dataProvider().addAttributes([new_field])
       self.layer.updateFields()
+      if added:
+        logger.info('Added field %s to %s.', new_field_name, self.layer_name)
+      else:
+        logger.error(
+          'Failed to add field %s to %s.',
+          new_field_name,
+          self.layer_name)
+    else:
+      logger.warning(
+        'Layer %s does not support adding field %s.',
+        self.layer_name,
+        new_field_name)
 
   def assign_area(self, field_name):
     self.layer.startEditing()
@@ -432,6 +506,10 @@ class ScrubLayer:
       self.layer.updateFeature(feature)
 
     self.layer.commitChanges()
+    logger.info(
+      'Assigned area values to field %s on %s.',
+      field_name,
+      self.layer_name)
 
   def __str__(self):
     return f'The {self.layer_name} has {self.data_count} records.'
@@ -439,3 +517,4 @@ class ScrubLayer:
   @staticmethod
   def cleanup():
     QgsApplication.exitQgis()
+    logger.info('QGIS application cleanup completed.')
