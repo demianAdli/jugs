@@ -38,11 +38,17 @@ pip install .
 ### Developing locally (cloning the repository)
 
 ```python
-from sabu_chassis.logging import configure_logging, set_request_id
+from sabu_chassis.logging import configure_logging, get_logger, set_request_id
 
 configure_logging()
 set_request_id('req-123')
+
+logger = get_logger(__name__)
+logger.info('service_started')
 ```
+
+Libraries should use `get_logger(__name__)` and leave `configure_logging()` to
+the application or workflow entry point.
 
 Optional environment variables commonly used by the logging module include:
 
