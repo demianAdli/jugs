@@ -2,7 +2,10 @@
 scrub_layer_class module
 PyQGIS functionalities that are needed in the cleaning and updating
 Montreal Buildings dataset project, gathered in one class.
-Project Developer: Alireza Adli alireza.adli@concordia.ca
+Project Developer: Alireza Adli
+alireza.adli@concordia.ca
+alireza.adli4@gmail.com
+www.demianadli.com
 """
 import glob
 import os

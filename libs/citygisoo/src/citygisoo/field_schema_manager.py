@@ -1,6 +1,10 @@
 """
 field_schema_manager module
 Attribute-field schema management helpers for PyQGIS layers.
+Project Developer: Alireza Adli
+alireza.adli@concordia.ca
+alireza.adli4@gmail.com
+www.demianadli.com
 """
 from __future__ import annotations
 
