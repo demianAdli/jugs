@@ -12,10 +12,13 @@ from sabu_chassis.logging import get_logger
 from qgis.analysis import QgsNativeAlgorithms
 from qgis.core import (
   QgsApplication,
+  QgsField,
   QgsProject,
+  QgsVectorDataProvider,
   QgsVectorFileWriter,
   edit,
 )
+from qgis.PyQt.QtCore import QVariant
 
 
 logger = get_logger(__name__)
@@ -303,6 +306,72 @@ class FieldSchemaManager:
     logger.info('Dropping fields outside keep list: %s.', fields_to_drop)
     if fields_to_drop:
       self.drop_fields(fields_to_drop, strict=strict)
+    return self.scrub_layer
+
+  def add_id_field(
+          self,
+          id_values,
+          field_name='id',
+          overwrite=False):
+    """Add an ID field and assign one provided value to each feature.
+
+    Args:
+      id_values: Iterable of ID values, commonly a range. The number of
+        values must match the layer feature count.
+      field_name: Name of the ID field to add.
+      overwrite: If True, reuse an existing field_name and replace its
+        values. If False, raise an error when field_name already exists.
+    """
+    self._validate_field_name(field_name, 'field_name')
+    if isinstance(id_values, (str, bytes)):
+      raise TypeError('id_values must be an iterable of ID values.')
+
+    try:
+      id_list = list(id_values)
+    except TypeError as exc:
+      raise TypeError('id_values must be an iterable of ID values.') from exc
+
+    feature_count = self.layer.featureCount()
+    if len(id_list) != feature_count:
+      raise ValueError(
+        f'id_values must contain exactly {feature_count} values; '
+        f'got {len(id_list)}.')
+    if any(not isinstance(id_value, int) for id_value in id_list):
+      raise TypeError('id_values must contain only integer values.')
+
+    field_names = self._field_names()
+    if field_name in field_names and not overwrite:
+      raise ValueError(
+        f'Cannot add ID field {field_name}; field already exists.')
+
+    if field_name not in field_names:
+      capabilities = self.layer.dataProvider().capabilities()
+      if not capabilities & QgsVectorDataProvider.AddAttributes:
+        raise RuntimeError(
+          f'Layer {self.scrub_layer.layer_name} does not support '
+          f'adding fields.')
+
+      new_field = QgsField(field_name, QVariant.Int)
+      if not self.layer.dataProvider().addAttributes([new_field]):
+        raise RuntimeError(f'Failed to add ID field {field_name}.')
+      self.layer.updateFields()
+
+    field_idx = self.layer.fields().indexFromName(field_name)
+    if field_idx == -1:
+      raise RuntimeError(f'Failed to locate ID field {field_name}.')
+
+    with edit(self.layer):
+      for feature, id_value in zip(self.layer.getFeatures(), id_list):
+        if not self.layer.changeAttributeValue(
+                feature.id(), field_idx, id_value):
+          raise RuntimeError(
+            f'Failed to assign ID value for feature {feature.id()}.')
+
+    logger.info(
+      'Assigned %s ID values to field %s on layer %s.',
+      len(id_list),
+      field_name,
+      self.scrub_layer.layer_name)
     return self.scrub_layer
 
   def find_missing_fields(self, required_fields):
