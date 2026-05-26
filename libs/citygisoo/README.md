@@ -57,22 +57,22 @@ To use PyQGIS without having the QGIS application run in the background, one nee
 2. Assign a specific name to the QGIS Python executable.
    This is done to access QGIS Python from command prompt without mixing with the system Python installation(s).
 
-   a. Go to the QGIS installation directory's Python folder (for example: `C:\Program Files\QGIS 3.34.1\apps\Python39`).
+   a. Go to the QGIS installation directory's Python folder (for example: `C:\Program Files\QGIS 3.34.1\apps\Python39`).  
    b. Rename the Python executable (`python.exe`) to a specific desired name, for example `pythonqgis.exe`.
 
 3. Update environment variables.
 
-   a. Open Environment Variables from Windows Start.
+   a. Open Environment Variables from Windows Start.  
    b. Edit `Path` and add:
 
    > `C:\Program Files\QGIS 3.34.1\apps\Python39`
 
    c. Create/Edit `PYTHONPATH` and add (separated by semicolons):
 
-   > i. `C:\Program Files\QGIS 3.34.1\apps\qgis\python`
-   > ii. `C:\Program Files\QGIS 3.34.1\apps\qgis\python\plugins`
-   > iii. `C:\Program Files\QGIS 3.34.1\apps\Qt5\plugins`
-   > iv. `C:\Program Files\QGIS 3.34.1\apps\gdal\share\gdal`
+   > i. `C:\Program Files\QGIS 3.34.1\apps\qgis\python`  
+   > ii. `C:\Program Files\QGIS 3.34.1\apps\qgis\python\plugins`  
+   > iii. `C:\Program Files\QGIS 3.34.1\apps\Qt5\plugins`  
+   > iv. `C:\Program Files\QGIS 3.34.1\apps\gdal\share\gdal`  
    > v. Or all together: `C:\Program Files\QGIS 3.34.1\apps\qgis\python;C:\Program Files\QGIS 3.34.1\apps\qgis\python\plugins;C:\Program Files\QGIS 3.34.1\apps\Qt5\plugins;C:\Program Files\QGIS 3.34.1\apps\gdal\share\gdal`
 
 4. Validate importing `qgis.core`.
