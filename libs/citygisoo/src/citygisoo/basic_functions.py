@@ -9,8 +9,12 @@ import os
 import glob
 import processing
 
+from sabu_chassis.logging import get_logger
 from qgis.core import QgsApplication
 from qgis.analysis import QgsNativeAlgorithms
+
+
+logger = get_logger(__name__)
 
 
 def find_shp_files(root_folder):
@@ -50,7 +54,7 @@ def create_folders(directory, num_folders):
     folder_name = f"layer_{i}"
     folder_path = os.path.join(directory, folder_name)
     os.makedirs(folder_path)
-    print(f"Created folder: {folder_path}")
+    logger.info('Created folder: %s', folder_path)
 
 
 def merge_las_layers(layers_path, mergeded_layer_path):
@@ -62,3 +66,4 @@ def merge_las_layers(layers_path, mergeded_layer_path):
             'OUTPUT': mergeded_layer_path}
 
   processing.run("native:mergevectorlayers", params)
+  logger.info('Merged LAS layers into %s', mergeded_layer_path)
