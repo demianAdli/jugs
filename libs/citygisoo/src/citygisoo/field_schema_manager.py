@@ -51,6 +51,15 @@ class FieldSchemaManager:
   def _field_names(self):
     return [field.name() for field in self.layer.fields()]
 
+  def list_fields(self):
+    """Return the current layer field names."""
+    return self._field_names()
+
+  def has_field(self, field_name):
+    """Return True when field_name exists on the current layer."""
+    self._validate_field_name(field_name, 'field_name')
+    return field_name in self._field_names()
+
   @staticmethod
   def _validate_field_name(field_name, parameter_name):
     if not isinstance(field_name, str) or not field_name:
