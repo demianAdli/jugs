@@ -11,6 +11,7 @@ import tempfile
 
 import processing
 
+from sabu_chassis.logging import get_logger
 from qgis.core import QgsApplication, QgsField, QgsProject, \
   QgsProcessingFeedback, QgsVectorLayer, QgsVectorDataProvider, \
   QgsExpressionContext, QgsExpressionContextUtils, edit, QgsFeatureRequest, \
@@ -19,6 +20,10 @@ from qgis.PyQt.QtCore import QVariant
 from qgis.analysis import QgsNativeAlgorithms
 
 from .basic_functions import create_folders, find_shp_files
+from .field_schema_manager import FieldSchemaManager
+
+
+logger = get_logger(__name__)
 
 
 class ScrubLayer:
@@ -33,6 +38,10 @@ class ScrubLayer:
     self.layer = self.load_layer()
     self.data_count = self.layer.featureCount()
 
+  @property
+  def field_schema_manager(self):
+    return FieldSchemaManager(self)
+
   def duplicate_layer(self, output_path):
     options = QgsVectorFileWriter.SaveVectorOptions()
     options.driverName = 'ESRI Shapefile'
@@ -44,9 +53,9 @@ class ScrubLayer:
     )
 
     if duplication == QgsVectorFileWriter.NoError:
-      print(f"Shapefile successfully duplicated")
+      logger.info('Shapefile successfully duplicated to %s', output_path)
     else:
-      print(f"Error duplicating shapefile: {duplication}")
+      logger.error('Error duplicating shapefile: %s', duplication)
 
   def get_cell(self, fid, field_name):
     return self.layer.getFeature(fid)[field_name]
@@ -97,7 +106,7 @@ class ScrubLayer:
         new_layer.crs(),
         'ESRI Shapefile'
       )
-    print('Shapefiles created for each feature.')
+    logger.info('Shapefiles created for each feature in %s', layers_dir)
 
   def fix_geometries(self, fixed_layer):
     QgsApplication.processingRegistry().addProvider(QgsNativeAlgorithms())
@@ -115,7 +124,7 @@ class ScrubLayer:
       'OUTPUT': 'Output'
     }
     processing.run("native:createspatialindex", create_spatial_index_params)
-    print(f'Creating Spatial index for {self.layer_name} is completed.')
+    logger.info('Creating spatial index for %s is completed.', self.layer_name)
 
   def spatial_join(self, joining_layer_path, joined_layer_path):
     """In QGIS, it is called 'Join attributes by Location'"""
@@ -131,7 +140,8 @@ class ScrubLayer:
     feedback = QgsProcessingFeedback()
     processing.run(
       'native:joinattributesbylocation', params, feedback=feedback)
-    print(f'Spatial Join with input layer {self.layer_name} is completed.')
+    logger.info(
+      'Spatial join with input layer %s is completed.', self.layer_name)
 
   @staticmethod
   def _replace_layer_files(source_path, destination_path):
@@ -211,9 +221,10 @@ class ScrubLayer:
       self.layer = self.load_layer()
       self.data_count = self.layer.featureCount()
 
-    print(
-      f'Field Join of {self.layer_name} with input layer '
-      f'{joining_layer_name} is completed.')
+    logger.info(
+      'Field join of %s with input layer %s is completed.',
+      self.layer_name,
+      joining_layer_name)
 
   def clip_layer(self, overlay_layer, clipped_layer):
     """This must be tested"""
@@ -226,7 +237,7 @@ class ScrubLayer:
       'OUTPUT': clipped_layer
     }
     processing.run("native:clip", clip_layer_params)
-    print(f'Clipping of {self.layer_name} is completed.')
+    logger.info('Clipping of %s is completed.', self.layer_name)
 
   def clip_by_predefined_zones(self):
     pass
@@ -307,13 +318,83 @@ class ScrubLayer:
       # Update layer fields
       self.layer.updateFields()
 
+  def rename_field(self, source_field, target_field, strict=True):
+    """Rename one attribute field."""
+    return self.field_schema_manager.rename_field(
+      source_field, target_field, strict=strict)
+
+  def rename_fields(self, field_rename_map, strict=True):
+    """Rename multiple attribute fields from old_name -> new_name."""
+    return self.field_schema_manager.rename_fields(
+      field_rename_map, strict=strict)
+
+  def drop_field(self, field_name, strict=True):
+    """Drop one attribute field."""
+    return self.field_schema_manager.drop_field(
+      field_name, strict=strict)
+
+  def drop_fields(self, fields_to_drop, strict=True):
+    """Drop multiple attribute fields."""
+    return self.field_schema_manager.drop_fields(
+      fields_to_drop, strict=strict)
+
+  def keep_only_fields(self, fields_to_keep, strict=True):
+    """Keep only selected attribute fields and drop all other fields."""
+    return self.field_schema_manager.keep_only_fields(
+      fields_to_keep, strict=strict)
+
+  def find_missing_fields(self, required_fields):
+    """Return required fields that are missing from the layer."""
+    return self.field_schema_manager.find_missing_fields(required_fields)
+
+  def find_extra_fields(self, allowed_fields):
+    """Return current layer fields that are not allowed."""
+    return self.field_schema_manager.find_extra_fields(allowed_fields)
+
+  def reorder_fields(
+          self,
+          field_order,
+          append_unlisted=True,
+          strict=True,
+          output_path=None):
+    """Reorder attribute fields while preserving feature values."""
+    return self.field_schema_manager.reorder_fields(
+      field_order,
+      append_unlisted=append_unlisted,
+      strict=strict,
+      output_path=output_path)
+
+  def standardize_fields(
+          self,
+          field_rename_map=None,
+          fields_to_drop=None,
+          fields_to_keep=None,
+          field_order=None,
+          output_path=None,
+          strict=True,
+          append_unlisted=True,
+          in_place=False,
+          output_layer_name=None):
+    """Apply final field cleanup operations to this layer or a copy."""
+    return self.field_schema_manager.standardize_fields(
+      field_rename_map=field_rename_map,
+      fields_to_drop=fields_to_drop,
+      fields_to_keep=fields_to_keep,
+      field_order=field_order,
+      output_path=output_path,
+      strict=strict,
+      append_unlisted=append_unlisted,
+      in_place=in_place,
+      output_layer_name=output_layer_name)
+
   def delete_record_by_index(self, record_index):
     self.layer.startEditing()
 
     if self.layer.deleteFeature(record_index):
-      print(f'Feature with ID {record_index} has been successfully removed.')
+      logger.info(
+        'Feature with ID %s has been successfully removed.', record_index)
     else:
-      print(f'Failed to remove feature with ID {record_index}.')
+      logger.error('Failed to remove feature with ID %s.', record_index)
 
     self.layer.commitChanges()
 
