@@ -7,7 +7,7 @@ name = 'sabu-chassis'
 version = '0.1.1'
 description = 'Shared chassis (logging, etc.) for Sabu services'
 readme = 'README.md'
-requires-python = '>=3.10'
+requires-python = '>=3.9'
 dependencies = []
 license = { file = 'LICENSE' }
 authors = [{ name = 'Alireza Adli' }]
