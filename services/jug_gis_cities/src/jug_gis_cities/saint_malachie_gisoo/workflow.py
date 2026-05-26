@@ -110,3 +110,6 @@ saint_malachie_gisoo_with_fsa.conditional_delete_record(
 # 1 & 2: One feature for one main building. This consists of two steps.
 # 3: Remove unnecessary fields.
 # 4: Rename the fields.
+# 3 & 4 will happen in contract_adapter
+# But I want to add the raster processing 
+# first in citygisoo then here as the last step
