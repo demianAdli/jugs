@@ -30,6 +30,7 @@ class FieldSchemaManager:
   The manager is intentionally limited to attribute schema changes. It does
   not transform CRS, repair geometries, or change feature geometries. These
   operations help prepare cleaned layers for expected downstream schemas.
+  It can receive an existing ScrubLayer or create one from layer path inputs.
   """
 
   _DRIVERS_BY_EXTENSION = {
@@ -39,9 +40,50 @@ class FieldSchemaManager:
     '.gpkg': 'GPKG',
   }
 
-  def __init__(self, scrub_layer):
-    """Create a manager for an existing ScrubLayer instance."""
-    self.scrub_layer = scrub_layer
+  def __init__(
+          self,
+          scrub_layer=None,
+          layer_path=None,
+          layer_name=None,
+          qgis_path=None):
+    """Create a manager from a ScrubLayer or direct layer path inputs.
+
+    Supported forms:
+      FieldSchemaManager(scrub_layer)
+      FieldSchemaManager(qgis_path, layer_path, layer_name)
+      FieldSchemaManager(qgis_path='...', layer_path='...', layer_name='...')
+    """
+    if isinstance(scrub_layer, str):
+      if qgis_path is not None:
+        raise ValueError(
+          'qgis_path was provided twice. Use either positional arguments '
+          'or keyword arguments.')
+      qgis_path = scrub_layer
+      scrub_layer = None
+
+    if scrub_layer is not None:
+      direct_args_provided = (
+        layer_path is not None
+        or layer_name is not None
+        or qgis_path is not None
+      )
+      if direct_args_provided:
+        raise ValueError(
+          'Provide either scrub_layer or direct path arguments, not both.')
+      self.scrub_layer = scrub_layer
+      return
+
+    if qgis_path is None or layer_path is None:
+      raise ValueError(
+        'FieldSchemaManager requires either a ScrubLayer instance or both '
+        'qgis_path and layer_path.')
+
+    if layer_name is None:
+      layer_name = os.path.splitext(os.path.basename(layer_path))[0]
+
+    from .scrub_layer_class import ScrubLayer
+
+    self.scrub_layer = ScrubLayer(qgis_path, layer_path, layer_name)
 
   @property
   def layer(self):
