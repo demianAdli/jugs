@@ -13,6 +13,8 @@ Project Developer: Alireza Adli
 - [citygisoo in Sabu](#citygisoo-in-sabu)
 - [Testing and Publication Context](#testing-and-publication-context)
 - [ScrubLayer](#scrublayer)
+- [FieldSchemaManager](#fieldschemamanager)
+- [BuildingContractAdapter](#buildingcontractadapter)
 - [Setting up an environment to use standalone PyQGIS - How to import qgis.core](#setting-up-an-environment-to-use-standalone-pyqgis---how-to-import-qgiscore)
 - [Name and Dedication](#name-and-dedication)
 
@@ -47,6 +49,22 @@ It is now being published so that it can be applied to other cities simply by in
 ## ScrubLayer
 
 `ScrubLayer` is the core class of the package. It wraps and orchestrates essential PyQGIS operations used in geospatial cleaning workflows and provides higher-level methods for automating multi-step tasks.
+
+## FieldSchemaManager
+
+`FieldSchemaManager` manages attribute-field schema operations for PyQGIS map layers. It can work with an existing `ScrubLayer` instance or load a layer directly from a file path.
+
+The class is designed for preparing layer attributes without changing feature geometries. It supports common schema-cleaning tasks such as listing fields, checking required fields, renaming fields, dropping fields, keeping only selected fields, reordering fields, exporting layers to GeoJSON, detecting null-like required values, removing incomplete features, adding ID fields, and promoting GeoJSON IDs to the feature level.
+
+`FieldSchemaManager` is useful when a workflow needs the same field-preparation logic across different supported layer formats, including Shapefile and GeoJSON.
+
+## BuildingContractAdapter
+
+`BuildingContractAdapter` prepares building map layers for a standardized GeoJSON building contract used by downstream workflows such as UBEM archetype assignment.
+
+The adapter uses `FieldSchemaManager` to orchestrate the field-preparation workflow. It validates required source fields, exports the input layer to GeoJSON, renames source fields into the expected contract schema, keeps only required contract fields, removes features with missing required values, adds generated integer IDs, and promotes those IDs to GeoJSON feature-level IDs.
+
+This class is intended for repeatable city-specific building-data preparation, where the input layer may use local field names but the downstream service expects a stable contract schema.
 
 ## Setting up an environment to use standalone PyQGIS - How to import qgis.core
 
