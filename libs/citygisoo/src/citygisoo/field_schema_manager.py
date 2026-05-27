@@ -12,6 +12,7 @@ import json
 import os
 import shutil
 import tempfile
+from pathlib import Path
 
 from sabu_chassis.logging import get_logger
 from qgis.analysis import QgsNativeAlgorithms
@@ -45,6 +46,8 @@ class FieldSchemaManager:
     '.gpkg': 'GPKG',
   }
 
+  _WRITER_NO_ERROR = getattr(QgsVectorFileWriter, 'NoError', 0)
+
   def __init__(
           self,
           scrub_layer=None,
@@ -76,6 +79,7 @@ class FieldSchemaManager:
         raise ValueError(
           'Provide either scrub_layer or direct path arguments, not both.')
       self.scrub_layer = scrub_layer
+      self._validate_layer()
       return
 
     if qgis_path is None or layer_path is None:
@@ -89,13 +93,18 @@ class FieldSchemaManager:
     from .scrub_layer_class import ScrubLayer
 
     self.scrub_layer = ScrubLayer(qgis_path, layer_path, layer_name)
+    self._validate_layer()
 
   @property
   def layer(self):
     """Return the managed QGIS vector layer."""
-    return self.scrub_layer.layer
+    layer = getattr(self.scrub_layer, 'layer', None)
+    if layer is None:
+      raise RuntimeError('FieldSchemaManager has no QGIS layer attached.')
+    return layer
 
   def _field_names(self):
+    self._validate_layer()
     return [field.name() for field in self.layer.fields()]
 
   def list_fields(self):
@@ -135,6 +144,12 @@ class FieldSchemaManager:
     return writer_result
 
   @staticmethod
+  def _writer_error_message(writer_result):
+    if isinstance(writer_result, tuple) and len(writer_result) > 1:
+      return writer_result[1]
+    return writer_result
+
+  @staticmethod
   def _same_path(first_path, second_path):
     return os.path.abspath(first_path) == os.path.abspath(second_path)
 
@@ -142,24 +157,218 @@ class FieldSchemaManager:
   def _is_geojson_path(path):
     return os.path.splitext(path)[1].lower() in ('.geojson', '.json')
 
-  def _write_layer(self, output_path, field_order=None):
+  def _layer_name(self):
+    scrub_layer = getattr(self, 'scrub_layer', None)
+    layer_name = getattr(scrub_layer, 'layer_name', None)
+    if layer_name:
+      return layer_name
+    layer = getattr(scrub_layer, 'layer', None)
+    layer_name_func = getattr(layer, 'name', None)
+    if callable(layer_name_func):
+      return layer_name_func()
+    return '<unknown>'
+
+  def _layer_path(self):
+    return getattr(getattr(self, 'scrub_layer', None), 'layer_path', None)
+
+  def _provider(self):
+    self._validate_layer(require_provider=False)
+    provider = self.layer.dataProvider()
+    if provider is None:
+      message = f'Layer {self._layer_name()} has no data provider.'
+      logger.error(message)
+      raise RuntimeError(message)
+    return provider
+
+  def _provider_name(self):
+    try:
+      provider = self.layer.dataProvider()
+    except RuntimeError:
+      return 'unknown'
+    if provider is None:
+      return 'none'
+    for attribute in ('name', 'storageType'):
+      provider_value = getattr(provider, attribute, None)
+      if callable(provider_value):
+        try:
+          value = provider_value()
+        except Exception:
+          continue
+        if value:
+          return value
+    provider_type = getattr(self.layer, 'providerType', None)
+    if callable(provider_type):
+      try:
+        return provider_type()
+      except Exception:
+        pass
+    return provider.__class__.__name__
+
+  def _validate_layer(self, require_provider=True):
+    layer = getattr(getattr(self, 'scrub_layer', None), 'layer', None)
+    layer_name = getattr(
+      getattr(self, 'scrub_layer', None),
+      'layer_name',
+      '<unknown>')
+    if layer is None:
+      message = f'Layer {layer_name} is not available.'
+      logger.error(message)
+      raise RuntimeError(message)
+
+    is_valid = getattr(layer, 'isValid', None)
+    if callable(is_valid) and not is_valid():
+      message = f'Layer {layer_name} is invalid.'
+      logger.error(message)
+      raise ValueError(message)
+
+    if require_provider and layer.dataProvider() is None:
+      message = f'Layer {layer_name} has no data provider.'
+      logger.error(message)
+      raise RuntimeError(message)
+
+    return layer
+
+  def _require_provider_capability(self, capability_name, operation):
+    provider = self._provider()
+    capability = getattr(QgsVectorDataProvider, capability_name, None)
+    if capability is None:
+      logger.debug(
+        'QGIS capability %s is not available; attempting %s on layer %s '
+        'with provider %s.',
+        capability_name,
+        operation,
+        self._layer_name(),
+        self._provider_name())
+      return
+
+    capabilities = provider.capabilities()
+    if not capabilities & capability:
+      message = (
+        f'Provider {self._provider_name()} for layer {self._layer_name()} '
+        f'does not support {operation}.')
+      logger.error(message)
+      raise RuntimeError(message)
+
+  def _raise_provider_operation_failed(self, operation):
+    message = (
+      f'Provider operation failed while attempting {operation} on layer '
+      f'{self._layer_name()} using provider {self._provider_name()}.')
+    logger.error(message)
+    raise RuntimeError(message)
+
+  def _write_layer(self, output_path, field_order=None, driver_name=None):
+    self._validate_layer()
+    if not isinstance(output_path, (str, os.PathLike)) or not str(output_path):
+      raise ValueError('output_path must be a non-empty path.')
+    output_path = str(output_path)
+
     options = QgsVectorFileWriter.SaveVectorOptions()
-    options.driverName = self._driver_name(output_path)
+    options.driverName = driver_name or self._driver_name(output_path)
     options.fileEncoding = 'utf-8'
+    if hasattr(options, 'actionOnExistingFile'):
+      overwrite_action = getattr(
+        QgsVectorFileWriter, 'CreateOrOverwriteFile', None)
+      if overwrite_action is not None:
+        options.actionOnExistingFile = overwrite_action
 
     if field_order is not None:
       options.attributes = [
         self.layer.fields().indexFromName(field_name)
         for field_name in field_order
       ]
+      if any(attribute_idx == -1 for attribute_idx in options.attributes):
+        missing_fields = [
+          field_name
+          for field_name, attribute_idx in zip(field_order, options.attributes)
+          if attribute_idx == -1
+        ]
+        raise KeyError(
+          f'Cannot export missing fields from layer {self._layer_name()}: '
+          f'{missing_fields}')
 
-    writer_result = QgsVectorFileWriter.writeAsVectorFormat(
-      self.layer, output_path, options)
+    logger.info(
+      'Writing layer %s to %s with driver %s using provider %s.',
+      self._layer_name(),
+      output_path,
+      options.driverName,
+      self._provider_name())
+    try:
+      writer_v3 = getattr(QgsVectorFileWriter, 'writeAsVectorFormatV3', None)
+      if callable(writer_v3):
+        writer_result = writer_v3(
+          self.layer,
+          output_path,
+          QgsProject.instance().transformContext(),
+          options)
+      else:
+        writer_result = QgsVectorFileWriter.writeAsVectorFormat(
+          self.layer, output_path, options)
+    except Exception:
+      logger.exception(
+        'Failed exporting layer %s to %s with driver %s.',
+        self._layer_name(),
+        output_path,
+        options.driverName)
+      raise
     error_code = self._writer_error_code(writer_result)
-    if error_code != QgsVectorFileWriter.NoError:
-      raise RuntimeError(
-        f'Failed to write layer {self.scrub_layer.layer_name} '
-        f'to {output_path}: {writer_result}')
+    if error_code != self._WRITER_NO_ERROR:
+      message = (
+        f'Failed to write layer {self._layer_name()} to {output_path} '
+        f'with driver {options.driverName}: '
+        f'{self._writer_error_message(writer_result)}')
+      logger.error(message)
+      raise RuntimeError(message)
+
+    if not os.path.exists(output_path):
+      message = (
+        f'Export reported success but output was not created: {output_path}')
+      logger.error(message)
+      raise RuntimeError(message)
+    logger.info('Exported layer %s to %s.', self._layer_name(), output_path)
+
+  def export_to_geojson(self, output_path):
+    """Export the managed layer to GeoJSON.
+
+    The export delegates to QGIS/GDAL so geometry, CRS, attributes, and field
+    order are preserved as far as the active QGIS version and GeoJSON driver
+    support them.
+    """
+    self._validate_layer()
+    if not isinstance(output_path, (str, os.PathLike)) or not str(output_path):
+      raise ValueError('output_path must be a non-empty path.')
+
+    output_path = str(output_path)
+    if not self._is_geojson_path(output_path):
+      raise ValueError(
+        'export_to_geojson output_path must end with .geojson or .json.')
+
+    output_parent = Path(output_path).parent
+    if output_parent and not output_parent.exists():
+      message = f'GeoJSON export directory does not exist: {output_parent}'
+      logger.error(message)
+      raise FileNotFoundError(message)
+
+    current_path = self._layer_path()
+    if current_path and self._same_path(output_path, current_path):
+      raise ValueError(
+        'export_to_geojson output_path must differ from the current layer '
+        'path.')
+
+    field_order = self._field_names()
+    logger.info(
+      'Exporting layer %s to GeoJSON at %s with %s fields, %s features, '
+      'CRS %s, provider %s.',
+      self._layer_name(),
+      output_path,
+      len(field_order),
+      self.layer.featureCount(),
+      self.layer.crs().authid(),
+      self._provider_name())
+    self._write_layer(
+      output_path,
+      field_order=field_order,
+      driver_name='GeoJSON')
+    return output_path
 
   def _replace_current_layer(self, replacement_path):
     self._reload_without_source()
@@ -167,8 +376,10 @@ class FieldSchemaManager:
       replacement_path, self.scrub_layer.layer_path)
     self.scrub_layer.layer = self.scrub_layer.load_layer()
     self.scrub_layer.data_count = self.scrub_layer.layer.featureCount()
+    self._validate_layer()
 
   def _reload_without_source(self):
+    self._validate_layer(require_provider=False)
     old_layer_id = self.layer.id()
     QgsProject.instance().removeMapLayer(old_layer_id)
 
@@ -205,16 +416,29 @@ class FieldSchemaManager:
         f'Cannot rename {source_field} to {target_field}; '
         f'target field already exists.')
 
-    with edit(self.layer):
-      idx = self.layer.fields().indexFromName(source_field)
-      if idx == -1:
-        raise KeyError(f'Cannot rename missing field {source_field}.')
-      if not self.layer.renameAttribute(idx, target_field):
-        raise RuntimeError(
-          f'Failed to rename field {source_field} to {target_field}.')
-      self.layer.updateFields()
+    self._require_provider_capability('RenameAttributes', 'renaming fields')
+    try:
+      with edit(self.layer):
+        idx = self.layer.fields().indexFromName(source_field)
+        if idx == -1:
+          raise KeyError(f'Cannot rename missing field {source_field}.')
+        if not self.layer.renameAttribute(idx, target_field):
+          self._raise_provider_operation_failed(
+            f'renaming field {source_field} to {target_field}')
+        self.layer.updateFields()
+    except Exception:
+      logger.exception(
+        'Failed to rename field %s to %s on layer %s.',
+        source_field,
+        target_field,
+        self._layer_name())
+      raise
 
-    logger.info('Renamed field %s to %s.', source_field, target_field)
+    logger.info(
+      'Renamed field %s to %s on layer %s.',
+      source_field,
+      target_field,
+      self._layer_name())
     return self.scrub_layer
 
   def rename_fields(self, field_rename_map, strict=True):
@@ -279,16 +503,25 @@ class FieldSchemaManager:
       logger.warning(message)
       return self.scrub_layer
 
-    QgsApplication.processingRegistry().addProvider(QgsNativeAlgorithms())
-    with edit(self.layer):
-      idx = self.layer.fields().indexFromName(field_name)
-      if idx == -1:
-        raise KeyError(f'Cannot drop missing field {field_name}.')
-      if not self.layer.deleteAttribute(idx):
-        raise RuntimeError(f'Failed to drop field {field_name}.')
-      self.layer.updateFields()
+    self._require_provider_capability('DeleteAttributes', 'dropping fields')
+    try:
+      QgsApplication.processingRegistry().addProvider(QgsNativeAlgorithms())
+      with edit(self.layer):
+        idx = self.layer.fields().indexFromName(field_name)
+        if idx == -1:
+          raise KeyError(f'Cannot drop missing field {field_name}.')
+        if not self.layer.deleteAttribute(idx):
+          self._raise_provider_operation_failed(f'dropping field {field_name}')
+        self.layer.updateFields()
+    except Exception:
+      logger.exception(
+        'Failed to drop field %s from layer %s.',
+        field_name,
+        self._layer_name())
+      raise
 
-    logger.info('Dropped field %s.', field_name)
+    logger.info(
+      'Dropped field %s from layer %s.', field_name, self._layer_name())
     return self.scrub_layer
 
   def drop_fields(self, fields_to_drop, strict=True):
@@ -324,18 +557,28 @@ class FieldSchemaManager:
       reverse=True,
     )
 
-    QgsApplication.processingRegistry().addProvider(QgsNativeAlgorithms())
-    with edit(self.layer):
-      for idx in indexes_to_drop:
-        if idx == -1:
-          raise KeyError('Cannot drop a field with index -1.')
-        if not self.layer.deleteAttribute(idx):
+    self._require_provider_capability('DeleteAttributes', 'dropping fields')
+    try:
+      QgsApplication.processingRegistry().addProvider(QgsNativeAlgorithms())
+      with edit(self.layer):
+        for idx in indexes_to_drop:
+          if idx == -1:
+            raise KeyError('Cannot drop a field with index -1.')
           field_name = self.layer.fields()[idx].name()
-          raise RuntimeError(f'Failed to drop field {field_name}.')
-      self.layer.updateFields()
+          if not self.layer.deleteAttribute(idx):
+            self._raise_provider_operation_failed(
+              f'dropping field {field_name}')
+        self.layer.updateFields()
+    except Exception:
+      logger.exception(
+        'Failed to drop fields %s from layer %s.',
+        existing_fields_to_drop,
+        self._layer_name())
+      raise
 
     for field_name in existing_fields_to_drop:
-      logger.info('Dropped field %s.', field_name)
+      logger.info(
+        'Dropped field %s from layer %s.', field_name, self._layer_name())
     return self.scrub_layer
 
   def keep_only_fields(self, fields_to_keep, strict=True):
@@ -399,15 +642,23 @@ class FieldSchemaManager:
       return self.scrub_layer
 
     deleted_count = 0
-    with edit(self.layer):
-      for feature_id in feature_ids_to_delete:
-        if self.layer.deleteFeature(feature_id):
-          deleted_count += 1
-        else:
-          logger.warning(
-            'Failed to delete feature %s from %s.',
-            feature_id,
-            self.scrub_layer.layer_name)
+    self._require_provider_capability('DeleteFeatures', 'deleting features')
+    try:
+      with edit(self.layer):
+        for feature_id in feature_ids_to_delete:
+          if self.layer.deleteFeature(feature_id):
+            deleted_count += 1
+          else:
+            logger.warning(
+              'Failed to delete feature %s from %s using provider %s.',
+              feature_id,
+              self._layer_name(),
+              self._provider_name())
+    except Exception:
+      logger.exception(
+        'Failed deleting null features from layer %s.',
+        self._layer_name())
+      raise
 
     self.scrub_layer.data_count = self.layer.featureCount()
     logger.info(
@@ -454,33 +705,39 @@ class FieldSchemaManager:
         f'Cannot add ID field {field_name}; field already exists.')
 
     if field_name not in field_names:
-      capabilities = self.layer.dataProvider().capabilities()
-      if not capabilities & QgsVectorDataProvider.AddAttributes:
-        raise RuntimeError(
-          f'Layer {self.scrub_layer.layer_name} does not support '
-          f'adding fields.')
+      self._require_provider_capability('AddAttributes', 'adding fields')
 
       new_field = QgsField(field_name, QVariant.Int)
-      if not self.layer.dataProvider().addAttributes([new_field]):
-        raise RuntimeError(f'Failed to add ID field {field_name}.')
+      if not self._provider().addAttributes([new_field]):
+        self._raise_provider_operation_failed(f'adding ID field {field_name}')
       self.layer.updateFields()
 
     field_idx = self.layer.fields().indexFromName(field_name)
     if field_idx == -1:
       raise RuntimeError(f'Failed to locate ID field {field_name}.')
 
-    with edit(self.layer):
-      for feature, id_value in zip(self.layer.getFeatures(), id_list):
-        if not self.layer.changeAttributeValue(
-                feature.id(), field_idx, id_value):
-          raise RuntimeError(
-            f'Failed to assign ID value for feature {feature.id()}.')
+    self._require_provider_capability(
+      'ChangeAttributeValues',
+      'changing attribute values')
+    try:
+      with edit(self.layer):
+        for feature, id_value in zip(self.layer.getFeatures(), id_list):
+          if not self.layer.changeAttributeValue(
+                  feature.id(), field_idx, id_value):
+            self._raise_provider_operation_failed(
+              f'assigning ID value for feature {feature.id()}')
+    except Exception:
+      logger.exception(
+        'Failed assigning ID values to field %s on layer %s.',
+        field_name,
+        self._layer_name())
+      raise
 
     logger.info(
       'Assigned %s ID values to field %s on layer %s.',
       len(id_list),
       field_name,
-      self.scrub_layer.layer_name)
+      self._layer_name())
     return self.scrub_layer
 
   def promote_feature_id(self, field_name='id'):
