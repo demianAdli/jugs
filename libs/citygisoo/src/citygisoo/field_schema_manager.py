@@ -591,14 +591,11 @@ class FieldSchemaManager:
           strict=True,
           append_unlisted=True,
           in_place=False,
-          id_field_name=None,
-          id_start_value=None,
           output_layer_name=None):
     """Apply final field cleanup operations in a safe order.
 
     The operation order is: rename fields, keep only selected fields or drop
-    selected fields, optionally reorder fields, then optionally add and promote
-    a GeoJSON feature ID.
+    selected fields, then optionally reorder fields.
 
     By default this method requires output_path and returns a new ScrubLayer,
     preserving the current layer dataset. Set in_place=True to modify the
@@ -616,18 +613,6 @@ class FieldSchemaManager:
       raise ValueError(
         'output_path must differ from the current layer path. '
         'Use in_place=True to standardize the current layer.')
-    if (id_field_name is None) != (id_start_value is None):
-      raise ValueError(
-        'id_field_name and id_start_value must be provided together.')
-    if id_field_name is not None:
-      self._validate_field_name(id_field_name, 'id_field_name')
-    if id_start_value is not None and not isinstance(id_start_value, int):
-      raise TypeError('id_start_value must be an integer.')
-    if id_field_name is not None:
-      id_target_path = output_path or self.scrub_layer.layer_path
-      if not self._is_geojson_path(id_target_path):
-        raise ValueError(
-          'Feature-level IDs require a GeoJSON output path.')
 
     target_manager = self
     target_scrub_layer = self.scrub_layer
@@ -651,13 +636,6 @@ class FieldSchemaManager:
         field_order,
         append_unlisted=append_unlisted,
         strict=strict)
-
-    if id_field_name is not None:
-      feature_count = target_manager.layer.featureCount()
-      target_manager.add_id_field(
-        id_values=range(id_start_value, id_start_value + feature_count),
-        field_name=id_field_name)
-      target_manager.promote_feature_id(id_field_name)
 
     logger.info(
       'Standardized fields for layer %s.', target_scrub_layer.layer_name)

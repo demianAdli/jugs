@@ -46,13 +46,19 @@ saint_malachie_schema_manager = FieldSchemaManager(
     layer_name='saint_malachie_gisoo_with_fsa'
 )
 
-standardized_saint_malachie = \
+standardized_saint_malachie = FieldSchemaManager(
     saint_malachie_schema_manager.standardize_fields(
         field_rename_map=rename_fields,
         fields_to_keep=keep_set,
         output_path=output_layer_path,
-        id_field_name=id_field_name,
-        id_start_value=id_start_value,
         output_layer_name='standardized_saint_malachie'
-    )
+    ))
+
+feature_count = standardized_saint_malachie.layer.featureCount()
+standardized_saint_malachie.add_id_field(
+    id_values=range(
+        id_start_value,
+        id_start_value + feature_count),
+    field_name=id_field_name)
+standardized_saint_malachie.promote_feature_id(id_field_name)
 
