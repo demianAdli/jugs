@@ -6,9 +6,10 @@ from __future__ import annotations
 import argparse
 import sys
 
-from sabu_chassis.logging import configure_logging, get_logger
+from sabu_chassis.logging import get_logger
 
 from .application import GISCitiesApplicationService, GisComponentRunMode
+from .logging_setup import configure_service_logging
 
 
 logger = get_logger(__name__)
@@ -33,7 +34,7 @@ def _build_parser():
 
 
 def main(argv=None):
-    configure_logging()
+    configure_service_logging('gis_cities-direct')
     args = _build_parser().parse_args(argv)
 
     try:

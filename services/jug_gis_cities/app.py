@@ -17,19 +17,20 @@ from flask_smorest import Api
 from werkzeug.exceptions import HTTPException
 
 try:
+    from jug_gis_cities.logging_setup import configure_service_logging
     from jug_gis_cities.resources.gis_components import (
         blp as gis_components_blueprint,
     )
 except ModuleNotFoundError:
+    from src.jug_gis_cities.logging_setup import configure_service_logging
     from src.jug_gis_cities.resources.gis_components import (
         blp as gis_components_blueprint,
     )
 
-from sabu_chassis.logging.config import configure_logging
 from sabu_chassis.logging.context import get_request_id, set_request_id
 
 
-configure_logging()
+configure_service_logging('gis_cities-api')
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)

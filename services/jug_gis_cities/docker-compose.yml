@@ -1,0 +1,24 @@
+services:
+  jug_gis_cities:
+    image: demianadli/jug_gis_cities:0.1.0
+    build:
+      context: ../..
+      dockerfile: services/jug_gis_cities/docker/Dockerfile
+      args:
+        INSTALL_LOCAL: ${INSTALL_LOCAL:-true}
+        JUG_GIS_CITIES_VERSION: ${JUG_GIS_CITIES_VERSION:-latest}
+        CITYGISOO_VERSION: ${CITYGISOO_VERSION:-latest}
+        SABU_CHASSIS_VERSION: ${SABU_CHASSIS_VERSION:-latest}
+    container_name: jug_gis_cities
+    ports:
+      - "8081:5000"
+    environment:
+      LOG_DIR_BASE: /app
+      LOG_FILE_NAME: logs/jug_gis_cities.log
+      LOG_SERVICE: gis_cities-api
+      JUG_GIS_CITIES_QGIS_PATH: /usr
+      JUG_GIS_CITIES_SAINT_MALACHIE_DATA_DIR: /data/saint_malachie_gisoo_data
+    volumes:
+      - ./logs:/app/logs
+      - "D:/GIS/saint_malachie_gisoo_data:/data/saint_malachie_gisoo_data"
+    restart: unless-stopped
