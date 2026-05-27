@@ -48,17 +48,44 @@ class ScrubLayer:
     return FieldSchemaManager(self)
 
   def duplicate_layer(self, output_path):
+    output_extension = os.path.splitext(output_path)[1].lower()
+    driver_name = {
+      '.geojson': 'GeoJSON',
+      '.json': 'GeoJSON',
+      '.gpkg': 'GPKG',
+      '.shp': 'ESRI Shapefile'
+    }.get(output_extension, 'ESRI Shapefile')
+
     options = QgsVectorFileWriter.SaveVectorOptions()
-    options.driverName = 'ESRI Shapefile'
+    options.driverName = driver_name
+    options.fileEncoding = 'utf-8'
 
-    duplication = QgsVectorFileWriter.writeAsVectorFormat(
-      self.layer,
-      output_path,
-      options
-    )
+    if hasattr(options, 'actionOnExistingFile'):
+      overwrite_action = getattr(
+        QgsVectorFileWriter, 'CreateOrOverwriteFile', None)
+      if overwrite_action is not None:
+        options.actionOnExistingFile = overwrite_action
 
-    if duplication == QgsVectorFileWriter.NoError:
-      logger.info('Shapefile successfully duplicated to %s', output_path)
+    writer_v3 = getattr(QgsVectorFileWriter, 'writeAsVectorFormatV3', None)
+    if callable(writer_v3):
+      duplication = writer_v3(
+        self.layer,
+        output_path,
+        QgsProject.instance().transformContext(),
+        options
+      )
+    else:
+      duplication = QgsVectorFileWriter.writeAsVectorFormat(
+        self.layer,
+        output_path,
+        options
+      )
+
+    duplication_error = duplication[0] if isinstance(
+      duplication, tuple) else duplication
+
+    if duplication_error == QgsVectorFileWriter.NoError:
+      logger.info('Layer successfully duplicated to %s', output_path)
     else:
       logger.error('Error duplicating shapefile: %s', duplication)
 

@@ -62,6 +62,18 @@ def create_folders(directory, num_folders):
     logger.info('Created folder: %s', folder_path)
 
 
+def create_output_folders(paths_dict, output_dir):
+  for path in paths_dict.keys():
+    new_folder = path.lower().replace(' ', '_')
+    output_path = os.path.join(output_dir, new_folder)
+    os.makedirs(output_path, exist_ok=True)
+
+    if path[-1] != 's':
+      paths_dict[path] = os.path.join(output_path, f'{new_folder}.shp')
+    else:
+      paths_dict[path] = output_path
+
+
 def merge_las_layers(layers_path, mergeded_layer_path):
   merging_layers = find_las_files(layers_path)
   QgsApplication.processingRegistry().addProvider(QgsNativeAlgorithms())

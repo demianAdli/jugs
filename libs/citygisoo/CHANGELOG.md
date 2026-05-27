@@ -5,8 +5,23 @@
 ### Planned
 - Extend spatial join to support multiple predicates.
 
-### Known limitations
-- `duplicate_layer()` causes incorrect text handling.
+---
+
+## [0.2.0] - 2026-05-27
+
+### Added
+- Added `FieldSchemaManager` to manage attribute schemas across supported map
+  layer formats, including Shapefile and GeoJSON. It supports field listing,
+  validation, renaming, removal, reordering, null-feature detection, GeoJSON
+  export, ID-field creation, and field standardization workflows.
+- Added `BuildingContractAdapter`, which uses `FieldSchemaManager` to prepare
+  building map layers for downstream UBEM archetype-assignment inputs by
+  exporting to GeoJSON, standardizing contract fields, removing incomplete
+  contract records, and promoting generated IDs to GeoJSON feature IDs.
+
+### Fixed
+- Fixed `ScrubLayer.duplicate_layer()` text handling by writing duplicated
+  layers with UTF-8 encoding through QGIS vector writer options.
 
 ---
 
