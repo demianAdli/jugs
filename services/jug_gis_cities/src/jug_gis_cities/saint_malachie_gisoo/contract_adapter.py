@@ -11,28 +11,6 @@ www.demianadli.com
 """
 
 import os
-import sys
-
-
-def _add_repo_libs_to_path():
-    """Support running this file directly with pyqgis from its folder."""
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    repo_root = current_dir
-    while repo_root and os.path.basename(repo_root) != 'sabu':
-        parent_dir = os.path.dirname(repo_root)
-        if parent_dir == repo_root:
-            return
-        repo_root = parent_dir
-
-    for relative_path in (
-            os.path.join('libs', 'citygisoo', 'src'),
-            os.path.join('libs', 'sabu_chassis', 'src')):
-        absolute_path = os.path.join(repo_root, relative_path)
-        if os.path.isdir(absolute_path) and absolute_path not in sys.path:
-            sys.path.insert(0, absolute_path)
-
-
-_add_repo_libs_to_path()
 
 from citygisoo import BuildingContractAdapter
 import workflow_config as paths
