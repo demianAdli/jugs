@@ -1,0 +1,61 @@
+"""
+Direct Python execution entrypoint for jug_gis_cities.
+"""
+from __future__ import annotations
+
+import argparse
+import sys
+
+from sabu_chassis.logging import configure_logging, get_logger
+
+from .application import GISCitiesApplicationService, GisComponentRunMode
+
+
+logger = get_logger(__name__)
+
+
+def _build_parser():
+    parser = argparse.ArgumentParser(
+        description='Run a jug_gis_cities component directly.')
+    parser.add_argument(
+        '--component',
+        required=True,
+        help=(
+            'Component package name, for example saint_malachie_gisoo.'))
+    parser.add_argument(
+        '--mode',
+        default=GisComponentRunMode.STANDARDIZE.value,
+        choices=[mode.value for mode in GisComponentRunMode],
+        help=(
+            'Execution mode. independent runs only workflow.py; '
+            'standardize runs workflow.py and contract_adapter.py.'))
+    return parser
+
+
+def main(argv=None):
+    configure_logging()
+    args = _build_parser().parse_args(argv)
+
+    try:
+        result = GISCitiesApplicationService.run_component(
+            component_name=args.component,
+            mode=args.mode)
+    except Exception as exc:
+        logger.error(
+            'Direct jug_gis_cities execution failed. Component=%s Mode=%s '
+            'Error=%s',
+            args.component,
+            args.mode,
+            exc)
+        return 1
+
+    print(f'Component: {result.component_name}')
+    print(f'Mode: {result.mode.value}')
+    print(f'Workflow output: {result.workflow_output_path}')
+    if result.standardized_output_path is not None:
+        print(f'Standardized output: {result.standardized_output_path}')
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())
