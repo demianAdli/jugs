@@ -615,29 +615,12 @@ class FieldSchemaManager:
     """Drop features where any required field is null or an empty string."""
     required_fields = self._validate_field_collection(
       required_fields, 'required_fields')
-    field_names = self._field_names()
-
-    missing_fields = [
-      field_name for field_name in required_fields
-      if field_name not in field_names
-    ]
-    if missing_fields:
-      raise KeyError(
-        f'Cannot drop null features because required fields are missing '
-        f'on layer {self.scrub_layer.layer_name}: {missing_fields}')
-
-    feature_ids_to_delete = []
-    for feature in self.layer.getFeatures():
-      for field_name in required_fields:
-        value = feature[field_name]
-        if value is None or value == '':
-          feature_ids_to_delete.append(feature.id())
-          break
+    feature_ids_to_delete = self.find_null_feature_ids(required_fields)
 
     if not feature_ids_to_delete:
       logger.info(
         'No null features found on layer %s for fields %s.',
-        self.scrub_layer.layer_name,
+        self._layer_name(),
         required_fields)
       return self.scrub_layer
 
@@ -664,7 +647,7 @@ class FieldSchemaManager:
     logger.info(
       'Deleted %s null features from layer %s for fields %s.',
       deleted_count,
-      self.scrub_layer.layer_name,
+      self._layer_name(),
       required_fields)
     return self.scrub_layer
 
@@ -788,7 +771,7 @@ class FieldSchemaManager:
       feature.update(reordered_feature)
 
     with open(layer_path, 'w', encoding='utf-8') as geojson_file:
-      json.dump(geojson_data, geojson_file, indent=2)
+      json.dump(geojson_data, geojson_file, indent=2, ensure_ascii=False)
       geojson_file.write('\n')
 
     logger.info(
@@ -816,6 +799,60 @@ class FieldSchemaManager:
       field_name for field_name in self._field_names()
       if field_name not in allowed_field_set
     ]
+
+  @staticmethod
+  def _is_null_attribute_value(value):
+    if value is None:
+      return True
+
+    is_null = getattr(value, 'isNull', None)
+    if callable(is_null):
+      try:
+        if is_null():
+          return True
+      except Exception:
+        pass
+
+    is_valid = getattr(value, 'isValid', None)
+    if callable(is_valid):
+      try:
+        if not is_valid():
+          return True
+      except Exception:
+        pass
+
+    if isinstance(value, str):
+      stripped_value = value.strip()
+      return stripped_value == '' or stripped_value.upper() in (
+        'NULL',
+        '<NULL>',
+      )
+
+    return False
+
+  def find_null_feature_ids(self, required_fields):
+    """Return feature IDs where any required field has a null-like value."""
+    required_fields = self._validate_field_collection(
+      required_fields, 'required_fields')
+    field_names = self._field_names()
+
+    missing_fields = [
+      field_name for field_name in required_fields
+      if field_name not in field_names
+    ]
+    if missing_fields:
+      raise KeyError(
+        f'Cannot find null features because required fields are missing '
+        f'on layer {self._layer_name()}: {missing_fields}')
+
+    feature_ids = []
+    for feature in self.layer.getFeatures():
+      for field_name in required_fields:
+        value = feature[field_name]
+        if self._is_null_attribute_value(value):
+          feature_ids.append(feature.id())
+          break
+    return feature_ids
 
   def reorder_fields(
           self,
