@@ -8,6 +8,7 @@ www.demianadli.com
 """
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import tempfile
@@ -136,6 +137,10 @@ class FieldSchemaManager:
   @staticmethod
   def _same_path(first_path, second_path):
     return os.path.abspath(first_path) == os.path.abspath(second_path)
+
+  @staticmethod
+  def _is_geojson_path(path):
+    return os.path.splitext(path)[1].lower() in ('.geojson', '.json')
 
   def _write_layer(self, output_path, field_order=None):
     options = QgsVectorFileWriter.SaveVectorOptions()
@@ -429,6 +434,63 @@ class FieldSchemaManager:
       self.scrub_layer.layer_name)
     return self.scrub_layer
 
+  def promote_property_id_to_feature_id(self, field_name='id'):
+    """Move a GeoJSON property ID to the feature-level id member.
+
+    This is useful after add_id_field() when a downstream GeoJSON contract
+    expects "id" beside "geometry" and "properties", not inside properties.
+    """
+    self._validate_field_name(field_name, 'field_name')
+
+    layer_path = self.scrub_layer.layer_path
+    if not self._is_geojson_path(layer_path):
+      raise ValueError(
+        'promote_property_id_to_feature_id only supports GeoJSON layers.')
+
+    with open(layer_path, 'r', encoding='utf-8') as geojson_file:
+      geojson_data = json.load(geojson_file)
+
+    features = geojson_data.get('features')
+    if not isinstance(features, list):
+      raise ValueError('GeoJSON data must contain a features list.')
+
+    for feature in features:
+      properties = feature.get('properties')
+      if not isinstance(properties, dict):
+        raise ValueError('Each GeoJSON feature must contain properties.')
+
+      if field_name in properties:
+        feature_id = properties.pop(field_name)
+      elif field_name in feature:
+        feature_id = feature[field_name]
+      else:
+        raise KeyError(
+          f'GeoJSON feature is missing generated {field_name} value.')
+
+      reordered_feature = {
+        'type': feature.get('type', 'Feature'),
+        'geometry': feature.get('geometry'),
+        field_name: feature_id,
+        'properties': properties,
+      }
+
+      for key, value in feature.items():
+        if key not in reordered_feature:
+          reordered_feature[key] = value
+
+      feature.clear()
+      feature.update(reordered_feature)
+
+    with open(layer_path, 'w', encoding='utf-8') as geojson_file:
+      json.dump(geojson_data, geojson_file, indent=2)
+      geojson_file.write('\n')
+
+    logger.info(
+      'Promoted property %s to feature-level ID for layer %s.',
+      field_name,
+      self.scrub_layer.layer_name)
+    return self.scrub_layer
+
   def find_missing_fields(self, required_fields):
     """Return required fields that are not present on the layer."""
     required_fields = self._validate_field_collection(
@@ -529,11 +591,14 @@ class FieldSchemaManager:
           strict=True,
           append_unlisted=True,
           in_place=False,
+          id_field_name=None,
+          id_start_value=None,
           output_layer_name=None):
     """Apply final field cleanup operations in a safe order.
 
     The operation order is: rename fields, keep only selected fields or drop
-    selected fields, then optionally reorder fields.
+    selected fields, optionally reorder fields, then optionally add and promote
+    a GeoJSON feature ID.
 
     By default this method requires output_path and returns a new ScrubLayer,
     preserving the current layer dataset. Set in_place=True to modify the
@@ -551,6 +616,18 @@ class FieldSchemaManager:
       raise ValueError(
         'output_path must differ from the current layer path. '
         'Use in_place=True to standardize the current layer.')
+    if (id_field_name is None) != (id_start_value is None):
+      raise ValueError(
+        'id_field_name and id_start_value must be provided together.')
+    if id_field_name is not None:
+      self._validate_field_name(id_field_name, 'id_field_name')
+    if id_start_value is not None and not isinstance(id_start_value, int):
+      raise TypeError('id_start_value must be an integer.')
+    if id_field_name is not None:
+      id_target_path = output_path or self.scrub_layer.layer_path
+      if not self._is_geojson_path(id_target_path):
+        raise ValueError(
+          'Feature-level IDs require a GeoJSON output path.')
 
     target_manager = self
     target_scrub_layer = self.scrub_layer
@@ -574,6 +651,13 @@ class FieldSchemaManager:
         field_order,
         append_unlisted=append_unlisted,
         strict=strict)
+
+    if id_field_name is not None:
+      feature_count = target_manager.layer.featureCount()
+      target_manager.add_id_field(
+        id_values=range(id_start_value, id_start_value + feature_count),
+        field_name=id_field_name)
+      target_manager.promote_property_id_to_feature_id(id_field_name)
 
     logger.info(
       'Standardized fields for layer %s.', target_scrub_layer.layer_name)
