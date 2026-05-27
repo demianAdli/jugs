@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.1.1] - 2026-05-26
+## [0.1.1] - 2026-05-27
 
 ### Added
 - Added `get_logger()` for library-safe logging with sabu-chassis formatting
