@@ -1,4 +1,6 @@
 """
+CityGISOO
+Object-Oriented Geographic Information System for Cities
 scrub_layer_class module
 PyQGIS functionalities that are needed in the cleaning and updating
 Montreal Buildings dataset project, gathered in one class.

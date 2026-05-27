@@ -1,6 +1,12 @@
 """
+CityGISOO
+Object-Oriented Geographic Information System for Cities
 building_contract_adapter module
 Reusable building contract GeoJSON adaptation workflow for PyQGIS layers.
+Project Developer: Alireza Adli
+alireza.adli@concordia.ca
+alireza.adli4@gmail.com
+www.demianadli.com
 """
 from __future__ import annotations
 

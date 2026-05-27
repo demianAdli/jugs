@@ -1,4 +1,6 @@
 """
+CityGISOO
+Object-Oriented Geographic Information System for Cities
 field_schema_manager module
 Attribute-field schema management helpers for PyQGIS layers.
 Project Developer: Alireza Adli
