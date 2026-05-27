@@ -10,6 +10,9 @@
 ## [0.2.0] - 2026-05-27
 
 ### Added
+- Added package logging through the `sabu-chassis` logging system, giving
+  CityGISOO workflows consistent log messages for layer loading, exports,
+  schema operations, cleaning steps, and adapter runs.
 - Added `FieldSchemaManager` to manage attribute schemas across supported map
   layer formats, including Shapefile and GeoJSON. It supports field listing,
   validation, renaming, removal, reordering, null-feature detection, GeoJSON

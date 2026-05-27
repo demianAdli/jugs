@@ -12,6 +12,7 @@ Project Developer: Alireza Adli
 - [Approach and Scope](#approach-and-scope)
 - [citygisoo in Sabu](#citygisoo-in-sabu)
 - [Testing and Publication Context](#testing-and-publication-context)
+- [Logging](#logging)
 - [ScrubLayer](#scrublayer)
 - [FieldSchemaManager](#fieldschemamanager)
 - [BuildingContractAdapter](#buildingcontractadapter)
@@ -45,6 +46,12 @@ Each module runs as an independent service (a “jug”). Current services focus
 `citygisoo` was initially tested using geospatial data from Montréal Island.
 
 It is now being published so that it can be applied to other cities simply by installing the package via `pip`.
+
+## Logging
+
+`citygisoo` uses the `sabu-chassis` logging system to provide consistent operational messages across its workflows. Layer loading, exports, schema changes, cleaning operations, and adapter runs report progress and failures through package loggers instead of ad hoc console output.
+
+This makes `citygisoo` easier to use inside larger Sabu workflows while still keeping the package useful in standalone PyQGIS scripts.
 
 ## ScrubLayer
 
