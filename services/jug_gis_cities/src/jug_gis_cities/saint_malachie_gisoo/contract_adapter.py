@@ -54,6 +54,8 @@ standardized_saint_malachie = FieldSchemaManager(
         output_layer_name='standardized_saint_malachie'
     ))
 
+standardized_saint_malachie.drop_null_features(keep_set)
+
 feature_count = standardized_saint_malachie.layer.featureCount()
 standardized_saint_malachie.add_id_field(
     id_values=range(
@@ -61,4 +63,3 @@ standardized_saint_malachie.add_id_field(
         id_start_value + feature_count),
     field_name=id_field_name)
 standardized_saint_malachie.promote_feature_id(id_field_name)
-

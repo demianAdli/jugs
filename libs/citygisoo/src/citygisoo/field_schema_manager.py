@@ -368,6 +368,55 @@ class FieldSchemaManager:
       self.drop_fields(fields_to_drop, strict=strict)
     return self.scrub_layer
 
+  def drop_null_features(self, required_fields):
+    """Drop features where any required field is null or an empty string."""
+    required_fields = self._validate_field_collection(
+      required_fields, 'required_fields')
+    field_names = self._field_names()
+
+    missing_fields = [
+      field_name for field_name in required_fields
+      if field_name not in field_names
+    ]
+    if missing_fields:
+      raise KeyError(
+        f'Cannot drop null features because required fields are missing '
+        f'on layer {self.scrub_layer.layer_name}: {missing_fields}')
+
+    feature_ids_to_delete = []
+    for feature in self.layer.getFeatures():
+      for field_name in required_fields:
+        value = feature[field_name]
+        if value is None or value == '':
+          feature_ids_to_delete.append(feature.id())
+          break
+
+    if not feature_ids_to_delete:
+      logger.info(
+        'No null features found on layer %s for fields %s.',
+        self.scrub_layer.layer_name,
+        required_fields)
+      return self.scrub_layer
+
+    deleted_count = 0
+    with edit(self.layer):
+      for feature_id in feature_ids_to_delete:
+        if self.layer.deleteFeature(feature_id):
+          deleted_count += 1
+        else:
+          logger.warning(
+            'Failed to delete feature %s from %s.',
+            feature_id,
+            self.scrub_layer.layer_name)
+
+    self.scrub_layer.data_count = self.layer.featureCount()
+    logger.info(
+      'Deleted %s null features from layer %s for fields %s.',
+      deleted_count,
+      self.scrub_layer.layer_name,
+      required_fields)
+    return self.scrub_layer
+
   def add_id_field(
           self,
           id_values,
