@@ -7,6 +7,14 @@
 
 ---
 
+## [0.2.1] - 2026-05-27
+
+### Fixed
+- Fixed the published dependency requirement for `sabu-chassis` so CityGISOO
+  can install with the currently available `sabu-chassis` release on PyPI.
+
+---
+
 ## [0.2.0] - 2026-05-27
 
 ### Added
