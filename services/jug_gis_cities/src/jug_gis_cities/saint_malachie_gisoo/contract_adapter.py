@@ -42,6 +42,8 @@ saint_malachie_schema_manager = FieldSchemaManager(
 standardized_saint_malachie = \
     saint_malachie_schema_manager.standardize_fields(
         field_rename_map=rename_fields,
-        fields_to_keep=keep_set
+        fields_to_keep=keep_set,
+        output_path=output_layer_path,
+        output_layer_name='standardized_saint_malachie'
     )
 
