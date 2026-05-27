@@ -11,11 +11,14 @@ www.demianadli.com
 from contextlib import contextmanager
 from time import perf_counter
 
-from citygisoo import basic_functions
 from citygisoo.scrub_layer_class import ScrubLayer
+from citygisoo import basic_functions
 from sabu_chassis.logging import configure_logging, get_logger
 
-import workflow_config as paths
+try:
+  from . import workflow_config as paths
+except ImportError:
+  import workflow_config as paths
 
 
 logger = get_logger(__name__)
