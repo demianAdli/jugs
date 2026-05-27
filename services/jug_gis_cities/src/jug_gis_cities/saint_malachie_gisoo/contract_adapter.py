@@ -11,10 +11,15 @@ www.demianadli.com
 """
 
 import os
+from time import perf_counter
 
 from citygisoo import BuildingContractAdapter
+from sabu_chassis.logging import configure_logging, get_logger
+
 import workflow_config as paths
 
+
+logger = get_logger(__name__)
 
 workflow_output_layer_name = 'saint_malachie_gisoo_with_fsa'
 workflow_output_layer_suffix = '.shp'
@@ -52,6 +57,13 @@ required_fields = list(rename_fields.values())
 
 
 def run_contract_adapter():
+    """Run the Saint-Malachie building contract adaptation workflow."""
+    adapter_t0 = perf_counter()
+    logger.info(
+        'Starting Saint-Malachie contract adapter. Input=%s Output=%s',
+        workflow_output_layer_path,
+        output_layer_path)
+
     adapter = BuildingContractAdapter(
         qgis_path=paths.qgis_path,
         input_layer_path=workflow_output_layer_path,
@@ -64,7 +76,20 @@ def run_contract_adapter():
         source_geojson_path=contract_source_layer_path,
         source_geojson_layer_name=contract_source_layer_name,
         output_layer_name='standardized_saint_malachie')
-    return adapter.run()
+
+    try:
+        standardized_output_path = adapter.run()
+    except Exception:
+        logger.exception('Saint-Malachie contract adapter failed.')
+        raise
+
+    logger.info(
+        'Completed Saint-Malachie contract adapter. Output=%s Elapsed=%.3fs',
+        standardized_output_path,
+        perf_counter() - adapter_t0)
+    return standardized_output_path
 
 
-standardized_output_path = run_contract_adapter()
+if __name__ == '__main__':
+    configure_logging()
+    run_contract_adapter()
