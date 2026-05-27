@@ -434,7 +434,7 @@ class FieldSchemaManager:
       self.scrub_layer.layer_name)
     return self.scrub_layer
 
-  def promote_property_id_to_feature_id(self, field_name='id'):
+  def promote_feature_id(self, field_name='id'):
     """Move a GeoJSON property ID to the feature-level id member.
 
     This is useful after add_id_field() when a downstream GeoJSON contract
@@ -445,7 +445,7 @@ class FieldSchemaManager:
     layer_path = self.scrub_layer.layer_path
     if not self._is_geojson_path(layer_path):
       raise ValueError(
-        'promote_property_id_to_feature_id only supports GeoJSON layers.')
+        'promote_feature_id only supports GeoJSON layers.')
 
     with open(layer_path, 'r', encoding='utf-8') as geojson_file:
       geojson_data = json.load(geojson_file)
@@ -657,7 +657,7 @@ class FieldSchemaManager:
       target_manager.add_id_field(
         id_values=range(id_start_value, id_start_value + feature_count),
         field_name=id_field_name)
-      target_manager.promote_property_id_to_feature_id(id_field_name)
+      target_manager.promote_feature_id(id_field_name)
 
     logger.info(
       'Standardized fields for layer %s.', target_scrub_layer.layer_name)
