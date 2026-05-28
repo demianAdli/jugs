@@ -1,0 +1,15 @@
+{
+  "execution_interface": "direct_python",
+  "component_name": "saint_malachie_gisoo",
+  "mode": "standardize",
+  "log": {
+    "directory": "services/jug_gis_cities/logs",
+    "file_name": "jug_gis_cities.log",
+    "service": "gis_cities-direct"
+  },
+  "environment": {
+    "JUG_GIS_CITIES_QGIS_PATH": "/usr",
+    "JUG_GIS_CITIES_SAINT_MALACHIE_DATA_DIR": "/data/saint_malachie_gisoo_data"
+  },
+  "input_manifest": "workflow_input_manifest.saint_malachie.example.json"
+}

@@ -1,0 +1,88 @@
+{
+  "manifest_version": "1.0",
+  "service": "jug_gis_cities",
+  "component_name": "saint_malachie_gisoo",
+  "municipality": {
+    "name": "Saint-Malachie",
+    "province_or_region": "Quebec",
+    "country": "Canada"
+  },
+  "workflow_identifier": "saint_malachie_gisoo",
+  "qgis_prefix_path": "/usr",
+  "datasets": [
+    {
+      "role": "building_footprints",
+      "path_or_uri": "/data/input/buildings.gpkg",
+      "format": "gpkg",
+      "layer_name": "buildings",
+      "declared_crs": "EPSG:4326",
+      "field_mappings": {
+        "source_building_id": "g_id_provi"
+      },
+      "metadata": {
+        "description": "Primary building footprint or cadastral geometry source."
+      }
+    },
+    {
+      "role": "height_source",
+      "path_or_uri": "/data/input/height_source.gpkg",
+      "format": "gpkg",
+      "layer_name": "nrcan_heights",
+      "declared_crs": "EPSG:4326",
+      "field_mappings": {
+        "height": "heightmax"
+      }
+    },
+    {
+      "role": "function_source",
+      "path_or_uri": "/data/input/function_source.shp",
+      "format": "shp",
+      "declared_crs": "EPSG:4326",
+      "field_mappings": {
+        "building_function": "g_utilisat"
+      }
+    },
+    {
+      "role": "address_source",
+      "path_or_uri": "/data/input/property_roll.gpkg",
+      "format": "gpkg",
+      "layer_name": "property_roll",
+      "declared_crs": "EPSG:4326",
+      "field_mappings": {
+        "address": "rl_ad_ad_1",
+        "year_of_construction": "rl_uerl0_6",
+        "join_id": "ueid_provinc"
+      }
+    },
+    {
+      "role": "postal_code_or_fsa_source",
+      "path_or_uri": "s3://bucket-name/path/to/fsa.geojson",
+      "format": "geojson",
+      "declared_crs": "EPSG:4326",
+      "metadata": {
+        "source": "Forward sortation area polygons"
+      }
+    },
+    {
+      "role": "lidar_or_point_cloud_source",
+      "path_or_uri": "https://example.org/datasets/lidar_tiles/index.json",
+      "format": "laz",
+      "declared_crs": "EPSG:2950",
+      "metadata": {
+        "tile_index": true,
+        "vertical_units": "metre",
+        "estimated_size_gb": 140.5
+      }
+    }
+  ],
+  "outputs": {
+    "workflow_output": {
+      "path_or_uri": "/data/output/saint_malachie_gisoo_with_fsa/saint_malachie_gisoo_with_fsa.shp",
+      "format": "shp"
+    },
+    "standardized_output": {
+      "path_or_uri": "/data/output/standardized.geojson",
+      "format": "geojson"
+    }
+  }
+}

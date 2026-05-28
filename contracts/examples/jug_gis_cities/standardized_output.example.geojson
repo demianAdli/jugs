@@ -1,0 +1,28 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "id": 100000,
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-70.78501, 46.52901],
+            [-70.78483, 46.52901],
+            [-70.78483, 46.52916],
+            [-70.78501, 46.52916],
+            [-70.78501, 46.52901]
+          ]
+        ]
+      },
+      "properties": {
+        "name": "2101234",
+        "height": 7.8,
+        "function": "Residential",
+        "address": "123 Example Road",
+        "year_of_construction": 1984
+      }
+    }
+  ]
+}

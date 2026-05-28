@@ -1,0 +1,5 @@
+{
+  "code": 400,
+  "status": "Bad Request",
+  "message": "component_name must be a valid Python package name."
+}

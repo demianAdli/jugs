@@ -1,0 +1,37 @@
+{
+  "execution_interface": "docker",
+  "image": "demianadli/jug_gis_cities:0.1.0",
+  "default_command": "gunicorn --bind 0.0.0.0:5000 --workers 1 app:app",
+  "api_port": {
+    "container": 5000,
+    "host": 8081
+  },
+  "environment": {
+    "LOG_DIR_BASE": "/app",
+    "LOG_FILE_NAME": "logs/jug_gis_cities.log",
+    "LOG_SERVICE": "gis_cities-api",
+    "JUG_GIS_CITIES_QGIS_PATH": "/usr",
+    "JUG_GIS_CITIES_SAINT_MALACHIE_DATA_DIR": "/data/saint_malachie_gisoo_data"
+  },
+  "mounts": [
+    {
+      "purpose": "logs",
+      "host_path": "services/jug_gis_cities/logs",
+      "container_path": "/app/logs",
+      "mode": "read_write"
+    },
+    {
+      "purpose": "source_and_output_data",
+      "host_path": "/host/gis/saint_malachie_gisoo_data",
+      "container_path": "/data/saint_malachie_gisoo_data",
+      "mode": "read_write"
+    }
+  ],
+  "example_api_request": {
+    "method": "POST",
+    "url": "http://localhost:8081/components/saint_malachie_gisoo/runs",
+    "body": {
+      "mode": "standardize"
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "code": 422,
+  "status": "Unprocessable Entity",
+  "message": "Validation error",
+  "errors": {
+    "json": {
+      "mode": [
+        "Must be one of: independent, standardize."
+      ]
+    }
+  }
+}
