@@ -16,9 +16,9 @@ Install the service into the Python environment that can import QGIS:
 
 ```powershell
 cd <sabu-root>
-pyqgis344 -m pip install -e .\libs\sabu_chassis
-pyqgis344 -m pip install -e .\libs\citygisoo
-pyqgis344 -m pip install -e .\services\jug_gis_cities
+python -m pip install -e .\libs\sabu_chassis
+python -m pip install -e .\libs\citygisoo
+python -m pip install -e .\services\jug_gis_cities
 ```
 
 ## Direct Python Run
@@ -27,14 +27,14 @@ Run the Saint-Malachie component in standardized mode:
 
 ```powershell
 cd <sabu-root>
-pyqgis344 -m jug_gis_cities --component saint_malachie_gisoo --mode standardize
+python -m jug_gis_cities --component saint_malachie_gisoo --mode standardize
 ```
 
 Use `--mode independent` to run only the component workflow without the
 contract adapter.
 
 ```powershell
-pyqgis344 -m jug_gis_cities --component saint_malachie_gisoo --mode independent
+python -m jug_gis_cities --component saint_malachie_gisoo --mode independent
 ```
 
 ## REST API Run
@@ -43,7 +43,7 @@ Start the API:
 
 ```powershell
 cd <sabu-root>\services\jug_gis_cities
-pyqgis344 -m flask --app app run --host 127.0.0.1 --port 5000
+python -m flask --app app run --host 127.0.0.1 --port 5000
 ```
 
 Run the Saint-Malachie standardized workflow through the API:
