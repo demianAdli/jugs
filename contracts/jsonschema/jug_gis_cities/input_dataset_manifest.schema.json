@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/jsonschema/jug_gis_cities/input_dataset_manifest.schema.json",
+  "title": "JUG GIS Cities Input Dataset Manifest",
+  "description": "Flexible reference to one source dataset used by a municipality-specific GIS cleaning workflow. The dataset content is referenced by path or URI and is not embedded.",
+  "type": "object",
+  "required": ["role", "path_or_uri", "format"],
+  "additionalProperties": false,
+  "properties": {
+    "role": {
+      "type": "string",
+      "description": "Workflow role played by this source dataset.",
+      "examples": [
+        "building_footprints",
+        "height_source",
+        "function_source",
+        "address_source",
+        "year_of_construction_source",
+        "postal_code_or_fsa_source"
+      ]
+    },
+    "path_or_uri": {
+      "type": "string",
+      "description": "Local/container path, cloud URI, or HTTP(S) URL where the dataset can be read.",
+      "pattern": "^(\\/|[A-Za-z]:[\\\\/]|s3:\\/\\/|https?:\\/\\/).+",
+      "examples": [
+        "/data/input/buildings.shp",
+        "/data/input/height_source.gpkg",
+        "s3://bucket-name/path/to/dataset.geojson",
+        "https://example.org/datasets/source.geojson"
+      ]
+    },
+    "format": {
+      "type": "string",
+      "description": "Declared dataset format or container type.",
+      "enum": [
+        "shp",
+        "geojson",
+        "json",
+        "gpkg",
+        "tif",
+        "tiff",
+        "laz",
+        "las",
+        "csv",
+        "parquet",
+        "other"
+      ]
+    },
+    "layer_name": {
+      "type": "string",
+      "description": "Optional layer name for container formats such as GeoPackage."
+    },
+    "declared_crs": {
+      "type": "string",
+      "description": "Expected or declared CRS identifier, for example EPSG:4326."
+    },
+    "field_mappings": {
+      "type": "object",
+      "description": "Optional workflow-specific semantic field mappings. Keys are semantic field names, values are source dataset field names.",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "municipality": {
+      "type": "string",
+      "description": "Optional municipality identifier if the dataset is shared across manifests."
+    },
+    "workflow_identifier": {
+      "type": "string",
+      "description": "Optional workflow or component identifier associated with this dataset."
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Optional source metadata, including large raster or LiDAR hints.",
+      "additionalProperties": true,
+      "properties": {
+        "description": { "type": "string" },
+        "source": { "type": "string" },
+        "license": { "type": "string" },
+        "tile_index": { "type": "boolean" },
+        "vertical_units": { "type": "string" },
+        "estimated_size_gb": { "type": "number" }
+      }
+    }
+  }
+}

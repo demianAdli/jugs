@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/jsonschema/jug_gis_cities/workflow_input_config.schema.json",
+  "title": "JUG GIS Cities Role-Based Workflow Input Configuration",
+  "description": "Flexible workflow input manifest for jug_gis_cities direct, Docker, and future API-oriented execution. Current HTTP implementation does not accept this manifest body yet.",
+  "type": "object",
+  "required": ["manifest_version", "service", "component_name", "datasets"],
+  "additionalProperties": false,
+  "properties": {
+    "manifest_version": {
+      "type": "string",
+      "examples": ["1.0"]
+    },
+    "service": {
+      "type": "string",
+      "const": "jug_gis_cities"
+    },
+    "component_name": {
+      "type": "string",
+      "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
+      "examples": ["saint_malachie_gisoo"]
+    },
+    "municipality": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "province_or_region": { "type": "string" },
+        "country": { "type": "string" },
+        "identifier": { "type": "string" }
+      }
+    },
+    "workflow_identifier": {
+      "type": "string",
+      "description": "Optional workflow identifier when it differs from component_name."
+    },
+    "qgis_prefix_path": {
+      "type": "string",
+      "description": "QGIS prefix path used by PyQGIS, for example /usr inside Linux containers."
+    },
+    "datasets": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "input_dataset_manifest.schema.json"
+      }
+    },
+    "outputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "workflow_output": {
+          "$ref": "#/$defs/outputReference"
+        },
+        "standardized_output": {
+          "$ref": "#/$defs/outputReference"
+        }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "$defs": {
+    "outputReference": {
+      "type": "object",
+      "required": ["path_or_uri", "format"],
+      "additionalProperties": false,
+      "properties": {
+        "path_or_uri": {
+          "type": "string",
+          "examples": ["/data/output/standardized.geojson"]
+        },
+        "format": {
+          "type": "string",
+          "enum": ["shp", "geojson", "json", "gpkg", "other"]
+        },
+        "layer_name": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

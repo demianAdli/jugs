@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/jsonschema/jug_gis_cities/standardized_output_response.schema.json",
+  "title": "JUG GIS Cities Standardized Run Response",
+  "description": "API/application response metadata for standardize mode. The standardized output file itself follows standardized_building_geojson.schema.json.",
+  "type": "object",
+  "required": [
+    "component_name",
+    "mode",
+    "workflow_output_path",
+    "standardized_output_path"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "component_name": {
+      "type": "string",
+      "examples": ["saint_malachie_gisoo"]
+    },
+    "mode": {
+      "type": "string",
+      "const": "standardize"
+    },
+    "workflow_output_path": {
+      "type": "string",
+      "examples": ["/data/output/saint_malachie_gisoo_with_fsa/saint_malachie_gisoo_with_fsa.shp"]
+    },
+    "standardized_output_path": {
+      "type": "string",
+      "examples": ["/data/output/standardized.geojson"]
+    }
+  }
+}
