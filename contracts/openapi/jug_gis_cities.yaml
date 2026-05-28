@@ -1,0 +1,349 @@
+openapi: 3.0.2
+info:
+  title: JUG GIS Cities Workflow API
+  version: v1
+  description: |
+    OpenAPI contract for the city GIS cleaning service.
+
+    The currently implemented API triggers a named municipality component and
+    returns metadata about output files written by that component.
+
+    `standardize` mode runs the component workflow and then the contract
+    adapter. The standardized output is a strict building GeoJSON contract with
+    standardized attribute names, unnecessary fields removed, null-required-field
+    features removed, and generated ids promoted as GeoJSON feature ids.
+
+    `independent` mode runs only the component workflow. Its output is flexible
+    and component-native, so it is not guaranteed to match the standardized
+    building GeoJSON contract.
+
+    Source datasets are intentionally not embedded in API requests. Role-based
+    dataset manifests are documented as reusable component schemas for direct,
+    Docker, and future API-oriented execution, but the current HTTP endpoint
+    accepts only `mode`.
+servers:
+  - url: http://localhost:5000
+    description: Local Flask development
+  - url: http://localhost:8081
+    description: Local Docker Compose
+paths:
+  /components/{component_name}/runs:
+    post:
+      summary: Run a GIS city component
+      operationId: createGISComponentRun
+      tags: [GIS Components]
+      parameters:
+        - in: path
+          name: component_name
+          required: true
+          description: Component package name, for example `saint_malachie_gisoo`.
+          schema:
+            type: string
+            pattern: '^[A-Za-z_][A-Za-z0-9_]*$'
+          example: saint_malachie_gisoo
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GISComponentRunRequest'
+            examples:
+              standardize:
+                summary: Run workflow and contract adapter
+                value:
+                  mode: standardize
+              independent:
+                summary: Run only workflow.py
+                value:
+                  mode: independent
+      responses:
+        '201':
+          description: Component run completed and output metadata returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GISComponentRunResponse'
+              examples:
+                standardize:
+                  summary: Standardized execution response
+                  value:
+                    component_name: saint_malachie_gisoo
+                    mode: standardize
+                    workflow_output_path: /data/output/saint_malachie_gisoo_with_fsa/saint_malachie_gisoo_with_fsa.shp
+                    standardized_output_path: /data/output/saint_malachie_standardized/saint_malachie_standardized.geojson
+                independent:
+                  summary: Independent execution response
+                  value:
+                    component_name: saint_malachie_gisoo
+                    mode: independent
+                    workflow_output_path: /data/output/saint_malachie_gisoo_with_fsa/saint_malachie_gisoo_with_fsa.shp
+                    standardized_output_path: null
+        '400':
+          description: Bad request, including invalid component-name values that are not valid Python package names.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidComponentName:
+                  value:
+                    code: 400
+                    status: Bad Request
+                    message: 'component_name must be a valid Python package name.'
+        '404':
+          description: Requested component package was not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                componentNotFound:
+                  value:
+                    code: 404
+                    status: Not Found
+                    message: 'GIS city component not found: unknown_municipality_gisoo'
+        '422':
+          description: Request validation error, or component exists but does not implement the expected workflow/adapter contract.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidMode:
+                  value:
+                    code: 422
+                    status: Unprocessable Entity
+                    message: Validation error
+                    errors:
+                      json:
+                        mode:
+                          - 'Must be one of: independent, standardize.'
+                componentContractError:
+                  value:
+                    code: 422
+                    status: Unprocessable Entity
+                    message: 'GIS city component mtl_gisoo.workflow must define callable run_workflow().'
+        '500':
+          description: Component execution failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  schemas:
+    GISComponentRunRequest:
+      type: object
+      description: |
+        Request body currently accepted by POST /components/{component_name}/runs.
+        If omitted by the application layer, mode defaults to `standardize`.
+      additionalProperties: false
+      properties:
+        mode:
+          type: string
+          enum: [independent, standardize]
+          default: standardize
+          description: |
+            `independent` runs only workflow.py. `standardize` runs workflow.py
+            and then contract_adapter.py.
+    GISComponentRunResponse:
+      type: object
+      required:
+        - component_name
+        - mode
+        - workflow_output_path
+        - standardized_output_path
+      additionalProperties: false
+      properties:
+        component_name:
+          type: string
+          example: saint_malachie_gisoo
+        mode:
+          type: string
+          enum: [independent, standardize]
+        workflow_output_path:
+          type: string
+          description: Component-native workflow output path.
+          example: /data/output/saint_malachie_gisoo_with_fsa/saint_malachie_gisoo_with_fsa.shp
+        standardized_output_path:
+          type: string
+          nullable: true
+          description: |
+            GeoJSON path produced by the contract adapter in `standardize`
+            mode. Null for `independent` mode.
+          example: /data/output/saint_malachie_standardized/saint_malachie_standardized.geojson
+    InputDatasetManifest:
+      type: object
+      description: |
+        Reference to one source dataset. This schema documents flexible
+        direct/Docker/future API configuration and is not accepted by the
+        current POST /components/{component_name}/runs endpoint.
+      required: [role, path_or_uri, format]
+      additionalProperties: false
+      properties:
+        role:
+          type: string
+          example: height_source
+        path_or_uri:
+          type: string
+          example: /data/input/height_source.gpkg
+        format:
+          type: string
+          enum: [shp, geojson, json, gpkg, tif, tiff, laz, las, csv, parquet, other]
+        layer_name:
+          type: string
+          example: nrcan_heights
+        declared_crs:
+          type: string
+          example: EPSG:4326
+        field_mappings:
+          type: object
+          additionalProperties:
+            type: string
+          example:
+            height: heightmax
+        municipality:
+          type: string
+        workflow_identifier:
+          type: string
+        metadata:
+          type: object
+          additionalProperties: true
+    WorkflowInputConfig:
+      type: object
+      description: |
+        Role-based workflow input configuration for direct/Docker/future
+        API-oriented execution. TODO: add an endpoint that accepts this manifest
+        if remote workflow configuration becomes part of the service API.
+      required: [manifest_version, service, component_name, datasets]
+      additionalProperties: false
+      properties:
+        manifest_version:
+          type: string
+          example: '1.0'
+        service:
+          type: string
+          enum: [jug_gis_cities]
+        component_name:
+          type: string
+          example: saint_malachie_gisoo
+        municipality:
+          type: object
+          additionalProperties: false
+          properties:
+            name:
+              type: string
+            province_or_region:
+              type: string
+            country:
+              type: string
+            identifier:
+              type: string
+        workflow_identifier:
+          type: string
+        qgis_prefix_path:
+          type: string
+          example: /usr
+        datasets:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/InputDatasetManifest'
+        outputs:
+          type: object
+          properties:
+            workflow_output:
+              $ref: '#/components/schemas/OutputReference'
+            standardized_output:
+              $ref: '#/components/schemas/OutputReference'
+        metadata:
+          type: object
+          additionalProperties: true
+    OutputReference:
+      type: object
+      required: [path_or_uri, format]
+      additionalProperties: false
+      properties:
+        path_or_uri:
+          type: string
+          example: /data/output/standardized.geojson
+        format:
+          type: string
+          enum: [shp, geojson, json, gpkg, other]
+        layer_name:
+          type: string
+    StandardizedBuildingGeoJSON:
+      type: object
+      description: Strict GeoJSON output produced by standardize mode.
+      required: [type, features]
+      additionalProperties: false
+      properties:
+        type:
+          type: string
+          enum: [FeatureCollection]
+        features:
+          type: array
+          items:
+            $ref: '#/components/schemas/StandardizedBuildingFeature'
+    StandardizedBuildingFeature:
+      type: object
+      required: [type, id, geometry, properties]
+      additionalProperties: false
+      properties:
+        type:
+          type: string
+          enum: [Feature]
+        id:
+          type: integer
+          description: Generated id promoted to the GeoJSON feature id.
+        geometry:
+          type: object
+          required: [type, coordinates]
+          additionalProperties: true
+          properties:
+            type:
+              type: string
+              enum: [Polygon, MultiPolygon]
+            coordinates:
+              type: array
+        properties:
+          $ref: '#/components/schemas/StandardizedBuildingProperties'
+    StandardizedBuildingProperties:
+      type: object
+      required:
+        - name
+        - height
+        - function
+        - address
+        - year_of_construction
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+        height:
+          type: number
+          format: float
+        function:
+          type: string
+        address:
+          type: string
+        year_of_construction:
+          oneOf:
+            - type: integer
+            - type: string
+    ErrorResponse:
+      type: object
+      required: [message]
+      properties:
+        code:
+          type: integer
+          example: 400
+        status:
+          type: string
+          example: Bad Request
+        message:
+          type: string
+          example: Failed to run GIS component
+        errors:
+          type: object
+          additionalProperties: true
+      additionalProperties: true
