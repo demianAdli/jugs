@@ -15,7 +15,7 @@ unless `LOG_DIR_BASE` or `LOG_FILE_NAME` is overridden.
 Install the service into the Python environment that can import QGIS:
 
 ```powershell
-cd C:\Users\a_adli\docker_projects\sabu
+cd <sabu-root>
 pyqgis344 -m pip install -e .\libs\sabu_chassis
 pyqgis344 -m pip install -e .\libs\citygisoo
 pyqgis344 -m pip install -e .\services\jug_gis_cities
@@ -26,7 +26,7 @@ pyqgis344 -m pip install -e .\services\jug_gis_cities
 Run the Saint-Malachie component in standardized mode:
 
 ```powershell
-cd C:\Users\a_adli\docker_projects\sabu
+cd <sabu-root>
 pyqgis344 -m jug_gis_cities --component saint_malachie_gisoo --mode standardize
 ```
 
@@ -42,7 +42,7 @@ pyqgis344 -m jug_gis_cities --component saint_malachie_gisoo --mode independent
 Start the API:
 
 ```powershell
-cd C:\Users\a_adli\docker_projects\sabu\services\jug_gis_cities
+cd <sabu-root>\services\jug_gis_cities
 pyqgis344 -m flask --app app run --host 127.0.0.1 --port 5000
 ```
 
@@ -73,7 +73,7 @@ The Docker image includes PyQGIS and defaults to the REST API.
 Build and run with Compose:
 
 ```powershell
-cd C:\Users\a_adli\docker_projects\sabu
+cd <sabu-root>
 docker compose -f services/jug_gis_cities/docker-compose.yml up -d --build
 ```
 
@@ -99,7 +99,7 @@ D:/GIS/saint_malachie_gisoo_data -> /data/saint_malachie_gisoo_data
 Build the image:
 
 ```powershell
-cd C:\Users\a_adli\docker_projects\sabu
+cd <sabu-root>
 docker build `
   -f services/jug_gis_cities/docker/Dockerfile `
   -t demianadli/jug_gis_cities:0.1.0 `
