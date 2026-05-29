@@ -39,6 +39,8 @@ coverage.xml
 # Logs
 *.log
 logs/
+!services/jug_gis_cities/logs/
+!services/jug_gis_cities/logs/.gitignore
 
 # Jupyter notebooks checkpoints
 .ipynb_checkpoints
