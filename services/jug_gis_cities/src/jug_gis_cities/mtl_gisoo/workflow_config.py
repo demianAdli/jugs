@@ -45,14 +45,14 @@ output_paths_dir = \
 
 # Preparing a bedding for output data layers paths
 output_paths = {
-  'Fixed NRCan': '',
-  'Fixed GeoIndex': '',
-  'Clipped Fixed GeoIndex': '',
-  'Splitted NRCans': '',
-  'Pairwise Clipped Property Assessment Partitions': '',
-  'Pairwise Clipped Merged Property Assessment': '',
-  'Property Assessment and NRCan': '',
-  'Property Assessment and NRCan and GeoIndex': '',
-  'Deleted Duplicates Layer': '',
-  'Single Parts Layer': ''
+  'fixed_nrcan': '',
+  'fixed_geoIndex': '',
+  'clipped_fixed_geoIndex': '',
+  'splitted_nrcans': '',
+  'pairwise_clipped_property_assessment_partitions': '',
+  'pairwise_clipped_merged_property_assessment': '',
+  'property_assessment_and_nrcan': '',
+  'property_assessment_and_nrcan_and_geoIndex': '',
+  'deleted_duplicates_layer': '',
+  'single_parts_layer': ''
 }
