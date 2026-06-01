@@ -33,11 +33,11 @@ montreal_boundary = \
 print('Processing the NRCan layer')
 print(nrcan)
 nrcan.create_spatial_index()
-nrcan.fix_geometries(paths.output_paths['Fixed NRCan'])
+nrcan.fix_geometries(paths.output_paths['fixed_nrcan'])
 
-# Defining a new layer for the fixed NRCan
+# Defining a new layer for the fixed_nrcan
 nrcan_fixed = \
-  ScrubLayer(paths.qgis_path, paths.output_paths['Fixed NRCan'], 'Fixed NRCan')
+  ScrubLayer(paths.qgis_path, paths.output_paths['fixed_nrcan'], 'fixed_nrcan')
 nrcan_fixed.create_spatial_index()
 print(nrcan_fixed)
 
@@ -46,19 +46,19 @@ print(nrcan_fixed)
 print('Processing the GeoIndex layer')
 print(geo_index)
 geo_index.create_spatial_index()
-geo_index.fix_geometries(paths.output_paths['Fixed GeoIndex'])
+geo_index.fix_geometries(paths.output_paths['fixed_geoIndex'])
 
-# Defining a new layer for the fixed GeoIndex
+# Defining a new layer for the fixed_geoIndex
 geo_index_fixed = ScrubLayer(
-  paths.qgis_path, paths.output_paths['Fixed GeoIndex'], 'Fixed GeoIndex')
+  paths.qgis_path, paths.output_paths['fixed_geoIndex'], 'fixed_geoIndex')
 geo_index_fixed.create_spatial_index()
 print(geo_index_fixed)
 geo_index_fixed.clip_layer(montreal_boundary.layer_path,
-                           paths.output_paths['Clipped Fixed GeoIndex'])
+                           paths.output_paths['clipped_fixed_geoIndex'])
 geo_index_clipped = \
   ScrubLayer(paths.qgis_path,
-             paths.output_paths['Clipped Fixed GeoIndex'],
-             'Clipped Fixed GeoIndex')
+             paths.output_paths['clipped_fixed_geoIndex'],
+             'clipped_fixed_geoIndex')
 geo_index_clipped.create_spatial_index()
 print(geo_index_clipped)
 
@@ -74,25 +74,25 @@ property_assessment.create_spatial_index()
 # layer as a whole causes crashing the clipping process.
 
 # First we split the overlaying layers into our desired number
-nrcan_fixed.split_layer(120, paths.output_paths['Splitted NRCans'])
+nrcan_fixed.split_layer(120, paths.output_paths['splitted_nrcans'])
 
 # Clipping have to be done in
 clipping_property_assessment = """
 from workflow_config import *
 
 property_assessment.clip_by_multiple(
-  120, output_paths['Splitted NRCans'],
-  output_paths['Pairwise Clipped Property Assessment Partitions'])"""
+  120, output_paths['splitted_nrcans'],
+  output_paths['pairwise_clipped_property_assessment_partitions'])"""
 
 exec(clipping_property_assessment)
 
 property_assessment.merge_layers(
-  paths.output_paths['Pairwise Clipped Property Assessment Partitions'],
-  paths.output_paths['Pairwise Clipped Merged Property Assessment'])
+  paths.output_paths['pairwise_clipped_property_assessment_partitions'],
+  paths.output_paths['pairwise_clipped_merged_property_assessment'])
 
 clipped_property_assessment = ScrubLayer(
   paths.qgis_path,
-  paths.output_paths['Pairwise Clipped Merged Property Assessment'],
+  paths.output_paths['pairwise_clipped_merged_property_assessment'],
   'Clipped Property Assessment')
 
 print(clipped_property_assessment)
@@ -100,46 +100,46 @@ clipped_property_assessment.create_spatial_index()
 
 clipped_property_assessment.spatial_join(
   nrcan_fixed.layer_path,
-  paths.output_paths['Property Assessment and NRCan'])
+  paths.output_paths['property_assessment_and_nrcan'])
 
 property_assessment_nrcan = ScrubLayer(
   paths.qgis_path,
-  paths.output_paths['Property Assessment and NRCan'],
-  'Property Assessment and NRCan')
+  paths.output_paths['property_assessment_and_nrcan'],
+  'property_assessment_and_nrcan')
 
 print(property_assessment_nrcan)
 property_assessment_nrcan.create_spatial_index()
 
 property_assessment_nrcan.spatial_join(
   geo_index_clipped,
-  paths.output_paths['Property Assessment and NRCan and GeoIndex'])
+  paths.output_paths['property_assessment_and_nrcan_and_geoIndex'])
 
 property_assessment_nrcan_geo = ScrubLayer(
   paths.qgis_path,
-  paths.output_paths['Property Assessment and NRCan and GeoIndex'],
-  'Property Assessment and NRCan and GeoIndex')
+  paths.output_paths['property_assessment_and_nrcan_and_geoIndex'],
+  'property_assessment_and_nrcan_and_geoIndex')
 
 print(property_assessment_nrcan_geo)
 property_assessment_nrcan_geo.create_spatial_index()
 
 property_assessment_nrcan_geo.delete_duplicates(
-  paths.output_paths['Deleted Duplicates Layer'])
+  paths.output_paths['deleted_duplicates_layer'])
 
 deleted_dups_layer = ScrubLayer(
   paths.qgis_path,
-  paths.output_paths['Deleted Duplicates Layer'],
-  'Deleted Duplicates Layer')
+  paths.output_paths['deleted_duplicates_layer'],
+  'deleted_duplicates_layer')
 
 print(deleted_dups_layer)
 deleted_dups_layer.create_spatial_index()
 
 deleted_dups_layer.multipart_to_singleparts(
-  paths.output_paths['Single Parts Layer'])
+  paths.output_paths['single_parts_layer'])
 
 single_parts_layer = ScrubLayer(
   paths.qgis_path,
-  paths.output_paths['Single Parts Layer'],
-  'Single Parts Layer')
+  paths.output_paths['single_parts_layer'],
+  'single_parts_layer')
 
 print(single_parts_layer)
 single_parts_layer.create_spatial_index()
