@@ -13,10 +13,11 @@ www.demianadli.com
 """
 
 from scrub_layer_class import ScrubLayer
+from citygisoo import basic_functions
 import workflow_config as paths
 
 # Making folders for the output data layers
-paths.create_output_folders(paths.output_paths, paths.output_paths_dir)
+basic_functions.create_output_folders(paths.output_paths, paths.output_paths_dir)
 
 cerc_boundary = \
   ScrubLayer(
