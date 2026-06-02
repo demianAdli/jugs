@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/jsonschema/jug_gis_validation/validation_request.schema.json",
+  "title": "JUG GIS Validation Request",
+  "description": "Wrapped JSON body accepted by POST /validations. The endpoint also accepts a raw buildings_set FeatureCollection directly.",
+  "type": "object",
+  "oneOf": [
+    { "required": ["buildings_set"] },
+    { "required": ["buildings_set_path"] }
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "buildings_set": {
+      "$ref": "buildings_set.schema.json"
+    },
+    "buildings_set_path": {
+      "type": "string",
+      "description": "Path to a GeoJSON file accessible to the running service. In Docker, use a path inside the container such as /data/gis/QuebecCity.geojson."
+    },
+    "census_code_field_title": {
+      "type": "string",
+      "default": "ALT_GEO_CODE"
+    },
+    "census_units_num_title": {
+      "type": "string",
+      "default": "C1_COUNT_TOTAL"
+    },
+    "postal_code_key": {
+      "type": "string",
+      "default": "fsa"
+    },
+    "function_key": {
+      "type": "string",
+      "default": "function"
+    },
+    "function_value": {
+      "type": ["string", "integer", "number"],
+      "default": "1000"
+    },
+    "area_key": {
+      "type": "string",
+      "default": "area"
+    },
+    "floor_num_key": {
+      "type": "string",
+      "default": "floor_num"
+    },
+    "height_key": {
+      "type": "string",
+      "default": "height"
+    },
+    "census_avg_area_by_type": {
+      "type": "object",
+      "description": "Optional override of average dwelling areas by census characteristic label.",
+      "additionalProperties": {
+        "type": "number"
+      }
+    },
+    "district_name": {
+      "type": "string",
+      "default": "validation"
+    },
+    "plot_title": {
+      "type": ["string", "null"]
+    }
+  }
+}
