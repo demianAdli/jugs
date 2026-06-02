@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jug_gis_validation"
+version = "0.1.0"
+description = "GISOO validation service."
+authors = [
+  { name = "Alireza Adli" }
+]
+readme = "README.md"
+requires-python = ">=3.10,<3.13"
+
+dependencies = [
+  "sabu-chassis>=0.1.1",
+  "geopandas",
+  "matplotlib",
+  "numpy",
+  "pandas"
+]
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["jug_gis_validation*"]
+
+[tool.setuptools.package-data]
+"jug_gis_validation.data" = ["*.csv"]
