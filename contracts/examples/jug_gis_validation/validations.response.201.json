@@ -1,0 +1,15 @@
+{
+  "codes": ["G1A"],
+  "rows_count": 1,
+  "comparison_table": [
+    {
+      "FSA": "G1A",
+      "Cleaned Units Num": 1,
+      "Census Units Num": 8,
+      "Cleaned vs. Census Units": -7,
+      "Cleaned Total Area": 360.0,
+      "Cleaned Total Area (with proxy)": 360.0,
+      "Census Total Area (by type)": 320.0
+    }
+  ]
+}
