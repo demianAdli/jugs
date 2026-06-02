@@ -1,0 +1,10 @@
+{
+  "buildings_set_path": "/data/gis/QuebecCity.geojson",
+  "district_name": "quebec_city",
+  "postal_code_key": "fsa",
+  "function_key": "function",
+  "function_value": "1000",
+  "area_key": "area",
+  "floor_num_key": "floor_num",
+  "height_key": "height"
+}
