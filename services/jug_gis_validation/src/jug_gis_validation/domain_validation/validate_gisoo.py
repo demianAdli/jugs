@@ -48,13 +48,15 @@ class ValidateGISOO:
                postal_code_key, function_key, function_value,
                area_key, floor_num_key,
                census_data_csv=DEFAULT_CENSUS_DATA_CSV,
-               census_avg_area_by_type=None):
+               census_avg_area_by_type=None,
+               height_key='height'):
     # Configuration
     self.postal_code_key = postal_code_key
     self.function_key = function_key
     self.function_value = function_value
     self.area_key = area_key
     self.floor_num_key = floor_num_key
+    self.height_key = height_key
     self.census_code_field_title = census_code_field_title
     self.census_units_num_title = census_units_num_title
 
@@ -330,9 +332,10 @@ class ValidateGISOO:
     Internal cached (info, nones_info) for height-to-floor proxy workflow.
     """
     logger.debug('Computing district code summaries with height proxy.')
-    self._ensure_columns(self._load_district, ['height'], 'buildings_set')
+    self._ensure_columns(self._load_district, [self.height_key],
+                         'buildings_set')
     try:
-      proxy_info = self._district.height_to_floor_proxy('height', 3.5)
+      proxy_info = self._district.height_to_floor_proxy(self.height_key, 3.5)
       multipliers, num_nones, pct_nones, num_zeros, pct_zeros = proxy_info
       if num_nones or num_zeros:
         logger.warning(
