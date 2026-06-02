@@ -15,6 +15,10 @@ for path in (_SERVICE_SRC, _SABU_CHASSIS_SRC):
 _DEPS_SKIP_REASON = None
 try:
     import pandas as pd
+    from jug_gis_validation.application import (
+        GISValidationApplicationService,
+        GISValidationOutputMode,
+    )
     from jug_gis_validation.domain_validation.validate_gisoo import ValidateGISOO
     from jug_gis_validation.errors import (
         GISValidationCalculationError,
@@ -29,6 +33,8 @@ except ModuleNotFoundError as exc:
         ValidateGISOO = None
         GISValidationCalculationError = None
         GISValidationDataContractError = None
+        GISValidationApplicationService = None
+        GISValidationOutputMode = None
     else:
         raise
 
@@ -74,6 +80,52 @@ def _census_dataframe(code='H2X', single_detached_count=2):
                 'CODE': code,
                 'CHARACTERISTIC_NAME': 'Single-detached house',
                 'COUNT': single_detached_count,
+            },
+        ]
+    )
+
+
+def _default_buildings_feature_collection(postal_code='H2X 1A1'):
+    return {
+        'type': 'FeatureCollection',
+        'features': [
+            {
+                'type': 'Feature',
+                'properties': {
+                    'fsa': postal_code,
+                    'function': '1000',
+                    'area': 100,
+                    'floor_num': 2,
+                    'height': 7,
+                },
+                'geometry': {
+                    'type': 'Point',
+                    'coordinates': [-73.56, 45.51],
+                },
+            },
+        ],
+    }
+
+
+def _default_census_dataframe(code='H2X'):
+    return pd.DataFrame(
+        [
+            {
+                'ALT_GEO_CODE': code,
+                'CHARACTERISTIC_NAME': 'Total private dwellings',
+                'C1_COUNT_TOTAL': 10,
+            },
+            {
+                'ALT_GEO_CODE': code,
+                'CHARACTERISTIC_NAME': (
+                    'Total - Private households by household size - 100% data'
+                ),
+                'C1_COUNT_TOTAL': 8,
+            },
+            {
+                'ALT_GEO_CODE': code,
+                'CHARACTERISTIC_NAME': 'Single-detached house',
+                'C1_COUNT_TOTAL': 2,
             },
         ]
     )
@@ -145,6 +197,40 @@ class TestValidateGISOOInputs(unittest.TestCase):
 
         with self.assertRaises(GISValidationCalculationError):
             validator.clean_district_vs_census_area('H2X')
+
+    def test_application_run_validation_uses_default_field_names(self):
+        output_lines = []
+
+        result = GISValidationApplicationService.run_validation(
+            _default_buildings_feature_collection(),
+            census_data_csv=_default_census_dataframe(),
+            output_mode=GISValidationOutputMode.CONSOLE,
+            console_writer=output_lines.append,
+        )
+
+        self.assertEqual(result.codes, ('H2X',))
+        self.assertIsNone(result.csv_path)
+        self.assertIsNone(result.plot_path)
+        self.assertEqual(len(output_lines), 1)
+        self.assertIn('FSA', output_lines[0])
+
+    def test_application_writes_csv_when_requested(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            result = GISValidationApplicationService.run_validation(
+                _default_buildings_feature_collection(),
+                census_data_csv=_default_census_dataframe(),
+                output_mode=GISValidationOutputMode.CSV,
+                district_name='test_district',
+                output_dir=tmpdir,
+            )
+
+            self.assertIsNotNone(result.csv_path)
+            self.assertTrue(result.csv_path.exists())
+            self.assertEqual(
+                result.csv_path.name,
+                'validate_test_district_gi.csv')
 
 
 if __name__ == '__main__':
