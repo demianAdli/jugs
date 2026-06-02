@@ -1,0 +1,414 @@
+openapi: 3.0.2
+info:
+  title: JUG GIS Validation API
+  version: v1
+  description: |
+    OpenAPI contract for the GISOO validation service.
+
+    The service validates a buildings_set GeoJSON FeatureCollection against
+    packaged census validation data. The default census file is
+    `data/filtered_census.csv`, owned and packaged by `jug_gis_validation`.
+
+    The primary input mode is a pasted GeoJSON FeatureCollection, following the
+    `jug_lca_buildings` building-input pattern and adding validation fields:
+    `fsa`, `area`, and `floor_num`.
+servers:
+  - url: http://localhost:5000
+    description: Local Flask development
+  - url: http://localhost:8082
+    description: Local Docker Compose
+paths:
+  /validations:
+    post:
+      summary: Validate a buildings_set from pasted GeoJSON content or a server path
+      operationId: createGISValidation
+      tags: [GIS Validations]
+      parameters:
+        - in: query
+          name: export
+          required: false
+          description: Optional export format. Use `csv` for a CSV download or `plot` for a PNG area-comparison plot.
+          schema:
+            type: string
+            enum: [csv, plot]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/BuildingsSet'
+                - $ref: '#/components/schemas/ValidationRequest'
+            examples:
+              rawGeoJSON:
+                summary: Raw buildings_set FeatureCollection
+                value:
+                  type: FeatureCollection
+                  features:
+                    - type: Feature
+                      id: 1
+                      geometry:
+                        type: Polygon
+                        coordinates:
+                          - - [-71.214, 46.813]
+                            - [-71.213, 46.813]
+                            - [-71.213, 46.814]
+                            - [-71.214, 46.814]
+                            - [-71.214, 46.813]
+                      properties:
+                        name: Validation Building 1
+                        address: 1 Example St
+                        function: '1000'
+                        height: 10.5
+                        year_of_construction: 1995
+                        fsa: G1A
+                        area: 120.0
+                        floor_num: 3
+              pathRequest:
+                summary: Server-path request
+                value:
+                  buildings_set_path: /data/gis/QuebecCity.geojson
+                  district_name: quebec_city
+      responses:
+        '200':
+          description: Export generated successfully when `export=csv` or `export=plot`.
+          content:
+            text/csv:
+              schema:
+                type: string
+              examples:
+                csvReport:
+                  summary: Validation CSV report
+                  value: |
+                    FSA,Cleaned Units Num,Census Units Num,Cleaned vs. Census Units,Cleaned Total Area,Cleaned Total Area (with proxy),Census Total Area (by type)
+                    G1A,1,8,-7,360.0,360.0,320.0
+            image/png:
+              schema:
+                type: string
+                format: binary
+              description: PNG area-comparison plot.
+        '201':
+          description: Validation completed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationResponse'
+              examples:
+                jsonResult:
+                  summary: Validation JSON response
+                  value:
+                    codes: [G1A]
+                    rows_count: 1
+                    comparison_table:
+                      - FSA: G1A
+                        Cleaned Units Num: 1
+                        Census Units Num: 8
+                        Cleaned vs. Census Units: -7
+                        Cleaned Total Area: 360.0
+                        Cleaned Total Area (with proxy): 360.0
+                        Census Total Area (by type): 320.0
+        '400':
+          description: Bad request, including invalid JSON or unsupported export format.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation error for request payload or buildings_set data contract.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Validation workflow failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /validations/upload:
+    post:
+      summary: Validate a buildings_set from an uploaded GeoJSON file
+      operationId: uploadGISValidation
+      tags: [GIS Validations]
+      parameters:
+        - in: query
+          name: export
+          required: false
+          description: Optional export format. Use `csv` for a CSV download or `plot` for a PNG area-comparison plot.
+          schema:
+            type: string
+            enum: [csv, plot]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [geojson_file]
+              properties:
+                geojson_file:
+                  type: string
+                  format: binary
+                  description: GeoJSON file containing a buildings_set FeatureCollection.
+                census_code_field_title:
+                  type: string
+                  default: ALT_GEO_CODE
+                census_units_num_title:
+                  type: string
+                  default: C1_COUNT_TOTAL
+                postal_code_key:
+                  type: string
+                  default: fsa
+                function_key:
+                  type: string
+                  default: function
+                function_value:
+                  type: string
+                  default: '1000'
+                area_key:
+                  type: string
+                  default: area
+                floor_num_key:
+                  type: string
+                  default: floor_num
+                height_key:
+                  type: string
+                  default: height
+                district_name:
+                  type: string
+                  default: validation
+                plot_title:
+                  type: string
+      responses:
+        '200':
+          description: Export generated successfully when `export=csv` or `export=plot`.
+          content:
+            text/csv:
+              schema:
+                type: string
+            image/png:
+              schema:
+                type: string
+                format: binary
+              description: PNG area-comparison plot.
+        '201':
+          description: Validation completed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationResponse'
+        '400':
+          description: Missing file, invalid uploaded JSON, or unsupported export format.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Uploaded GeoJSON schema validation error or buildings_set data-contract error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Validation workflow failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  schemas:
+    BuildingsSet:
+      type: object
+      required: [type, features]
+      additionalProperties: false
+      properties:
+        type:
+          type: string
+          enum: [FeatureCollection]
+        features:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/BuildingsSetFeature'
+    BuildingsSetFeature:
+      type: object
+      required: [type, id, geometry, properties]
+      additionalProperties: false
+      properties:
+        type:
+          type: string
+          enum: [Feature]
+        id:
+          oneOf:
+            - type: integer
+            - type: string
+        geometry:
+          $ref: '#/components/schemas/BuildingsSetGeometry'
+        properties:
+          $ref: '#/components/schemas/BuildingsSetProperties'
+    BuildingsSetGeometry:
+      type: object
+      required: [type, coordinates]
+      additionalProperties: false
+      properties:
+        type:
+          type: string
+          enum: [Polygon, MultiPolygon]
+        coordinates:
+          type: array
+          description: GeoJSON polygon or multipolygon coordinates.
+    BuildingsSetProperties:
+      type: object
+      required:
+        - name
+        - function
+        - height
+        - year_of_construction
+        - fsa
+        - area
+        - floor_num
+      additionalProperties: true
+      properties:
+        name:
+          type: string
+        address:
+          type: string
+        function:
+          oneOf:
+            - type: string
+            - type: integer
+        height:
+          type: number
+          format: float
+        year_of_construction:
+          oneOf:
+            - type: integer
+            - type: string
+        fsa:
+          type: string
+          description: Forward sortation area or postal-code prefix used as the validation district code.
+        area:
+          type: number
+          format: float
+          description: Building footprint or base area used by validation.
+        floor_num:
+          type: number
+          format: float
+          description: Number of floors used for floor-adjusted area validation.
+    ValidationRequest:
+      type: object
+      description: Wrapped validation request. The API also accepts a raw BuildingsSet directly.
+      oneOf:
+        - required: [buildings_set]
+        - required: [buildings_set_path]
+      additionalProperties: false
+      properties:
+        buildings_set:
+          $ref: '#/components/schemas/BuildingsSet'
+        buildings_set_path:
+          type: string
+          description: Path to a GeoJSON file visible to the running service.
+          example: /data/gis/QuebecCity.geojson
+        census_code_field_title:
+          type: string
+          default: ALT_GEO_CODE
+        census_units_num_title:
+          type: string
+          default: C1_COUNT_TOTAL
+        postal_code_key:
+          type: string
+          default: fsa
+        function_key:
+          type: string
+          default: function
+        function_value:
+          oneOf:
+            - type: string
+            - type: integer
+            - type: number
+          default: '1000'
+        area_key:
+          type: string
+          default: area
+        floor_num_key:
+          type: string
+          default: floor_num
+        height_key:
+          type: string
+          default: height
+        census_avg_area_by_type:
+          type: object
+          additionalProperties:
+            type: number
+          description: Optional override of average dwelling areas by census characteristic label.
+        district_name:
+          type: string
+          default: validation
+        plot_title:
+          type: string
+          nullable: true
+    ValidationResponse:
+      type: object
+      required: [codes, rows_count, comparison_table]
+      additionalProperties: false
+      properties:
+        codes:
+          type: array
+          items:
+            type: string
+        rows_count:
+          type: integer
+          minimum: 0
+        comparison_table:
+          type: array
+          items:
+            $ref: '#/components/schemas/ValidationComparisonRow'
+    ValidationComparisonRow:
+      type: object
+      required:
+        - FSA
+        - Cleaned Units Num
+        - Census Units Num
+        - Cleaned vs. Census Units
+        - Cleaned Total Area
+        - Cleaned Total Area (with proxy)
+        - Census Total Area (by type)
+      additionalProperties: true
+      properties:
+        FSA:
+          type: string
+        Cleaned Units Num:
+          type: number
+          nullable: true
+        Census Units Num:
+          type: number
+          nullable: true
+        Cleaned vs. Census Units:
+          type: number
+          nullable: true
+        Cleaned Total Area:
+          type: number
+          nullable: true
+        Cleaned Total Area (with proxy):
+          type: number
+          nullable: true
+        Census Total Area (by type):
+          type: number
+          nullable: true
+    ErrorResponse:
+      type: object
+      required: [message]
+      properties:
+        code:
+          type: integer
+          example: 400
+        status:
+          type: string
+          example: Bad Request
+        message:
+          type: string
+          example: Failed to run GIS validation
+        errors:
+          type: object
+          additionalProperties: true
+      additionalProperties: true
