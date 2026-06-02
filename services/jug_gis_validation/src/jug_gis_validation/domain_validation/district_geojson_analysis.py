@@ -7,6 +7,8 @@ import numpy as np
 import pandas as pd
 from typing import Iterable
 
+from jug_gis_validation.errors import GISValidationDataContractError
+
 
 class DistrictGeoJSONAnalysis:
     """
@@ -40,6 +42,17 @@ class DistrictGeoJSONAnalysis:
     # Internal helpers
     # ------------------------------------------------------------------
 
+    def _ensure_columns(self, required_columns, dataset_name='buildings_set'):
+        missing_columns = [
+            column for column in required_columns
+            if column and column not in self._load_district.columns
+        ]
+        if missing_columns:
+            raise GISValidationDataContractError(
+                f'{dataset_name} is missing required column(s): '
+                f'{", ".join(missing_columns)}'
+            )
+
     def _postal_prefix_series(
         self,
         postal_code_key: str,
@@ -50,6 +63,7 @@ class DistrictGeoJSONAnalysis:
 
         Missing codes remain NaN.
         """
+        self._ensure_columns([postal_code_key])
         codes_series = self._load_district[postal_code_key]
         mask = codes_series.notna()
 
@@ -154,11 +168,13 @@ class DistrictGeoJSONAnalysis:
             {code: (count, total_effective_area)}
         """
         the_district = self._load_district
+        self._ensure_columns([postal_code_key, return_key, floor_num_key])
 
         prefix = self._postal_prefix_series(postal_code_key, prefix_len)
 
         # Optional filter by function key/value
         if function_key is not None:
+            self._ensure_columns([function_key])
             sel = the_district[function_key].eq(function_value)
             the_district = the_district.loc[sel]
             prefix = prefix.loc[sel]
@@ -198,6 +214,7 @@ class DistrictGeoJSONAnalysis:
         """
         if divisor == 0:
             raise ValueError('divisor must be non-zero')
+        self._ensure_columns([height_field])
 
         heights = pd.to_numeric(
             self._load_district[height_field],
@@ -269,6 +286,7 @@ class DistrictGeoJSONAnalysis:
             {code: (count, total_effective_area)}
         """
         the_district = self._load_district
+        self._ensure_columns([postal_code_key, return_key])
 
         multipliers = list(multipliers)
         if len(multipliers) != len(the_district):
@@ -284,6 +302,7 @@ class DistrictGeoJSONAnalysis:
 
         # Optional filter
         if function_key is not None:
+            self._ensure_columns([function_key])
             sel = the_district[function_key].eq(function_value)
             the_district = the_district.loc[sel]
             prefix = prefix.loc[sel]
