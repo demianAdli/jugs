@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/jsonschema/jug_gis_validation/validation_response.schema.json",
+  "title": "JUG GIS Validation JSON Response",
+  "description": "JSON response returned by POST /validations when no export query parameter is requested.",
+  "type": "object",
+  "required": ["codes", "rows_count", "comparison_table"],
+  "additionalProperties": false,
+  "properties": {
+    "codes": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "rows_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "comparison_table": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/comparisonRow" }
+    }
+  },
+  "$defs": {
+    "nullableNumber": {
+      "type": ["number", "null"]
+    },
+    "comparisonRow": {
+      "type": "object",
+      "required": [
+        "FSA",
+        "Cleaned Units Num",
+        "Census Units Num",
+        "Cleaned vs. Census Units",
+        "Cleaned Total Area",
+        "Cleaned Total Area (with proxy)",
+        "Census Total Area (by type)"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "FSA": { "type": "string" },
+        "Cleaned Units Num": { "$ref": "#/$defs/nullableNumber" },
+        "Census Units Num": { "$ref": "#/$defs/nullableNumber" },
+        "Cleaned vs. Census Units": { "$ref": "#/$defs/nullableNumber" },
+        "Cleaned Total Area": { "$ref": "#/$defs/nullableNumber" },
+        "Cleaned Total Area (with proxy)": { "$ref": "#/$defs/nullableNumber" },
+        "Census Total Area (by type)": { "$ref": "#/$defs/nullableNumber" }
+      }
+    }
+  }
+}
