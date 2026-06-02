@@ -1,0 +1,31 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "id": 1,
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-71.214, 46.813],
+            [-71.213, 46.813],
+            [-71.213, 46.814],
+            [-71.214, 46.814],
+            [-71.214, 46.813]
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Validation Building 1",
+        "address": "1 Example St",
+        "function": "1000",
+        "height": 10.5,
+        "year_of_construction": 1995,
+        "fsa": "G1A",
+        "area": 120.0,
+        "floor_num": 3
+      }
+    }
+  ]
+}
