@@ -1,0 +1,12 @@
+{
+  "code": 422,
+  "status": "Unprocessable Entity",
+  "message": "buildings_set is missing required column(s): fsa",
+  "errors": {
+    "json": {
+      "buildings_set": [
+        "Missing required validation field."
+      ]
+    }
+  }
+}
