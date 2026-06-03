@@ -10,8 +10,7 @@ alireza.adli@mail.concordia.ca
 
 ## Overview
 
-**GISOO Validation** service is responsible for comparing cleaned geospatial datasets with census data to ensure consistency, completeness, and accuracy at the district level.  
-The **conceptual basis for incorporating census data into the validation workflow comes from work and discussions with Oriol Gavalda (oriol.gavalda@concordia.ca)**, particularly regarding how census units can be related to district-level building datasets.
+**GISOO Validation** service is responsible for comparing cleaned geospatial datasets with census data to ensure consistency, completeness, and accuracy at the district level.
 
 This validation module is part of the larger **Sabu framework**, supporting disaggregated carbon-emissions evaluation beginning from the building sector. It integrates naturally with CityGISOO’s automated cleaning workflows and provides a lightweight, extensible interface to perform data verification across postal-code prefixes (FSA).
 
