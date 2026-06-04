@@ -1,7 +1,11 @@
+![Sabu logo](https://demianadli.com/sabu_pwhite_2.png)
+
 # Sabu
 
 **Sabu** is a software framework designed to evaluate carbon emissions in a **sector-based** manner.  
 The framework follows a **microservices architecture**, in which each independent module operates as an autonomous service—referred to as a _jug_.
+
+Documentation: [sabu.demianadli.com](https://sabu.demianadli.com)
 
 ---
 
