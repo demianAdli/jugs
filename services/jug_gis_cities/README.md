@@ -120,3 +120,19 @@ docker run --rm `
   demianadli/jug_gis_cities:0.1.0 `
   python3 -m jug_gis_cities --component saint_malachie_gisoo --mode standardize
 ```
+
+## Published Package Docker Build
+
+By default, the Dockerfile installs the local checkout. To build from PyPI
+instead, set `INSTALL_LOCAL=false` and optionally pin package versions:
+
+```powershell
+docker build `
+  -f services/jug_gis_cities/docker/Dockerfile `
+  --build-arg INSTALL_LOCAL=false `
+  --build-arg JUG_GIS_CITIES_VERSION=0.1.0 `
+  --build-arg CITYGISOO_VERSION=0.2.1 `
+  --build-arg SABU_CHASSIS_VERSION=0.1.1 `
+  -t demianadli/jug_gis_cities:0.1.0 `
+  .
+```
