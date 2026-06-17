@@ -131,7 +131,7 @@ def run_workflow():
       nrcan_spatial_join_geoindex.create_spatial_index()
       _log_layer_summary(nrcan_spatial_join_geoindex)
 
-    with _workflow_step('spatial join Saint-Malachie GISOO with FSA'):
+    with _workflow_step('spatial join Saint-Malachie with FSA'):
       nrcan_spatial_join_geoindex.spatial_join(
         fsa.layer_path,
         paths.output_paths['saint_malachie_gisoo_with_fsa'])
