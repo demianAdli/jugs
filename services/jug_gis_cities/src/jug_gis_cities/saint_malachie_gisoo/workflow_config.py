@@ -19,7 +19,7 @@ input_data_dir = os.path.join(data_dir, 'input_data')
 # Application's path
 qgis_path = os.getenv(
   'JUG_GIS_CITIES_QGIS_PATH',
-  'C:/Program Files/QGIS 3.34.1/apps/qgis')
+  'C:/QGIS_installer/OSGeo4W/apps/qgis-ltr')
 
 # Gathering input data layers paths 
 input_paths = {
