@@ -77,12 +77,45 @@ class TestGISComponentsApi(unittest.TestCase):
             {
                 'component_name': 'saint_malachie_gisoo',
                 'mode': 'standardize',
+                'fsa': None,
                 'workflow_output_path': 'workflow_output.shp',
                 'standardized_output_path': 'standardized.geojson',
             })
         run_component_mock.assert_called_once_with(
             component_name='saint_malachie_gisoo',
-            mode='standardize')
+            mode='standardize',
+            fsa=None)
+
+    @patch(
+        'src.jug_gis_cities.resources.gis_components.'
+        'GISCitiesApplicationService.run_component'
+    )
+    def test_post_component_run_accepts_fsa(self, run_component_mock):
+        run_component_mock.return_value = GisComponentRunResult(
+            component_name='mtl_fsa_gisoo',
+            mode=GisComponentRunMode.INDEPENDENT,
+            fsa='H3H',
+            workflow_output_path='workflow_output.shp',
+            standardized_output_path=None)
+
+        response = self.client.post(
+            '/components/mtl_fsa_gisoo/runs',
+            json={'mode': 'independent', 'fsa': 'h3h'})
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(
+            response.get_json(),
+            {
+                'component_name': 'mtl_fsa_gisoo',
+                'mode': 'independent',
+                'fsa': 'H3H',
+                'workflow_output_path': 'workflow_output.shp',
+                'standardized_output_path': None,
+            })
+        run_component_mock.assert_called_once_with(
+            component_name='mtl_fsa_gisoo',
+            mode='independent',
+            fsa='h3h')
 
     @patch(
         'src.jug_gis_cities.resources.gis_components.'

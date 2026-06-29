@@ -60,6 +60,7 @@ class TestGISCitiesApplicationService(unittest.TestCase):
         self.assertEqual(result.component_name, 'saint_malachie_gisoo')
         self.assertEqual(result.mode, GisComponentRunMode.INDEPENDENT)
         self.assertEqual(result.workflow_output_path, 'workflow_output.shp')
+        self.assertIsNone(result.fsa)
         self.assertIsNone(result.standardized_output_path)
         ensure_component_callable_mock.assert_called_once_with(
             component_name='saint_malachie_gisoo',
@@ -94,6 +95,7 @@ class TestGISCitiesApplicationService(unittest.TestCase):
         self.assertEqual(result.component_name, 'saint_malachie_gisoo')
         self.assertEqual(result.mode, GisComponentRunMode.STANDARDIZE)
         self.assertEqual(result.workflow_output_path, 'workflow_output.shp')
+        self.assertIsNone(result.fsa)
         self.assertEqual(
             result.standardized_output_path,
             'standardized.geojson')
@@ -109,6 +111,85 @@ class TestGISCitiesApplicationService(unittest.TestCase):
         ])
         workflow_runner.assert_called_once_with()
         contract_adapter_runner.assert_called_once_with()
+
+    @patch.object(GISCitiesApplicationService, '_import_component_callable')
+    @patch.object(GISCitiesApplicationService, '_ensure_component_callable')
+    @patch.object(GISCitiesApplicationService, '_normalize_component_name')
+    def test_run_component_passes_normalized_fsa_to_supported_callables(
+            self,
+            normalize_component_name_mock,
+            ensure_component_callable_mock,
+            import_component_callable_mock):
+        normalize_component_name_mock.return_value = 'mtl_fsa_gisoo'
+        calls = []
+
+        def workflow_runner(*, fsa):
+            calls.append(('workflow', fsa))
+            return f'workflow_{fsa}.shp'
+
+        def contract_adapter_runner(*, fsa):
+            calls.append(('contract_adapter', fsa))
+            return f'standardized_{fsa}.geojson'
+
+        import_component_callable_mock.side_effect = [
+            workflow_runner,
+            contract_adapter_runner,
+        ]
+
+        result = GISCitiesApplicationService.run_component(
+            'mtl_fsa_gisoo',
+            mode='standardize',
+            fsa=' h3h ')
+
+        self.assertEqual(result.fsa, 'H3H')
+        self.assertEqual(result.workflow_output_path, 'workflow_H3H.shp')
+        self.assertEqual(
+            result.standardized_output_path,
+            'standardized_H3H.geojson')
+        self.assertEqual(
+            calls,
+            [('workflow', 'H3H'), ('contract_adapter', 'H3H')])
+
+    @patch.object(GISCitiesApplicationService, '_import_component_callable')
+    @patch.object(GISCitiesApplicationService, '_ensure_component_callable')
+    @patch.object(GISCitiesApplicationService, '_normalize_component_name')
+    def test_run_component_requires_fsa_when_workflow_requires_it(
+            self,
+            normalize_component_name_mock,
+            ensure_component_callable_mock,
+            import_component_callable_mock):
+        normalize_component_name_mock.return_value = 'mtl_fsa_gisoo'
+
+        def workflow_runner(*, fsa):
+            return f'workflow_{fsa}.shp'
+
+        import_component_callable_mock.return_value = workflow_runner
+
+        with self.assertRaises(ValueError):
+            GISCitiesApplicationService.run_component(
+                'mtl_fsa_gisoo',
+                mode='independent')
+
+    @patch.object(GISCitiesApplicationService, '_import_component_callable')
+    @patch.object(GISCitiesApplicationService, '_ensure_component_callable')
+    @patch.object(GISCitiesApplicationService, '_normalize_component_name')
+    def test_run_component_rejects_fsa_for_unsupported_workflow(
+            self,
+            normalize_component_name_mock,
+            ensure_component_callable_mock,
+            import_component_callable_mock):
+        normalize_component_name_mock.return_value = 'saint_malachie_gisoo'
+
+        def workflow_runner():
+            return 'workflow_output.shp'
+
+        import_component_callable_mock.return_value = workflow_runner
+
+        with self.assertRaises(ValueError):
+            GISCitiesApplicationService.run_component(
+                'saint_malachie_gisoo',
+                mode='independent',
+                fsa='H3H')
 
     def test_standardize_requires_component_contract_adapter(self):
         with patch.object(
