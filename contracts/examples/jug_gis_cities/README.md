@@ -9,10 +9,11 @@ The currently implemented HTTP API triggers an installed component by name:
 POST /components/{component_name}/runs
 ```
 
-The request body currently accepts only `mode`:
+The request body accepts `mode` and, for FSA-capable components, `fsa`:
 
 - `standardize`: run the component workflow and then the contract adapter.
 - `independent`: run only the component workflow.
+- `fsa`: optional three-character FSA, required by `mtl_fsa_gisoo`.
 
 Dataset manifests in this folder describe flexible input references for direct,
 Docker, and future API-oriented execution. The current HTTP endpoint does not
@@ -23,6 +24,8 @@ Files
 - `api_run_standardize.response.201.json`: Example standardized-mode API response.
 - `api_run_independent.request.json`: Example API body for independent mode.
 - `api_run_independent.response.201.json`: Example independent-mode API response.
+- `api_run_mtl_fsa_independent.request.json`: Example Montreal FSA API body.
+- `api_run_mtl_fsa_independent.response.201.json`: Example Montreal FSA API response.
 - `direct_application_config.standardize.json`: Example direct/application configuration.
 - `docker_mounted_path_config.json`: Example Docker mounted-path configuration.
 - `workflow_input_manifest.saint_malachie.example.json`: Role-based source dataset manifest.
@@ -36,5 +39,5 @@ Notes
 - Input datasets are referenced by path or URI, not embedded.
 - Example paths are generic container-style or public-style paths, not local
   workstation paths.
-- `saint_malachie_gisoo` is used as the example component because it is the
-  current implementation paradigm.
+- `saint_malachie_gisoo` is used for the baseline examples, and
+  `mtl_fsa_gisoo` is used for FSA run-parameter examples.

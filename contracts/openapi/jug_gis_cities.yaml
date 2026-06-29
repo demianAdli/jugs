@@ -19,8 +19,9 @@ info:
 
     Source datasets are intentionally not embedded in API requests. Role-based
     dataset manifests are documented as reusable component schemas for direct,
-    Docker, and future API-oriented execution, but the current HTTP endpoint
-    accepts only `mode`.
+    Docker, and future API-oriented execution. The current HTTP endpoint
+    accepts `mode` and an optional `fsa` run parameter for FSA-capable
+    components such as `mtl_fsa_gisoo`.
 servers:
   - url: http://localhost:5000
     description: Local Flask development
@@ -56,6 +57,11 @@ paths:
                 summary: Run only workflow.py
                 value:
                   mode: independent
+              montrealFsa:
+                summary: Run the Montreal FSA workflow for H3H
+                value:
+                  mode: independent
+                  fsa: H3H
       responses:
         '201':
           description: Component run completed and output metadata returned.
@@ -69,6 +75,7 @@ paths:
                   value:
                     component_name: saint_malachie_gisoo
                     mode: standardize
+                    fsa: null
                     workflow_output_path: /data/output/saint_malachie_gisoo_with_fsa/saint_malachie_gisoo_with_fsa.shp
                     standardized_output_path: /data/output/saint_malachie_standardized/saint_malachie_standardized.geojson
                 independent:
@@ -76,7 +83,16 @@ paths:
                   value:
                     component_name: saint_malachie_gisoo
                     mode: independent
+                    fsa: null
                     workflow_output_path: /data/output/saint_malachie_gisoo_with_fsa/saint_malachie_gisoo_with_fsa.shp
+                    standardized_output_path: null
+                montrealFsa:
+                  summary: Montreal FSA independent execution response
+                  value:
+                    component_name: mtl_fsa_gisoo
+                    mode: independent
+                    fsa: H3H
+                    workflow_output_path: /data/output/H3H/mtl_fsa_gisoo/mtl_fsa_gisoo.shp
                     standardized_output_path: null
         '400':
           description: Bad request, including invalid component-name values that are not valid Python package names.
@@ -136,6 +152,8 @@ components:
       description: |
         Request body currently accepted by POST /components/{component_name}/runs.
         If omitted by the application layer, mode defaults to `standardize`.
+        The `fsa` field is required only for components whose workflow requires
+        FSA district selection.
       additionalProperties: false
       properties:
         mode:
@@ -145,11 +163,20 @@ components:
           description: |
             `independent` runs only workflow.py. `standardize` runs workflow.py
             and then contract_adapter.py.
+        fsa:
+          type: string
+          nullable: true
+          pattern: '^[A-Za-z][0-9][A-Za-z]$'
+          description: |
+            Optional three-character Canadian Forward Sortation Area. Required
+            by `mtl_fsa_gisoo`; normalized to uppercase by the service.
+          example: H3H
     GISComponentRunResponse:
       type: object
       required:
         - component_name
         - mode
+        - fsa
         - workflow_output_path
         - standardized_output_path
       additionalProperties: false
@@ -160,6 +187,11 @@ components:
         mode:
           type: string
           enum: [independent, standardize]
+        fsa:
+          type: string
+          nullable: true
+          description: Normalized FSA used for the run, or null when unused.
+          example: H3H
         workflow_output_path:
           type: string
           description: Component-native workflow output path.

@@ -1,0 +1,7 @@
+{
+  "component_name": "mtl_fsa_gisoo",
+  "mode": "independent",
+  "fsa": "H3H",
+  "workflow_output_path": "/data/output/H3H/mtl_fsa_gisoo/mtl_fsa_gisoo.shp",
+  "standardized_output_path": null
+}

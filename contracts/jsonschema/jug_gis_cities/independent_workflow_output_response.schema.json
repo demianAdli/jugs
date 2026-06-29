@@ -7,6 +7,7 @@
   "required": [
     "component_name",
     "mode",
+    "fsa",
     "workflow_output_path",
     "standardized_output_path"
   ],
@@ -19,6 +20,11 @@
     "mode": {
       "type": "string",
       "const": "independent"
+    },
+    "fsa": {
+      "type": ["string", "null"],
+      "pattern": "^[A-Z][0-9][A-Z]$",
+      "examples": [null, "H3H"]
     },
     "workflow_output_path": {
       "type": "string",

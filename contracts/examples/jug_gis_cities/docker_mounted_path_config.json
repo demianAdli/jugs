@@ -11,7 +11,8 @@
     "LOG_FILE_NAME": "logs/jug_gis_cities.log",
     "LOG_SERVICE": "gis_cities-api",
     "JUG_GIS_CITIES_QGIS_PATH": "/usr",
-    "JUG_GIS_CITIES_SAINT_MALACHIE_DATA_DIR": "/data/saint_malachie_gisoo_data"
+    "JUG_GIS_CITIES_SAINT_MALACHIE_DATA_DIR": "/data/saint_malachie_gisoo_data",
+    "JUG_GIS_CITIES_MTL_FSA_DATA_DIR": "/data/mtl_gisoo_fsa_data"
   },
   "mounts": [
     {
@@ -25,6 +26,12 @@
       "host_path": "/host/gis/saint_malachie_gisoo_data",
       "container_path": "/data/saint_malachie_gisoo_data",
       "mode": "read_write"
+    },
+    {
+      "purpose": "montreal_fsa_source_and_output_data",
+      "host_path": "/host/gis/mtl_gisoo_fsa_data",
+      "container_path": "/data/mtl_gisoo_fsa_data",
+      "mode": "read_write"
     }
   ],
   "example_api_request": {
@@ -32,6 +39,14 @@
     "url": "http://localhost:8081/components/saint_malachie_gisoo/runs",
     "body": {
       "mode": "standardize"
+    }
+  },
+  "example_montreal_fsa_api_request": {
+    "method": "POST",
+    "url": "http://localhost:8081/components/mtl_fsa_gisoo/runs",
+    "body": {
+      "mode": "independent",
+      "fsa": "H3H"
     }
   }
 }
