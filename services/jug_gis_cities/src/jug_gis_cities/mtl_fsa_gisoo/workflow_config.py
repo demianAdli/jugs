@@ -23,17 +23,17 @@ qgis_path = os.getenv(
 
 # Gathering input data layers paths 
 input_paths = {
-  'qc_property_roll_2025':
+  'mtl_property_roll_2025':
   os.path.join(
     input_data_dir,
     'mtl_role_2025_unit_eval_et_address_geopackage',
     'mtl_island_role_2025_unit_eval_et_address.gpkg'),
-  'nrcan_heights':
+  'mtl_nrcan_heights':
   os.path.join(
     input_data_dir,
     'mtl_auto_with_heights',
     'mtl_auto_with_heights.gpkg'),
-  'qc_geoindex':
+  'mtl_mahm_usage_2026':
   os.path.join(
     input_data_dir,
     'mtl_mahm_usage_2026',
