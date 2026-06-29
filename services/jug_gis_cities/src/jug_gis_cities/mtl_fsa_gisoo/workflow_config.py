@@ -1,5 +1,5 @@
 """
-Municipality: Saint-Malachie
+Municipality: Montreal FSA
 workflow_config module
 Project Developer: Alireza Adli 
 alireza.adli@mail.concordia.ca
@@ -8,11 +8,14 @@ www.demianadli.com
 """
 
 import os
+import re
 
+
+_FSA_PATTERN = re.compile(r'^[A-Z][0-9][A-Z]$')
 
 default_data_dir = 'D:/GIS/mtl_gisoo_fsa_data'
 data_dir = os.getenv(
-  'JUG_GIS_CITIES_SAINT_MALACHIE_DATA_DIR',
+  'JUG_GIS_CITIES_MTL_FSA_DATA_DIR',
   default_data_dir)
 input_data_dir = os.path.join(data_dir, 'input_data')
 
@@ -47,8 +50,25 @@ input_paths = {
 
 # Defining a directory for all the output data layers
 output_paths_dir = os.getenv(
-  'JUG_GIS_CITIES_SAINT_MALACHIE_OUTPUT_DIR',
+  'JUG_GIS_CITIES_MTL_FSA_OUTPUT_DIR',
   os.path.join(data_dir, 'output_data'))
+
+
+def normalize_fsa(fsa):
+  if fsa is None:
+    raise ValueError('fsa is required for the Montreal FSA workflow.')
+  if not isinstance(fsa, str):
+    raise TypeError('fsa must be a string.')
+
+  normalized_fsa = fsa.strip().upper()
+  if not _FSA_PATTERN.match(normalized_fsa):
+    raise ValueError(
+      'fsa must be a three-character Canadian FSA, for example H3H.')
+  return normalized_fsa
+
+
+def get_fsa_output_paths_dir(fsa):
+  return os.path.join(output_paths_dir, normalize_fsa(fsa))
 
 # Preparing a bedding for output data layers paths
 output_paths = {
@@ -76,5 +96,5 @@ output_paths = {
   'nrcan_restored_with_usage_id': '',
   'nrcan_intersected': '',
   'nrcan_spatial_join_usage': '',
-  'saint_malachie_gisoo_with_fsa': ''
+  'mtl_fsa_gisoo': ''
 }
