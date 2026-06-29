@@ -10,6 +10,7 @@ www.demianadli.com
 from __future__ import annotations
 
 import ast
+import inspect
 import importlib
 import importlib.util
 import re
@@ -23,6 +24,7 @@ from sabu_chassis.logging import get_logger
 logger = get_logger(__name__)
 
 _COMPONENT_NAME_PATTERN = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')
+_FSA_PATTERN = re.compile(r'^[A-Z][0-9][A-Z]$')
 
 
 class GisComponentRunMode(str, Enum):
@@ -40,6 +42,7 @@ class GisComponentRunResult:
     mode: GisComponentRunMode
     workflow_output_path: str
     standardized_output_path: str | None = None
+    fsa: str | None = None
 
 
 class GisComponentError(RuntimeError):
@@ -60,7 +63,11 @@ class GISCitiesApplicationService:
     _PACKAGE_NAME = 'jug_gis_cities'
 
     @classmethod
-    def run_component(cls, component_name, mode=GisComponentRunMode.STANDARDIZE):
+    def run_component(
+            cls,
+            component_name,
+            mode=GisComponentRunMode.STANDARDIZE,
+            fsa=None):
         """Run a component workflow in independent or standardized mode.
 
         independent:
@@ -73,12 +80,14 @@ class GISCitiesApplicationService:
         normalized_component_name = cls._normalize_component_name(
             component_name)
         normalized_mode = cls._normalize_mode(mode)
+        normalized_fsa = cls._normalize_fsa(fsa)
 
         run_t0 = perf_counter()
         logger.info(
-            'Starting GIS city component. Component=%s Mode=%s',
+            'Starting GIS city component. Component=%s Mode=%s FSA=%s',
             normalized_component_name,
-            normalized_mode.value)
+            normalized_mode.value,
+            normalized_fsa)
 
         try:
             cls._ensure_component_callable(
@@ -95,7 +104,11 @@ class GISCitiesApplicationService:
                 component_name=normalized_component_name,
                 module_name='workflow',
                 callable_name='run_workflow')
-            workflow_output_path = workflow_runner()
+            workflow_output_path = cls._run_component_callable(
+                runner=workflow_runner,
+                component_name=normalized_component_name,
+                callable_label='workflow.run_workflow',
+                fsa=normalized_fsa)
 
             standardized_output_path = None
             if normalized_mode == GisComponentRunMode.STANDARDIZE:
@@ -103,20 +116,35 @@ class GISCitiesApplicationService:
                     component_name=normalized_component_name,
                     module_name='contract_adapter',
                     callable_name='run_contract_adapter')
-                standardized_output_path = contract_adapter_runner()
+                standardized_output_path = cls._run_component_callable(
+                    runner=contract_adapter_runner,
+                    component_name=normalized_component_name,
+                    callable_label='contract_adapter.run_contract_adapter',
+                    fsa=normalized_fsa)
 
         except GisComponentError:
             logger.exception(
                 'GIS city component failed before execution completed. '
-                'Component=%s Mode=%s',
+                'Component=%s Mode=%s FSA=%s',
                 normalized_component_name,
-                normalized_mode.value)
+                normalized_mode.value,
+                normalized_fsa)
+            raise
+        except (TypeError, ValueError):
+            logger.exception(
+                'GIS city component run parameters rejected. Component=%s '
+                'Mode=%s FSA=%s',
+                normalized_component_name,
+                normalized_mode.value,
+                normalized_fsa)
             raise
         except Exception as exc:
             logger.exception(
-                'GIS city component execution failed. Component=%s Mode=%s',
+                'GIS city component execution failed. Component=%s Mode=%s '
+                'FSA=%s',
                 normalized_component_name,
-                normalized_mode.value)
+                normalized_mode.value,
+                normalized_fsa)
             raise GisComponentError(
                 'GIS city component execution failed: '
                 f'{normalized_component_name} ({normalized_mode.value})'
@@ -126,13 +154,15 @@ class GISCitiesApplicationService:
             component_name=normalized_component_name,
             mode=normalized_mode,
             workflow_output_path=workflow_output_path,
+            fsa=normalized_fsa,
             standardized_output_path=standardized_output_path)
 
         logger.info(
             'Completed GIS city component. Component=%s Mode=%s '
-            'WorkflowOutput=%s StandardizedOutput=%s Elapsed=%.3fs',
+            'FSA=%s WorkflowOutput=%s StandardizedOutput=%s Elapsed=%.3fs',
             result.component_name,
             result.mode.value,
+            result.fsa,
             result.workflow_output_path,
             result.standardized_output_path,
             perf_counter() - run_t0)
@@ -173,6 +203,78 @@ class GISCitiesApplicationService:
                     f'Unsupported GIS component mode: {mode}. '
                     f'Supported modes: {valid_modes}.') from exc
         raise TypeError('mode must be a string or GisComponentRunMode.')
+
+    @staticmethod
+    def _normalize_fsa(fsa):
+        if fsa is None:
+            return None
+        if not isinstance(fsa, str):
+            raise TypeError('fsa must be a string when provided.')
+
+        normalized_fsa = fsa.strip().upper()
+        if not normalized_fsa:
+            return None
+        if not _FSA_PATTERN.match(normalized_fsa):
+            raise ValueError(
+                'fsa must be a three-character Canadian FSA, for example H3H.'
+            )
+        return normalized_fsa
+
+    @classmethod
+    def _run_component_callable(cls, runner, component_name, callable_label, fsa):
+        supports_fsa = cls._callable_accepts_parameter(runner, 'fsa')
+        requires_fsa = cls._callable_requires_parameter(runner, 'fsa')
+
+        if fsa is None:
+            if requires_fsa:
+                raise ValueError(
+                    f'fsa is required for GIS city component: '
+                    f'{component_name}.')
+            return runner()
+
+        if not supports_fsa:
+            raise ValueError(
+                f'fsa is not supported by GIS city component: '
+                f'{component_name}.')
+        logger.info(
+            'Running GIS city component callable with FSA. Component=%s '
+            'Callable=%s FSA=%s',
+            component_name,
+            callable_label,
+            fsa)
+        return runner(fsa=fsa)
+
+    @staticmethod
+    def _callable_accepts_parameter(runner, parameter_name):
+        try:
+            callable_signature = inspect.signature(runner)
+        except (TypeError, ValueError):
+            return False
+
+        for parameter in callable_signature.parameters.values():
+            if parameter.kind == inspect.Parameter.VAR_KEYWORD:
+                return True
+            if parameter.name == parameter_name:
+                return True
+        return False
+
+    @staticmethod
+    def _callable_requires_parameter(runner, parameter_name):
+        try:
+            callable_signature = inspect.signature(runner)
+        except (TypeError, ValueError):
+            return False
+
+        parameter = callable_signature.parameters.get(parameter_name)
+        if parameter is None:
+            return False
+        return (
+            parameter.default is inspect.Parameter.empty
+            and parameter.kind in {
+                inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                inspect.Parameter.KEYWORD_ONLY,
+            }
+        )
 
     @classmethod
     def _ensure_component_callable(

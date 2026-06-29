@@ -30,6 +30,11 @@ def _build_parser():
         help=(
             'Execution mode. independent runs only workflow.py; '
             'standardize runs workflow.py and contract_adapter.py.'))
+    parser.add_argument(
+        '--fsa',
+        help=(
+            'Three-character FSA for components that require district '
+            'selection, for example H3H.'))
     return parser
 
 
@@ -40,18 +45,22 @@ def main(argv=None):
     try:
         result = GISCitiesApplicationService.run_component(
             component_name=args.component,
-            mode=args.mode)
+            mode=args.mode,
+            fsa=args.fsa)
     except Exception as exc:
         logger.error(
             'Direct jug_gis_cities execution failed. Component=%s Mode=%s '
-            'Error=%s',
+            'FSA=%s Error=%s',
             args.component,
             args.mode,
+            args.fsa,
             exc)
         return 1
 
     print(f'Component: {result.component_name}')
     print(f'Mode: {result.mode.value}')
+    if result.fsa is not None:
+        print(f'FSA: {result.fsa}')
     print(f'Workflow output: {result.workflow_output_path}')
     if result.standardized_output_path is not None:
         print(f'Standardized output: {result.standardized_output_path}')
