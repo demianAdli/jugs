@@ -42,6 +42,7 @@ def _result_to_response(result):
     return {
         'component_name': result.component_name,
         'mode': result.mode.value,
+        'fsa': result.fsa,
         'workflow_output_path': result.workflow_output_path,
         'standardized_output_path': result.standardized_output_path,
     }
@@ -49,11 +50,13 @@ def _result_to_response(result):
 
 def _run_gis_component(component_name, request_data):
     mode = request_data.get('mode')
+    fsa = request_data.get('fsa')
     logger.info(
         'gis_component_run_received',
         extra={
             'component_name': component_name,
             'mode': mode,
+            'fsa': fsa,
         },
     )
 
@@ -61,6 +64,7 @@ def _run_gis_component(component_name, request_data):
         result = GISCitiesApplicationService.run_component(
             component_name=component_name,
             mode=mode,
+            fsa=fsa,
         )
     except HTTPException:
         raise
@@ -70,6 +74,7 @@ def _run_gis_component(component_name, request_data):
             extra={
                 'component_name': component_name,
                 'mode': mode,
+                'fsa': fsa,
                 'error': str(exc),
             },
         )
@@ -80,6 +85,7 @@ def _run_gis_component(component_name, request_data):
             extra={
                 'component_name': component_name,
                 'mode': mode,
+                'fsa': fsa,
                 'error': str(exc),
             },
         )
@@ -90,6 +96,7 @@ def _run_gis_component(component_name, request_data):
             extra={
                 'component_name': component_name,
                 'mode': mode,
+                'fsa': fsa,
                 'error': str(exc),
             },
         )
@@ -100,6 +107,7 @@ def _run_gis_component(component_name, request_data):
             extra={
                 'component_name': component_name,
                 'mode': mode,
+                'fsa': fsa,
             },
         )
         public_msg = (
@@ -113,6 +121,7 @@ def _run_gis_component(component_name, request_data):
             extra={
                 'component_name': component_name,
                 'mode': mode,
+                'fsa': fsa,
             },
         )
         public_msg = (
@@ -127,6 +136,7 @@ def _run_gis_component(component_name, request_data):
         extra={
             'component_name': result.component_name,
             'mode': result.mode.value,
+            'fsa': result.fsa,
             'workflow_output_path': result.workflow_output_path,
             'standardized_output_path': result.standardized_output_path,
         },

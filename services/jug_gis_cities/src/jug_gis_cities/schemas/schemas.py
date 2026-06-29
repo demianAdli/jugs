@@ -22,6 +22,14 @@ class GISComponentRunRequestSchema(Schema):
         validate=validate.OneOf(
             [mode.value for mode in GisComponentRunMode]),
     )
+    fsa = fields.String(
+        allow_none=True,
+        validate=validate.Regexp(
+            r'^[A-Za-z][0-9][A-Za-z]$',
+            error=(
+                'fsa must be a three-character Canadian FSA, '
+                'for example H3H.')),
+    )
 
 
 class GISComponentRunResultSchema(Schema):
@@ -29,5 +37,6 @@ class GISComponentRunResultSchema(Schema):
 
     component_name = fields.String(required=True)
     mode = fields.String(required=True)
+    fsa = fields.String(allow_none=True)
     workflow_output_path = fields.String(required=True)
     standardized_output_path = fields.String(allow_none=True)
