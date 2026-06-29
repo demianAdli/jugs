@@ -88,10 +88,11 @@ ENV LOG_DIR_BASE=/app
 ENV LOG_FILE_NAME=logs/jug_gis_cities.log
 ENV LOG_SERVICE=gis_cities-api
 
-# Default Saint-Malachie data mount location inside the container.
+# Default data mount locations inside the container.
 ENV JUG_GIS_CITIES_SAINT_MALACHIE_DATA_DIR=/data/saint_malachie_gisoo_data
+ENV JUG_GIS_CITIES_MTL_FSA_DATA_DIR=/data/mtl_gisoo_fsa_data
 
-RUN mkdir -p /app/logs /data/saint_malachie_gisoo_data
+RUN mkdir -p /app/logs /data/saint_malachie_gisoo_data /data/mtl_gisoo_fsa_data
 
 EXPOSE 5000
 
