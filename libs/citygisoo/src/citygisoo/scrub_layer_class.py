@@ -610,6 +610,66 @@ class ScrubLayer:
       field_name,
       self.layer_name)
 
+  def add_uuid_field(
+          self,
+          field_name='uuid',
+          field_length=36,
+          overwrite=False):
+    """Add and populate a text UUID field for every feature."""
+    idx = self.layer.fields().indexFromName(field_name)
+    if idx != -1 and not overwrite:
+      raise ValueError(
+        f'Field {field_name} already exists on {self.layer_name}.')
+
+    if idx == -1:
+      functionalities = self.layer.dataProvider().capabilities()
+      if not functionalities & QgsVectorDataProvider.AddAttributes:
+        raise ValueError(
+          f'Layer {self.layer_name} does not support adding fields.')
+
+      new_field = QgsField(field_name, QVariant.String, len=field_length)
+      added = self.layer.dataProvider().addAttributes([new_field])
+      self.layer.updateFields()
+      if not added:
+        raise RuntimeError(
+          f'Failed to add UUID field {field_name} to {self.layer_name}.')
+      idx = self.layer.fields().indexFromName(field_name)
+
+    expression_text = "replace(replace(uuid(), '{', ''), '}', '')"
+    expression = QgsExpression(expression_text)
+    if expression.hasParserError():
+      raise ValueError(
+        f'Invalid UUID expression: {expression.parserErrorString()}')
+
+    context = QgsExpressionContext()
+    context.appendScopes(
+      QgsExpressionContextUtils.globalProjectLayerScopes(self.layer))
+
+    updated_count = 0
+    with edit(self.layer):
+      for feature in self.layer.getFeatures():
+        context.setFeature(feature)
+        uuid_value = expression.evaluate(context)
+        if expression.hasEvalError():
+          raise ValueError(
+            f'Failed to evaluate UUID expression: '
+            f'{expression.evalErrorString()}')
+        feature[idx] = uuid_value
+        if self.layer.updateFeature(feature):
+          updated_count += 1
+        else:
+          logger.warning(
+            'Failed to update UUID field for feature %s on %s.',
+            feature.id(),
+            self.layer_name)
+
+    logger.info(
+      'Assigned UUID values to field %s on %s for %s features.',
+      field_name,
+      self.layer_name,
+      updated_count)
+    return field_name
+
   def __str__(self):
     return f'The {self.layer_name} has {self.data_count} records.'
 

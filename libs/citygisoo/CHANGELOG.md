@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Added
+- Added `ScrubLayer.add_uuid_field()`.
 - Added `ScrubLayer.extract_by_attribute()`.
 - Added `ScrubLayer.extract_by_expression()`.
 
