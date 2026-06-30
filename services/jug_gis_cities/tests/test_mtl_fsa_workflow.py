@@ -66,6 +66,9 @@ class _FakeScrubLayer:
             overlay_layer,
             clipped_layer))
 
+    def create_spatial_index(self):
+        self.calls.append(('create_spatial_index', self.layer_name))
+
     def __str__(self):
         return f'The {self.layer_name} has {self.data_count} records.'
 
@@ -105,7 +108,7 @@ class TestMtlFsaWorkflow(unittest.TestCase):
         _FakeScrubLayer.calls = []
         _FakeScrubLayer.instances = []
 
-    def test_run_workflow_extracts_fsa_boundary_and_clips_nrcan(self):
+    def test_run_workflow_extracts_fsa_boundary_and_clips_input_layers(self):
         workflow = _import_mtl_fsa_workflow(
             data_dir='D:/GIS/mtl_gisoo_fsa_data',
             output_dir='D:/GIS/mtl_gisoo_fsa_data/output_data')
@@ -122,6 +125,16 @@ class TestMtlFsaWorkflow(unittest.TestCase):
             'H3H',
             'nrcan',
             'nrcan.shp')
+        roll_path = os.path.join(
+            'D:/GIS/mtl_gisoo_fsa_data/output_data',
+            'H3H',
+            'roll',
+            'roll.shp')
+        usage_path = os.path.join(
+            'D:/GIS/mtl_gisoo_fsa_data/output_data',
+            'H3H',
+            'usage',
+            'usage.shp')
 
         self.assertIn(
             (
@@ -133,12 +146,15 @@ class TestMtlFsaWorkflow(unittest.TestCase):
                 fsa_boundary_path,
             ),
             _FakeScrubLayer.calls)
-        for layer_name in ['roll_mtl', 'nrcan_mtl', 'usage_mtl']:
+        for layer_name, id_field_name in [
+                ('roll_mtl', 'roll_id'),
+                ('nrcan_mtl', 'nrcan_id'),
+                ('usage_mtl', 'usage_id')]:
             self.assertIn(
                 (
                     'add_uuid_field',
                     layer_name,
-                    'uuid',
+                    id_field_name,
                     36,
                     True,
                 ),
@@ -152,27 +168,43 @@ class TestMtlFsaWorkflow(unittest.TestCase):
             'H3H',
             fsa_boundary_path,
         ))
-        for layer_name in ['roll_mtl', 'nrcan_mtl', 'usage_mtl']:
+        for layer_name, id_field_name in [
+                ('roll_mtl', 'roll_id'),
+                ('nrcan_mtl', 'nrcan_id'),
+                ('usage_mtl', 'usage_id')]:
             uuid_call_index = _FakeScrubLayer.calls.index((
                 'add_uuid_field',
                 layer_name,
-                'uuid',
+                id_field_name,
                 36,
                 True,
             ))
             self.assertLess(uuid_call_index, extract_call_index)
 
-        self.assertIn(
-            (
-                'clip_layer',
-                'nrcan_mtl',
-                fsa_boundary_path,
-                nrcan_path,
-            ),
-            _FakeScrubLayer.calls)
-        self.assertIn(
-            ('init', 'C:/QGIS', nrcan_path, 'nrcan_clipped_H3H'),
-            _FakeScrubLayer.calls)
+        for layer_name, output_path in [
+                ('nrcan_mtl', nrcan_path),
+                ('roll_mtl', roll_path),
+                ('usage_mtl', usage_path)]:
+            self.assertIn(
+                (
+                    'clip_layer',
+                    layer_name,
+                    fsa_boundary_path,
+                    output_path,
+                ),
+                _FakeScrubLayer.calls)
+
+        for output_path, layer_name in [
+                (fsa_boundary_path, 'fsa_boundary_H3H'),
+                (nrcan_path, 'nrcan_clipped_H3H'),
+                (roll_path, 'roll_clipped_H3H'),
+                (usage_path, 'usage_clipped_H3H')]:
+            self.assertIn(
+                ('init', 'C:/QGIS', output_path, layer_name),
+                _FakeScrubLayer.calls)
+            self.assertIn(
+                ('create_spatial_index', layer_name),
+                _FakeScrubLayer.calls)
 
 
 if __name__ == '__main__':

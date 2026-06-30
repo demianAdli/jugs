@@ -102,13 +102,14 @@ def run_workflow(fsa):
         paths.qgis_path,
         output_paths['fsa_boundary'],
         f'fsa_boundary_{normalized_fsa}')
+      fsa_boundary.create_spatial_index()
       _log_layer_summary(fsa_boundary)
       if fsa_boundary.data_count != 1:
         raise ValueError(
           f'Expected exactly one Montreal FSA boundary for {normalized_fsa}; '
           f'found {fsa_boundary.data_count}.')
 
-    with _workflow_step('clip NRCan to FSA boundary', normalized_fsa):
+    with _workflow_step('clip input layers to FSA boundary', normalized_fsa):
       nrcan_mtl.clip_layer(
         fsa_boundary.layer_path,
         output_paths['nrcan'])
@@ -116,7 +117,26 @@ def run_workflow(fsa):
         paths.qgis_path,
         output_paths['nrcan'],
         f'nrcan_clipped_{normalized_fsa}')
+      nrcan.create_spatial_index()
       _log_layer_summary(nrcan)
+      roll_mtl.clip_layer(
+        fsa_boundary.layer_path,
+        output_paths['roll'])
+      roll = ScrubLayer(
+        paths.qgis_path,
+        output_paths['roll'],
+        f'roll_clipped_{normalized_fsa}')
+      roll.create_spatial_index()
+      _log_layer_summary(roll)
+      usage_mtl.clip_layer(
+        fsa_boundary.layer_path,
+        output_paths['usage'])
+      usage = ScrubLayer(
+        paths.qgis_path,
+        output_paths['usage'],
+        f'usage_clipped_{normalized_fsa}')
+      usage.create_spatial_index()
+      _log_layer_summary(usage)
 
   except Exception:
     logger.exception(
