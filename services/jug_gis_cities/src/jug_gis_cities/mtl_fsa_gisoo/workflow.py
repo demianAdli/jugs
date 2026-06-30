@@ -162,14 +162,14 @@ def run_workflow(fsa):
         lookup_layer=roll,
         lookup_field='id_provinc',
         target_field='g_id_provi',
-        output_path=output_paths['usage_margin_sans'],
+        output_path=output_paths['usage_margin_san'],
         include_matches=False)
-      usage_margin_sans = ScrubLayer(
+      usage_margin_san = ScrubLayer(
         paths.qgis_path,
-        output_paths['usage_margin_sans'],
-        f'usage_margin_sans_{normalized_fsa}')
-      usage_margin_sans.create_spatial_index()
-      _log_layer_summary(usage_margin_sans)
+        output_paths['usage_margin_san'],
+        f'usage_margin_san_{normalized_fsa}')
+      usage_margin_san.create_spatial_index()
+      _log_layer_summary(usage_margin_san)
 
   except Exception:
     logger.exception(
