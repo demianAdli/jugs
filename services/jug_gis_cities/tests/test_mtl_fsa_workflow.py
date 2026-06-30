@@ -87,6 +87,15 @@ class _FakeScrubLayer:
             include_matches))
         return output_path
 
+    def difference_layer(self, overlay_layer, output_path, grid_size=None):
+        self.calls.append((
+            'difference_layer',
+            self.layer_name,
+            overlay_layer.layer_name,
+            output_path,
+            grid_size))
+        return output_path
+
     def create_spatial_index(self):
         self.calls.append(('create_spatial_index', self.layer_name))
 
@@ -166,11 +175,16 @@ class TestMtlFsaWorkflow(unittest.TestCase):
             'H3H',
             'usage_fixed',
             'usage_fixed.shp')
-        usage_margin_sans_path = os.path.join(
+        usage_margin_san_path = os.path.join(
             'D:/GIS/mtl_gisoo_fsa_data/output_data',
             'H3H',
-            'usage_margin_sans',
-            'usage_margin_sans.shp')
+            'usage_margin_san',
+            'usage_margin_san.shp')
+        usage_san_san_path = os.path.join(
+            'D:/GIS/mtl_gisoo_fsa_data/output_data',
+            'H3H',
+            'usage_san_san',
+            'usage_san_san.shp')
 
         self.assertIn(
             (
@@ -248,9 +262,19 @@ class TestMtlFsaWorkflow(unittest.TestCase):
                 'roll_clipped_H3H',
                 'id_provinc',
                 'g_id_provi',
-                usage_margin_sans_path,
+                usage_margin_san_path,
                 'array_agg',
                 False,
+            ),
+            _FakeScrubLayer.calls)
+
+        self.assertIn(
+            (
+                'difference_layer',
+                'usage_clipped_H3H',
+                'usage_margin_san_H3H',
+                usage_san_san_path,
+                None,
             ),
             _FakeScrubLayer.calls)
 
@@ -261,7 +285,8 @@ class TestMtlFsaWorkflow(unittest.TestCase):
                 (usage_path, 'usage_clipped_H3H'),
                 (nrcan_fixed_path, 'nrcan_fixed_H3H'),
                 (usage_fixed_path, 'usage_fixed_H3H'),
-                (usage_margin_sans_path, 'usage_margin_sans_H3H')]:
+                (usage_margin_san_path, 'usage_margin_san_H3H'),
+                (usage_san_san_path, 'usage_san_san_H3H')]:
             self.assertIn(
                 ('init', 'C:/QGIS', output_path, layer_name),
                 _FakeScrubLayer.calls)

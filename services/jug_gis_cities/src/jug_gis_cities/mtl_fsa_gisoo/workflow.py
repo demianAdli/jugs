@@ -171,6 +171,18 @@ def run_workflow(fsa):
       usage_margin_san.create_spatial_index()
       _log_layer_summary(usage_margin_san)
 
+    with _workflow_step('difference usage with usage margin san',
+                        normalized_fsa):
+      usage.difference_layer(
+        overlay_layer=usage_margin_san,
+        output_path=output_paths['usage_san_san'])
+      usage_san_san = ScrubLayer(
+        paths.qgis_path,
+        output_paths['usage_san_san'],
+        f'usage_san_san_{normalized_fsa}')
+      usage_san_san.create_spatial_index()
+      _log_layer_summary(usage_san_san)
+
   except Exception:
     logger.exception(
       'Montreal FSA GISOO workflow failed. FSA=%s',
