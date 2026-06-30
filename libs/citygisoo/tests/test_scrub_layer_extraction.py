@@ -10,7 +10,7 @@ import os
 import sys
 import types
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import ANY, Mock, patch
 
 
 _REPO_ROOT = os.path.abspath(
@@ -236,6 +236,40 @@ class TestScrubLayerExtraction(unittest.TestCase):
         'OUTPUT': 'output/usage_only.shp',
         'GRID_SIZE': 0.001,
       })
+
+  @patch('src.citygisoo.scrub_layer_class.processing.run')
+  def test_spatial_join_with_predicate_runs_qgis_algorithm(
+          self, processing_run_mock):
+    scrub_layer = _build_scrub_layer()
+
+    result = scrub_layer.spatial_join_with_predicate(
+      joining_layer_path='output/property_assessment.shp',
+      joined_layer_path='output/property_usage_joined.shp',
+      predicate='within')
+
+    self.assertEqual(result, 'output/property_usage_joined.shp')
+    processing_run_mock.assert_called_once_with(
+      'native:joinattributesbylocation',
+      {
+        'INPUT': scrub_layer.layer,
+        'PREDICATE': [5],
+        'JOIN': 'output/property_assessment.shp',
+        'JOIN_FIELDS': [],
+        'METHOD': 0,
+        'DISCARD_NONMATCHING': False,
+        'PREFIX': '',
+        'OUTPUT': 'output/property_usage_joined.shp',
+      },
+      feedback=ANY)
+
+  def test_spatial_join_with_predicate_accepts_multiple_predicates(self):
+    self.assertEqual(
+      ScrubLayer._normalize_spatial_join_predicate(['intersects', 'within']),
+      [0, 5])
+
+  def test_spatial_join_with_predicate_rejects_unknown_predicate(self):
+    with self.assertRaises(ValueError):
+      ScrubLayer._normalize_spatial_join_predicate('near')
 
   def test_extract_by_attribute_rejects_unknown_operator(self):
     with self.assertRaises(ValueError):

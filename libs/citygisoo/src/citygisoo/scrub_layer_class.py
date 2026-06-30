@@ -185,6 +185,65 @@ class ScrubLayer:
       'Spatial join with input layer %s is completed.', self.layer_name)
 
   @staticmethod
+  def _normalize_spatial_join_predicate(predicate):
+    if isinstance(predicate, int):
+      return [predicate]
+
+    if isinstance(predicate, (list, tuple)):
+      predicate_codes = []
+      for predicate_item in predicate:
+        predicate_codes.extend(
+          ScrubLayer._normalize_spatial_join_predicate(predicate_item))
+      return predicate_codes
+
+    normalized_predicate = str(predicate).strip().lower()
+    predicate_codes = {
+      'intersect': 0,
+      'intersects': 0,
+      'contain': 1,
+      'contains': 1,
+      'equal': 2,
+      'equals': 2,
+      'touch': 3,
+      'touches': 3,
+      'overlap': 4,
+      'overlaps': 4,
+      'within': 5,
+      'are within': 5,
+      'cross': 6,
+      'crosses': 6,
+    }
+    if normalized_predicate not in predicate_codes:
+      raise ValueError(f'Unsupported spatial join predicate: {predicate}')
+    return [predicate_codes[normalized_predicate]]
+
+  def spatial_join_with_predicate(
+          self,
+          joining_layer_path,
+          joined_layer_path,
+          predicate='intersect'):
+    """Join attributes by location with a caller-selected predicate."""
+    params = {
+      'INPUT': self.layer,
+      'PREDICATE': self._normalize_spatial_join_predicate(predicate),
+      'JOIN': joining_layer_path,
+      'JOIN_FIELDS': [],
+      'METHOD': 0,
+      'DISCARD_NONMATCHING': False,
+      'PREFIX': '',
+      'OUTPUT': joined_layer_path
+    }
+
+    feedback = QgsProcessingFeedback()
+    processing.run(
+      'native:joinattributesbylocation', params, feedback=feedback)
+    logger.info(
+      'Spatial join with input layer %s and predicate %s is completed.',
+      self.layer_name,
+      predicate)
+    return joined_layer_path
+
+  @staticmethod
   def _replace_layer_files(source_path, destination_path):
     source_base, source_ext = os.path.splitext(source_path)
     destination_base, destination_ext = os.path.splitext(destination_path)

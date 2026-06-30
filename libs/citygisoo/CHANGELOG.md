@@ -8,6 +8,7 @@
 - Added `ScrubLayer.extract_by_expression()`.
 - Added `ScrubLayer.extract_by_aggregate_membership()`.
 - Added `ScrubLayer.difference_layer()`.
+- Added `ScrubLayer.spatial_join_with_predicate()`.
 
 ### Planned
 - Extend spatial join to support multiple predicates.
