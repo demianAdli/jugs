@@ -217,6 +217,11 @@ class TestMtlFsaWorkflow(unittest.TestCase):
             'H3H',
             'usage_only',
             'usage_only.shp')
+        roll_only_path = os.path.join(
+            'D:/GIS/mtl_gisoo_fsa_data/output_data',
+            'H3H',
+            'roll_only',
+            'roll_only.shp')
 
         self.assertIn(
             (
@@ -340,6 +345,18 @@ class TestMtlFsaWorkflow(unittest.TestCase):
                 usage_only_path,
             ),
             _FakeScrubLayer.calls)
+        self.assertIn(
+            (
+                'extract_by_aggregate_membership',
+                'roll_clipped_H3H',
+                'usage_clipped_H3H',
+                'g_id_provi',
+                'id_provinc',
+                roll_only_path,
+                'array_agg',
+                False,
+            ),
+            _FakeScrubLayer.calls)
 
         for output_path, layer_name in [
                 (fsa_boundary_path, 'fsa_boundary_H3H'),
@@ -351,7 +368,8 @@ class TestMtlFsaWorkflow(unittest.TestCase):
                 (usage_margin_san_path, 'usage_margin_san_H3H'),
                 (usage_san_san_path, 'usage_san_san_H3H'),
                 (usage_margin_path, 'usage_margin_H3H'),
-                (usage_only_path, 'usage_only_H3H')]:
+                (usage_only_path, 'usage_only_H3H'),
+                (roll_only_path, 'roll_only_H3H')]:
             self.assertIn(
                 ('init', 'C:/QGIS', output_path, layer_name),
                 _FakeScrubLayer.calls)
