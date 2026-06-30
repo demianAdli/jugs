@@ -88,9 +88,9 @@ def run_workflow(fsa):
       _log_layer_summary(fsa_layer)
 
     with _workflow_step('add UUID fields', normalized_fsa):
-      roll_mtl.add_uuid_field('uuid', overwrite=True)
-      nrcan_mtl.add_uuid_field('uuid', overwrite=True)
-      usage_mtl.add_uuid_field('uuid', overwrite=True)
+      roll_mtl.add_uuid_field('roll_id', overwrite=True)
+      nrcan_mtl.add_uuid_field('nrcan_id', overwrite=True)
+      usage_mtl.add_uuid_field('usage_id', overwrite=True)
 
     with _workflow_step('extract FSA boundary', normalized_fsa):
       fsa_layer.extract_by_attribute(
