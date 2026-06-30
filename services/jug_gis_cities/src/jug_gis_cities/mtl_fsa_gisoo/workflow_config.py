@@ -45,8 +45,9 @@ input_paths = {
   os.path.join(
     input_data_dir,
     'mtl_island_fsa_boundaries',
-    'mtl_island_fsa_boundaries_dmti_2025.shp')
+    'mtl_island_fsa_boundaries_dmti_2025.gpkg')
 }
+fsa_field_name = 'g_fsa'
 
 # Defining a directory for all the output data layers
 output_paths_dir = os.getenv(
@@ -70,11 +71,15 @@ def normalize_fsa(fsa):
 def get_fsa_output_paths_dir(fsa):
   return os.path.join(output_paths_dir, normalize_fsa(fsa))
 
+
 # Preparing a bedding for output data layers paths
 output_paths = {
+  'fsa_boundary': '',
+  'nrcan': '',
+  'usage': '',
+  'roll': '',
   'nrcan_fixed': '',
   'usage_fixed': '',
-  'roll': '',
   'usage_margin_sans': '',
   'usage_san_sans': '',
   'usage_margins': '',

@@ -81,11 +81,37 @@ def run_workflow(fsa):
       fsa_layer = ScrubLayer(
         paths.qgis_path,
         paths.input_paths['fsa'],
-        'fsa')
+        'fsa_boundaries')
       _log_layer_summary(roll_mtl)
       _log_layer_summary(nrcan_mtl)
       _log_layer_summary(usage_mtl)
       _log_layer_summary(fsa_layer)
+
+    with _workflow_step('extract FSA boundary', normalized_fsa):
+      fsa_layer.extract_by_attribute(
+        paths.fsa_field_name,
+        '=',
+        normalized_fsa,
+        output_paths['fsa_boundary'])
+      fsa_boundary = ScrubLayer(
+        paths.qgis_path,
+        output_paths['fsa_boundary'],
+        f'fsa_boundary_{normalized_fsa}')
+      _log_layer_summary(fsa_boundary)
+      if fsa_boundary.data_count != 1:
+        raise ValueError(
+          f'Expected exactly one Montreal FSA boundary for {normalized_fsa}; '
+          f'found {fsa_boundary.data_count}.')
+
+    with _workflow_step('clip NRCan to FSA boundary', normalized_fsa):
+      nrcan_mtl.clip_layer(
+        fsa_boundary.layer_path,
+        output_paths['nrcan'])
+      nrcan = ScrubLayer(
+        paths.qgis_path,
+        output_paths['nrcan'],
+        f'nrcan_clipped_{normalized_fsa}')
+      _log_layer_summary(nrcan)
 
   except Exception:
     logger.exception(
