@@ -10,6 +10,7 @@
 - Added `ScrubLayer.difference_layer()`.
 - Added `ScrubLayer.spatial_join_with_predicate()`.
 - Added `ScrubLayer.extract_unique_by_field()`.
+- Added `ScrubLayer.duplicate_text_field()`.
 
 ### Planned
 - Extend spatial join to support multiple predicates.

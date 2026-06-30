@@ -792,6 +792,84 @@ class ScrubLayer:
       field_name,
       self.layer_name)
 
+  def duplicate_text_field(
+          self,
+          source_field,
+          target_field,
+          field_length,
+          overwrite=False,
+          batch_size=10000):
+    """Copy source_field values intact into a text target_field."""
+    if batch_size <= 0:
+      raise ValueError('batch_size must be greater than zero.')
+
+    source_idx = self.layer.fields().indexFromName(source_field)
+    if source_idx == -1:
+      raise KeyError(
+        f'Field {source_field} was not found on {self.layer_name}.')
+
+    target_idx = self.layer.fields().indexFromName(target_field)
+    if target_idx != -1 and not overwrite:
+      raise ValueError(
+        f'Field {target_field} already exists on {self.layer_name}.')
+
+    provider = self.layer.dataProvider()
+    if target_idx == -1:
+      functionalities = provider.capabilities()
+      if not functionalities & QgsVectorDataProvider.AddAttributes:
+        raise ValueError(
+          f'Layer {self.layer_name} does not support adding fields.')
+
+      new_field = QgsField(target_field, QVariant.String, len=field_length)
+      added = provider.addAttributes([new_field])
+      self.layer.updateFields()
+      if not added:
+        raise RuntimeError(
+          f'Failed to add duplicate text field {target_field} to '
+          f'{self.layer_name}.')
+      target_idx = self.layer.fields().indexFromName(target_field)
+
+    can_bulk_update = (
+      provider.capabilities() & QgsVectorDataProvider.ChangeAttributeValues)
+    if not can_bulk_update:
+      raise ValueError(
+        f'Layer {self.layer_name} does not support changing attributes.')
+
+    updated_count = 0
+    change_map = {}
+    for feature in self.layer.getFeatures():
+      source_value = feature[source_field]
+      if source_value is None:
+        target_value = None
+      elif isinstance(source_value, str):
+        target_value = source_value
+      else:
+        target_value = str(source_value)
+
+      change_map[feature.id()] = {target_idx: target_value}
+      if len(change_map) >= batch_size:
+        if not provider.changeAttributeValues(change_map):
+          raise RuntimeError(
+            f'Failed to copy {source_field} to {target_field} on '
+            f'{self.layer_name}.')
+        updated_count += len(change_map)
+        change_map = {}
+
+    if change_map:
+      if not provider.changeAttributeValues(change_map):
+        raise RuntimeError(
+          f'Failed to copy {source_field} to {target_field} on '
+          f'{self.layer_name}.')
+      updated_count += len(change_map)
+
+    logger.info(
+      'Copied %s values from %s to text field %s on %s.',
+      updated_count,
+      source_field,
+      target_field,
+      self.layer_name)
+    return target_field
+
   def add_uuid_field(
           self,
           field_name='uuid',

@@ -137,9 +137,80 @@ class _FakeVectorLayer:
     self.selection_removed = True
 
 
+class _FakeQgsVectorDataProvider:
+  AddAttributes = 1
+  ChangeAttributeValues = 2
+
+
+class _FakeQVariant:
+  String = 'String'
+
+
+class _FakeQgsField:
+  def __init__(self, name, field_type, len=None):
+    self.name = name
+    self.field_type = field_type
+    self.length = len
+
+
+class _FakeFields:
+  def __init__(self, names):
+    self.names = names
+
+  def indexFromName(self, field_name):
+    try:
+      return self.names.index(field_name)
+    except ValueError:
+      return -1
+
+
+class _FakeProvider:
+  def __init__(self, layer):
+    self.layer = layer
+    self.added_fields = []
+    self.changed_attributes = []
+
+  def capabilities(self):
+    return (
+      _FakeQgsVectorDataProvider.AddAttributes
+      | _FakeQgsVectorDataProvider.ChangeAttributeValues)
+
+  def addAttributes(self, fields):
+    self.added_fields.extend(fields)
+    for field in fields:
+      self.layer.field_names.append(field.name)
+    return True
+
+  def changeAttributeValues(self, change_map):
+    self.changed_attributes.append(change_map)
+    return True
+
+
+class _FakeAttributeLayer:
+  def __init__(self, field_names, features):
+    self.field_names = list(field_names)
+    self._features = features
+    self.provider = _FakeProvider(self)
+
+  def fields(self):
+    return _FakeFields(self.field_names)
+
+  def dataProvider(self):
+    return self.provider
+
+  def updateFields(self):
+    return None
+
+  def getFeatures(self):
+    return iter(self._features)
+
+
 class TestScrubLayerExtraction(unittest.TestCase):
   def setUp(self):
     scrub_layer_module.QgsApplication = _FakeQgsApplication
+    scrub_layer_module.QgsField = _FakeQgsField
+    scrub_layer_module.QgsVectorDataProvider = _FakeQgsVectorDataProvider
+    scrub_layer_module.QVariant = _FakeQVariant
 
   @patch('src.citygisoo.scrub_layer_class.processing.run')
   def test_extract_by_attribute_runs_qgis_algorithm(self, processing_run_mock):
@@ -306,6 +377,59 @@ class TestScrubLayerExtraction(unittest.TestCase):
 
     self.assertEqual(scrub_layer.layer.selected_ids, [10])
     processing_run_mock.assert_called_once()
+
+  def test_duplicate_text_field_adds_string_field_and_copies_values_intact(
+          self):
+    scrub_layer = _build_scrub_layer()
+    scrub_layer.layer = _FakeAttributeLayer(
+      ['id_provinc'],
+      [
+        _FakeFeature(10, {'id_provinc': 'Évaluation-123'}),
+        _FakeFeature(11, {'id_provinc': 'Apostrophe O\'Neil'}),
+        _FakeFeature(12, {'id_provinc': None}),
+      ])
+
+    result = scrub_layer.duplicate_text_field(
+      source_field='id_provinc',
+      target_field='r_id_provinc',
+      field_length=36)
+
+    self.assertEqual(result, 'r_id_provinc')
+    self.assertEqual(scrub_layer.layer.field_names,
+                     ['id_provinc', 'r_id_provinc'])
+    added_field = scrub_layer.layer.provider.added_fields[0]
+    self.assertEqual(added_field.name, 'r_id_provinc')
+    self.assertEqual(added_field.field_type, _FakeQVariant.String)
+    self.assertEqual(added_field.length, 36)
+    self.assertEqual(
+      scrub_layer.layer.provider.changed_attributes,
+      [{10: {1: 'Évaluation-123'},
+        11: {1: 'Apostrophe O\'Neil'},
+        12: {1: None}}])
+
+  def test_duplicate_text_field_rejects_existing_target_by_default(self):
+    scrub_layer = _build_scrub_layer()
+    scrub_layer.layer = _FakeAttributeLayer(
+      ['id_provinc', 'r_id_provinc'],
+      [_FakeFeature(10, {'id_provinc': 'A'})])
+
+    with self.assertRaises(ValueError):
+      scrub_layer.duplicate_text_field(
+        source_field='id_provinc',
+        target_field='r_id_provinc',
+        field_length=36)
+
+  def test_duplicate_text_field_rejects_missing_source(self):
+    scrub_layer = _build_scrub_layer()
+    scrub_layer.layer = _FakeAttributeLayer(
+      ['id_provinc'],
+      [_FakeFeature(10, {'id_provinc': 'A'})])
+
+    with self.assertRaises(KeyError):
+      scrub_layer.duplicate_text_field(
+        source_field='missing',
+        target_field='r_id_provinc',
+        field_length=36)
 
   @patch('src.citygisoo.scrub_layer_class.processing.run')
   def test_spatial_join_with_predicate_runs_qgis_algorithm(
