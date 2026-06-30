@@ -102,6 +102,12 @@ def _build_scrub_layer():
   return scrub_layer
 
 
+def _build_lookup_layer(layer_name):
+  lookup_layer = ScrubLayer.__new__(ScrubLayer)
+  lookup_layer.layer_name = layer_name
+  return lookup_layer
+
+
 class TestScrubLayerExtraction(unittest.TestCase):
   def setUp(self):
     scrub_layer_module.QgsApplication = _FakeQgsApplication
@@ -143,6 +149,54 @@ class TestScrubLayerExtraction(unittest.TestCase):
         'EXPRESSION': '"g_fsa" = \'H3H\'',
         'OUTPUT': 'output/fsa_boundary.shp',
       })
+
+  @patch.object(ScrubLayer, 'extract_by_expression')
+  def test_extract_by_aggregate_membership_extracts_matches(
+          self, extract_by_expression_mock):
+    scrub_layer = _build_scrub_layer()
+    lookup_layer = _build_lookup_layer('roll_clipped_H3H')
+
+    result = scrub_layer.extract_by_aggregate_membership(
+      lookup_layer=lookup_layer,
+      lookup_field='id_provinc',
+      target_field='g_id_provi',
+      output_path='output/usage_margin_sans.shp')
+
+    self.assertEqual(result, extract_by_expression_mock.return_value)
+    extract_by_expression_mock.assert_called_once_with(
+      'array_contains('
+      'aggregate('
+      "layer:='roll_clipped_H3H',"
+      "aggregate:='array_agg',"
+      'expression:="id_provinc"'
+      '),'
+      '"g_id_provi"'
+      ')',
+      'output/usage_margin_sans.shp')
+
+  @patch.object(ScrubLayer, 'extract_by_expression')
+  def test_extract_by_aggregate_membership_extracts_non_matches(
+          self, extract_by_expression_mock):
+    scrub_layer = _build_scrub_layer()
+
+    result = scrub_layer.extract_by_aggregate_membership(
+      lookup_layer='roll',
+      lookup_field='id_provinc',
+      target_field='g_id_provi',
+      output_path='output/usage_margin_sans.shp',
+      include_matches=False)
+
+    self.assertEqual(result, extract_by_expression_mock.return_value)
+    extract_by_expression_mock.assert_called_once_with(
+      'NOT array_contains('
+      'aggregate('
+      "layer:='roll',"
+      "aggregate:='array_agg',"
+      'expression:="id_provinc"'
+      '),'
+      '"g_id_provi"'
+      ')',
+      'output/usage_margin_sans.shp')
 
   def test_extract_by_attribute_rejects_unknown_operator(self):
     with self.assertRaises(ValueError):

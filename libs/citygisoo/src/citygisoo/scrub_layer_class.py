@@ -347,6 +347,43 @@ class ScrubLayer:
       output_path)
     return output_path
 
+  @staticmethod
+  def _quote_qgis_identifier(identifier):
+    return f'"{str(identifier).replace(chr(34), chr(34) * 2)}"'
+
+  @staticmethod
+  def _quote_qgis_string(value):
+    return f"'{str(value).replace(chr(39), chr(39) * 2)}'"
+
+  def extract_by_aggregate_membership(
+          self,
+          lookup_layer,
+          lookup_field,
+          target_field,
+          output_path,
+          aggregate='array_agg',
+          include_matches=True):
+    """Extract features by testing target_field membership in another layer.
+
+    Builds a QGIS expression using array_contains(aggregate(...)) and delegates
+    execution to extract_by_expression().
+    """
+    lookup_layer_name = getattr(lookup_layer, 'layer_name', lookup_layer)
+    expression = (
+      'array_contains('
+      'aggregate('
+      f'layer:={self._quote_qgis_string(lookup_layer_name)},'
+      f'aggregate:={self._quote_qgis_string(aggregate)},'
+      f'expression:={self._quote_qgis_identifier(lookup_field)}'
+      '),'
+      f'{self._quote_qgis_identifier(target_field)}'
+      ')')
+
+    if not include_matches:
+      expression = f'NOT {expression}'
+
+    return self.extract_by_expression(expression, output_path)
+
   def clip_by_predefined_zones(self):
     pass
 

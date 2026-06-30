@@ -6,6 +6,7 @@
 - Added `ScrubLayer.add_uuid_field()`.
 - Added `ScrubLayer.extract_by_attribute()`.
 - Added `ScrubLayer.extract_by_expression()`.
+- Added `ScrubLayer.extract_by_aggregate_membership()`.
 
 ### Planned
 - Extend spatial join to support multiple predicates.
