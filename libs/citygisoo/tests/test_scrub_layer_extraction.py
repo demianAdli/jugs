@@ -109,6 +109,34 @@ def _build_lookup_layer(layer_name):
   return lookup_layer
 
 
+class _FakeFeature:
+  def __init__(self, feature_id, attributes):
+    self._feature_id = feature_id
+    self._attributes = attributes
+
+  def id(self):
+    return self._feature_id
+
+  def __getitem__(self, field_name):
+    return self._attributes[field_name]
+
+
+class _FakeVectorLayer:
+  def __init__(self, features):
+    self._features = features
+    self.selected_ids = None
+    self.selection_removed = False
+
+  def getFeatures(self):
+    return iter(self._features)
+
+  def selectByIds(self, selected_ids):
+    self.selected_ids = selected_ids
+
+  def removeSelection(self):
+    self.selection_removed = True
+
+
 class TestScrubLayerExtraction(unittest.TestCase):
   def setUp(self):
     scrub_layer_module.QgsApplication = _FakeQgsApplication
@@ -236,6 +264,48 @@ class TestScrubLayerExtraction(unittest.TestCase):
         'OUTPUT': 'output/usage_only.shp',
         'GRID_SIZE': 0.001,
       })
+
+  @patch('src.citygisoo.scrub_layer_class.processing.run')
+  def test_extract_unique_by_field_saves_first_feature_per_value(
+          self, processing_run_mock):
+    scrub_layer = _build_scrub_layer()
+    scrub_layer.layer = _FakeVectorLayer([
+      _FakeFeature(10, {'ro_id_provinc': 'A'}),
+      _FakeFeature(11, {'ro_id_provinc': 'B'}),
+      _FakeFeature(12, {'ro_id_provinc': 'A'}),
+      _FakeFeature(13, {'ro_id_provinc': None}),
+    ])
+
+    result = scrub_layer.extract_unique_by_field(
+      field_name='ro_id_provinc',
+      output_path='output/usage_roll_only_unique.shp')
+
+    self.assertEqual(result, 'output/usage_roll_only_unique.shp')
+    self.assertEqual(scrub_layer.layer.selected_ids, [10, 11])
+    self.assertTrue(scrub_layer.layer.selection_removed)
+    processing_run_mock.assert_called_once_with(
+      'native:saveselectedfeatures',
+      {
+        'INPUT': scrub_layer.layer,
+        'OUTPUT': 'output/usage_roll_only_unique.shp',
+      })
+
+  @patch('src.citygisoo.scrub_layer_class.processing.run')
+  def test_extract_unique_by_field_can_include_one_null_value(
+          self, processing_run_mock):
+    scrub_layer = _build_scrub_layer()
+    scrub_layer.layer = _FakeVectorLayer([
+      _FakeFeature(10, {'ro_id_provinc': None}),
+      _FakeFeature(11, {'ro_id_provinc': None}),
+    ])
+
+    scrub_layer.extract_unique_by_field(
+      field_name='ro_id_provinc',
+      output_path='output/usage_roll_only_unique.shp',
+      include_null=True)
+
+    self.assertEqual(scrub_layer.layer.selected_ids, [10])
+    processing_run_mock.assert_called_once()
 
   @patch('src.citygisoo.scrub_layer_class.processing.run')
   def test_spatial_join_with_predicate_runs_qgis_algorithm(

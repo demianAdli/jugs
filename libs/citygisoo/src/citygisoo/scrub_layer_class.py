@@ -586,6 +586,44 @@ class ScrubLayer:
       self.layer_name,
       deleted_duplicates_layer)
 
+  def extract_unique_by_field(
+          self,
+          field_name,
+          output_path,
+          include_null=False):
+    """Extract the first feature for each unique value in an attribute field."""
+    QgsApplication.processingRegistry().addProvider(QgsNativeAlgorithms())
+    selected_feature_ids = []
+    seen_values = set()
+
+    for feature in self.layer.getFeatures():
+      field_value = feature[field_name]
+      if field_value is None and not include_null:
+        continue
+      if field_value in seen_values:
+        continue
+
+      seen_values.add(field_value)
+      selected_feature_ids.append(feature.id())
+
+    self.layer.selectByIds(selected_feature_ids)
+    params = {
+      'INPUT': self.layer,
+      'OUTPUT': output_path
+    }
+    try:
+      processing.run('native:saveselectedfeatures', params)
+    finally:
+      self.layer.removeSelection()
+
+    logger.info(
+      'Extracted %s unique %s values from %s into %s.',
+      len(selected_feature_ids),
+      field_name,
+      self.layer_name,
+      output_path)
+    return output_path
+
   def delete_field(self, field_name):
     QgsApplication.processingRegistry().addProvider(QgsNativeAlgorithms())
     with edit(self.layer):
