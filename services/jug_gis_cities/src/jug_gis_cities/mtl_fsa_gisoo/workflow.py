@@ -253,6 +253,18 @@ def run_workflow(fsa):
       usage_roll_only.create_spatial_index()
       _log_layer_summary(usage_roll_only)
 
+    with _workflow_step('extract unique usage-roll-only records',
+                        normalized_fsa):
+      usage_roll_only.extract_unique_by_field(
+        field_name='ro_id_provinc',
+        output_path=output_paths['usage_roll_only_unique'])
+      usage_roll_only_unique = ScrubLayer(
+        paths.qgis_path,
+        output_paths['usage_roll_only_unique'],
+        f'usage_roll_only_unique_{normalized_fsa}')
+      usage_roll_only_unique.create_spatial_index()
+      _log_layer_summary(usage_roll_only_unique)
+
   except Exception:
     logger.exception(
       'Montreal FSA GISOO workflow failed. FSA=%s',

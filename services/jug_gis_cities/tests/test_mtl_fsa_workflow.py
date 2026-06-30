@@ -117,6 +117,16 @@ class _FakeScrubLayer:
             prefix))
         return joined_layer_path
 
+    def extract_unique_by_field(
+            self, field_name, output_path, include_null=False):
+        self.calls.append((
+            'extract_unique_by_field',
+            self.layer_name,
+            field_name,
+            output_path,
+            include_null))
+        return output_path
+
     def add_field(self, new_field_name):
         self.calls.append((
             'add_field',
@@ -245,6 +255,11 @@ class TestMtlFsaWorkflow(unittest.TestCase):
             'H3H',
             'usage_roll_only',
             'usage_roll_only.shp')
+        usage_roll_only_unique_path = os.path.join(
+            'D:/GIS/mtl_gisoo_fsa_data/output_data',
+            'H3H',
+            'usage_roll_only_unique',
+            'usage_roll_only_unique.shp')
 
         self.assertIn(
             (
@@ -399,6 +414,15 @@ class TestMtlFsaWorkflow(unittest.TestCase):
                 usage_roll_only_path,
             ),
             _FakeScrubLayer.calls)
+        self.assertIn(
+            (
+                'extract_unique_by_field',
+                'usage_roll_only_H3H',
+                'ro_id_provinc',
+                usage_roll_only_unique_path,
+                False,
+            ),
+            _FakeScrubLayer.calls)
 
         for output_path, layer_name in [
                 (fsa_boundary_path, 'fsa_boundary_H3H'),
@@ -413,7 +437,9 @@ class TestMtlFsaWorkflow(unittest.TestCase):
                 (usage_only_path, 'usage_only_H3H'),
                 (roll_only_path, 'roll_only_H3H'),
                 (usage_roll_only_all_path, 'usage_roll_only_all_H3H'),
-                (usage_roll_only_path, 'usage_roll_only_H3H')]:
+                (usage_roll_only_path, 'usage_roll_only_H3H'),
+                (usage_roll_only_unique_path,
+                 'usage_roll_only_unique_H3H')]:
             self.assertIn(
                 ('init', 'C:/QGIS', output_path, layer_name),
                 _FakeScrubLayer.calls)
