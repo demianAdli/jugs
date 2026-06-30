@@ -49,6 +49,14 @@ class _FakeScrubLayer:
             output_path))
         return output_path
 
+    def extract_by_expression(self, expression, output_path):
+        self.calls.append((
+            'extract_by_expression',
+            self.layer_name,
+            expression,
+            output_path))
+        return output_path
+
     def add_uuid_field(self, field_name='uuid', field_length=36,
                        overwrite=False):
         self.calls.append((
@@ -95,6 +103,20 @@ class _FakeScrubLayer:
             output_path,
             grid_size))
         return output_path
+
+    def add_field(self, new_field_name):
+        self.calls.append((
+            'add_field',
+            self.layer_name,
+            new_field_name))
+        return new_field_name
+
+    def assign_area(self, field_name):
+        self.calls.append((
+            'assign_area',
+            self.layer_name,
+            field_name))
+        return field_name
 
     def create_spatial_index(self):
         self.calls.append(('create_spatial_index', self.layer_name))
@@ -185,6 +207,16 @@ class TestMtlFsaWorkflow(unittest.TestCase):
             'H3H',
             'usage_san_san',
             'usage_san_san.shp')
+        usage_margin_path = os.path.join(
+            'D:/GIS/mtl_gisoo_fsa_data/output_data',
+            'H3H',
+            'usage_margin',
+            'usage_margin.shp')
+        usage_only_path = os.path.join(
+            'D:/GIS/mtl_gisoo_fsa_data/output_data',
+            'H3H',
+            'usage_only',
+            'usage_only.shp')
 
         self.assertIn(
             (
@@ -278,6 +310,37 @@ class TestMtlFsaWorkflow(unittest.TestCase):
             ),
             _FakeScrubLayer.calls)
 
+        self.assertIn(
+            (
+                'extract_by_expression',
+                'usage_margin_san_H3H',
+                '"g_id_provi" != \'Sans correspondance\'',
+                usage_margin_path,
+            ),
+            _FakeScrubLayer.calls)
+        self.assertIn(
+            (
+                'add_field',
+                'usage_margin_H3H',
+                'area_ex',
+            ),
+            _FakeScrubLayer.calls)
+        self.assertIn(
+            (
+                'assign_area',
+                'usage_margin_H3H',
+                'area_ex',
+            ),
+            _FakeScrubLayer.calls)
+        self.assertIn(
+            (
+                'extract_by_expression',
+                'usage_margin_H3H',
+                '"area_ex" > 0.9 * "g_sup_tota"',
+                usage_only_path,
+            ),
+            _FakeScrubLayer.calls)
+
         for output_path, layer_name in [
                 (fsa_boundary_path, 'fsa_boundary_H3H'),
                 (nrcan_path, 'nrcan_clipped_H3H'),
@@ -286,7 +349,9 @@ class TestMtlFsaWorkflow(unittest.TestCase):
                 (nrcan_fixed_path, 'nrcan_fixed_H3H'),
                 (usage_fixed_path, 'usage_fixed_H3H'),
                 (usage_margin_san_path, 'usage_margin_san_H3H'),
-                (usage_san_san_path, 'usage_san_san_H3H')]:
+                (usage_san_san_path, 'usage_san_san_H3H'),
+                (usage_margin_path, 'usage_margin_H3H'),
+                (usage_only_path, 'usage_only_H3H')]:
             self.assertIn(
                 ('init', 'C:/QGIS', output_path, layer_name),
                 _FakeScrubLayer.calls)

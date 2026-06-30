@@ -195,6 +195,22 @@ def run_workflow(fsa):
       usage_margin.create_spatial_index()
       _log_layer_summary(usage_margin)
 
+    with _workflow_step('assign usage margin area field', normalized_fsa):
+      usage_margin.add_field('area_ex')
+      usage_margin.assign_area('area_ex')
+
+    with _workflow_step('extract usage-only records by area',
+                        normalized_fsa):
+      usage_margin.extract_by_expression(
+        '"area_ex" > 0.9 * "g_sup_tota"',
+        output_paths['usage_only'])
+      usage_only = ScrubLayer(
+        paths.qgis_path,
+        output_paths['usage_only'],
+        f'usage_only_{normalized_fsa}')
+      usage_only.create_spatial_index()
+      _log_layer_summary(usage_only)
+
   except Exception:
     logger.exception(
       'Montreal FSA GISOO workflow failed. FSA=%s',
