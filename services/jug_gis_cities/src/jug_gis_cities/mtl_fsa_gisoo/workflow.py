@@ -226,6 +226,21 @@ def run_workflow(fsa):
       roll_only.create_spatial_index()
       _log_layer_summary(roll_only)
 
+    with _workflow_step('spatial join usage with roll-only',
+                        normalized_fsa):
+      usage.spatial_join_with_predicate(
+        joining_layer_path=roll_only.layer_path,
+        joined_layer_path=output_paths['usage_roll_only_all'],
+        predicate='contains',
+        join_method='one-to-many',
+        prefix='ro_')
+      usage_roll_only_all = ScrubLayer(
+        paths.qgis_path,
+        output_paths['usage_roll_only_all'],
+        f'usage_roll_only_all_{normalized_fsa}')
+      usage_roll_only_all.create_spatial_index()
+      _log_layer_summary(usage_roll_only_all)
+
   except Exception:
     logger.exception(
       'Montreal FSA GISOO workflow failed. FSA=%s',
