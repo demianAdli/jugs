@@ -595,6 +595,55 @@ class TestScrubLayerExtraction(unittest.TestCase):
       prefix='roll_',
       output_path='output/joined.shp')
 
+  @patch('src.citygisoo.scrub_layer_class.processing.run')
+  def test_merge_layer_paths_runs_qgis_algorithm_for_explicit_paths(
+          self, processing_run_mock):
+    result = ScrubLayer.merge_layer_paths(
+      layer_paths=[
+        'input/usage_a.gpkg',
+        'input/usage_b.gpkg',
+        'input/usage_c.gpkg',
+      ],
+      output_path='output/merged_usage.gpkg',
+      crs='EPSG:2950')
+
+    self.assertEqual(result, 'output/merged_usage.gpkg')
+    processing_run_mock.assert_called_once_with(
+      'native:mergevectorlayers',
+      {
+        'LAYERS': [
+          'input/usage_a.gpkg',
+          'input/usage_b.gpkg',
+          'input/usage_c.gpkg',
+        ],
+        'CRS': 'EPSG:2950',
+        'OUTPUT': 'output/merged_usage.gpkg',
+      })
+
+  @patch('src.citygisoo.scrub_layer_class.processing.run')
+  def test_merge_layer_paths_accepts_scrub_layer_instances(
+          self, processing_run_mock):
+    first_layer = _build_lookup_layer('first')
+    second_layer = _build_lookup_layer('second')
+
+    ScrubLayer.merge_layer_paths(
+      layer_paths=[first_layer, second_layer],
+      output_path='output/merged.shp')
+
+    processing_run_mock.assert_called_once_with(
+      'native:mergevectorlayers',
+      {
+        'LAYERS': ['first.shp', 'second.shp'],
+        'CRS': None,
+        'OUTPUT': 'output/merged.shp',
+      })
+
+  def test_merge_layer_paths_rejects_plain_string_layer_paths(self):
+    with self.assertRaises(ValueError):
+      ScrubLayer.merge_layer_paths(
+        layer_paths='input/usage_a.gpkg',
+        output_path='output/merged_usage.gpkg')
+
   def test_extract_by_attribute_rejects_unknown_operator(self):
     with self.assertRaises(ValueError):
       ScrubLayer._normalize_extract_attribute_operator('near')

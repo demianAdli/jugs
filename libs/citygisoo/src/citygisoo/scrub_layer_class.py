@@ -624,6 +624,36 @@ class ScrubLayer:
       layers_path,
       mergeded_layer_path)
 
+  @staticmethod
+  def merge_layer_paths(layer_paths, output_path, crs=None):
+    """Merge explicitly provided vector layers into output_path.
+
+    layer_paths can contain file paths or ScrubLayer instances. This avoids the
+    folder shapefile discovery used by merge_layers() and supports formats such
+    as GeoPackage when QGIS can read them.
+    """
+    if isinstance(layer_paths, (str, bytes)) or not layer_paths:
+      raise ValueError('layer_paths must be a non-empty list or tuple.')
+
+    merging_layers = [
+      getattr(layer_path, 'layer_path', layer_path)
+      for layer_path in layer_paths
+    ]
+
+    QgsApplication.processingRegistry().addProvider(QgsNativeAlgorithms())
+    params = {
+      'LAYERS': merging_layers,
+      'CRS': crs,
+      'OUTPUT': output_path
+    }
+
+    processing.run('native:mergevectorlayers', params)
+    logger.info(
+      'Merged %s explicit layers into %s.',
+      len(merging_layers),
+      output_path)
+    return output_path
+
   def multipart_to_singleparts(self, singleparts_layer_path):
     QgsApplication.processingRegistry().addProvider(QgsNativeAlgorithms())
     params = {'INPUT': self.layer,
