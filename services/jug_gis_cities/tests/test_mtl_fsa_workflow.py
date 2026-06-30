@@ -49,6 +49,16 @@ class _FakeScrubLayer:
             output_path))
         return output_path
 
+    def add_uuid_field(self, field_name='uuid', field_length=36,
+                       overwrite=False):
+        self.calls.append((
+            'add_uuid_field',
+            self.layer_name,
+            field_name,
+            field_length,
+            overwrite))
+        return field_name
+
     def clip_layer(self, overlay_layer, clipped_layer):
         self.calls.append((
             'clip_layer',
@@ -123,6 +133,35 @@ class TestMtlFsaWorkflow(unittest.TestCase):
                 fsa_boundary_path,
             ),
             _FakeScrubLayer.calls)
+        for layer_name in ['roll_mtl', 'nrcan_mtl', 'usage_mtl']:
+            self.assertIn(
+                (
+                    'add_uuid_field',
+                    layer_name,
+                    'uuid',
+                    36,
+                    True,
+                ),
+                _FakeScrubLayer.calls)
+
+        extract_call_index = _FakeScrubLayer.calls.index((
+            'extract_by_attribute',
+            'fsa_boundaries',
+            'g_fsa',
+            '=',
+            'H3H',
+            fsa_boundary_path,
+        ))
+        for layer_name in ['roll_mtl', 'nrcan_mtl', 'usage_mtl']:
+            uuid_call_index = _FakeScrubLayer.calls.index((
+                'add_uuid_field',
+                layer_name,
+                'uuid',
+                36,
+                True,
+            ))
+            self.assertLess(uuid_call_index, extract_call_index)
+
         self.assertIn(
             (
                 'clip_layer',
