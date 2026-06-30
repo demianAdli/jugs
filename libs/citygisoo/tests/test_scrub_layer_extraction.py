@@ -60,6 +60,7 @@ def _install_qgis_stubs():
     'QgsVectorDataProvider',
     'QgsVectorFileWriter',
     'QgsVectorLayer',
+    'QgsVectorLayerJoinInfo',
     'edit',
   ]
   for name in qgis_core_names:
@@ -205,12 +206,72 @@ class _FakeAttributeLayer:
     return iter(self._features)
 
 
+class _FakeJoinMainLayer:
+  def __init__(self):
+    self.added_join = None
+
+  def addJoin(self, join_info):
+    self.added_join = join_info
+    return True
+
+
+class _FakeJoiningLayer:
+  def __init__(self, layer_path, layer_name, provider):
+    self.layer_path = layer_path
+    self.layer_name = layer_name
+    self.provider = provider
+
+  def isValid(self):
+    return True
+
+
+class _FakeQgsVectorLayerJoinInfo:
+  def __init__(self):
+    self.joining_layer = None
+    self.join_field = None
+    self.target_field = None
+    self.prefix = None
+    self.using_memory_cache = None
+    self.join_fields = None
+
+  def setJoinLayer(self, joining_layer):
+    self.joining_layer = joining_layer
+
+  def setJoinFieldName(self, join_field):
+    self.join_field = join_field
+
+  def setTargetFieldName(self, target_field):
+    self.target_field = target_field
+
+  def setPrefix(self, prefix):
+    self.prefix = prefix
+
+  def setUsingMemoryCache(self, using_memory_cache):
+    self.using_memory_cache = using_memory_cache
+
+  def setJoinFieldNamesSubset(self, join_fields):
+    self.join_fields = join_fields
+
+
+class _FakeQgsProject:
+  added_layers = []
+
+  @classmethod
+  def instance(cls):
+    return cls
+
+  @classmethod
+  def addMapLayer(cls, layer):
+    cls.added_layers.append(layer)
+
+
 class TestScrubLayerExtraction(unittest.TestCase):
   def setUp(self):
     scrub_layer_module.QgsApplication = _FakeQgsApplication
     scrub_layer_module.QgsField = _FakeQgsField
     scrub_layer_module.QgsVectorDataProvider = _FakeQgsVectorDataProvider
     scrub_layer_module.QVariant = _FakeQVariant
+    _FakeQgsProject.added_layers = []
 
   @patch('src.citygisoo.scrub_layer_class.processing.run')
   def test_extract_by_attribute_runs_qgis_algorithm(self, processing_run_mock):
@@ -480,6 +541,59 @@ class TestScrubLayerExtraction(unittest.TestCase):
   def test_spatial_join_with_predicate_rejects_unknown_method(self):
     with self.assertRaises(ValueError):
       ScrubLayer._normalize_spatial_join_method('nearest')
+
+  def test_add_layer_join_adds_qgis_layer_properties_join(self):
+    scrub_layer = _build_scrub_layer()
+    scrub_layer.layer = _FakeJoinMainLayer()
+
+    with patch(
+            'src.citygisoo.scrub_layer_class.QgsVectorLayer',
+            _FakeJoiningLayer), \
+        patch(
+            'src.citygisoo.scrub_layer_class.QgsVectorLayerJoinInfo',
+            _FakeQgsVectorLayerJoinInfo), \
+        patch('src.citygisoo.scrub_layer_class.QgsProject', _FakeQgsProject):
+      join_info = scrub_layer.add_layer_join(
+        joining_layer_path='output/roll.shp',
+        joining_layer_name='roll',
+        join_field='id_provinc',
+        target_field='g_id_provi',
+        prefix='roll_',
+        join_fields=['usage'])
+
+    self.assertIs(scrub_layer.layer.added_join, join_info)
+    self.assertEqual(join_info.joining_layer.layer_path, 'output/roll.shp')
+    self.assertEqual(join_info.joining_layer.layer_name, 'roll')
+    self.assertEqual(join_info.join_field, 'id_provinc')
+    self.assertEqual(join_info.target_field, 'g_id_provi')
+    self.assertEqual(join_info.prefix, 'roll_')
+    self.assertTrue(join_info.using_memory_cache)
+    self.assertEqual(join_info.join_fields, ['usage'])
+    self.assertEqual(_FakeQgsProject.added_layers, [join_info.joining_layer])
+
+  @patch.object(ScrubLayer, 'field_join')
+  def test_add_layer_join_with_output_path_persists_join(
+          self, field_join_mock):
+    scrub_layer = _build_scrub_layer()
+
+    result = scrub_layer.add_layer_join(
+      joining_layer_path='output/roll.shp',
+      joining_layer_name='roll',
+      join_field='id_provinc',
+      target_field='g_id_provi',
+      prefix='roll_',
+      output_path='output/joined.shp',
+      join_fields=['usage'])
+
+    self.assertEqual(result, 'output/joined.shp')
+    field_join_mock.assert_called_once_with(
+      joining_layer_path='output/roll.shp',
+      joining_layer_name='roll',
+      target_field='g_id_provi',
+      join_field='id_provinc',
+      join_fields=['usage'],
+      prefix='roll_',
+      output_path='output/joined.shp')
 
   def test_extract_by_attribute_rejects_unknown_operator(self):
     with self.assertRaises(ValueError):

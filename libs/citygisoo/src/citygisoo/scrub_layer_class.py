@@ -21,7 +21,8 @@ from sabu_chassis.logging import get_logger
 from qgis.core import QgsApplication, QgsField, QgsProject, \
   QgsProcessingFeedback, QgsVectorLayer, QgsVectorDataProvider, \
   QgsExpressionContext, QgsExpressionContextUtils, edit, QgsFeatureRequest, \
-  QgsExpression, QgsVectorFileWriter, QgsCoordinateReferenceSystem
+  QgsExpression, QgsVectorFileWriter, QgsCoordinateReferenceSystem, \
+  QgsVectorLayerJoinInfo
 from qgis.PyQt.QtCore import QVariant
 from qgis.analysis import QgsNativeAlgorithms
 
@@ -352,6 +353,63 @@ class ScrubLayer:
       'Field join of %s with input layer %s is completed.',
       self.layer_name,
       joining_layer_name)
+
+  def add_layer_join(
+          self,
+          joining_layer_path,
+          joining_layer_name,
+          join_field,
+          target_field,
+          prefix='',
+          output_path=None,
+          join_fields=None):
+    """Add a QGIS layer-properties join or persist it to output_path.
+
+    Without output_path, this creates a live join on this layer, equivalent to
+    adding a join from Layer Properties > Joins in QGIS. With output_path, it
+    writes a joined dataset using QGIS processing.
+    """
+    if output_path is not None:
+      self.field_join(
+        joining_layer_path=joining_layer_path,
+        joining_layer_name=joining_layer_name,
+        target_field=target_field,
+        join_field=join_field,
+        join_fields=join_fields,
+        prefix=prefix,
+        output_path=output_path)
+      return output_path
+
+    joining_layer = QgsVectorLayer(
+      joining_layer_path, joining_layer_name, 'ogr')
+    if not joining_layer.isValid():
+      raise ValueError(
+        f'Failed to load layer {joining_layer_name} '
+        f'from {joining_layer_path}')
+
+    QgsProject.instance().addMapLayer(joining_layer)
+
+    join_info = QgsVectorLayerJoinInfo()
+    join_info.setJoinLayer(joining_layer)
+    join_info.setJoinFieldName(join_field)
+    join_info.setTargetFieldName(target_field)
+    join_info.setPrefix(prefix)
+    join_info.setUsingMemoryCache(True)
+    if join_fields is not None:
+      join_info.setJoinFieldNamesSubset(join_fields)
+
+    if not self.layer.addJoin(join_info):
+      raise RuntimeError(
+        f'Failed to add join from {joining_layer_name} to {self.layer_name}.')
+
+    logger.info(
+      'Added layer join to %s from %s on %s = %s with prefix %s.',
+      self.layer_name,
+      joining_layer_name,
+      target_field,
+      join_field,
+      prefix)
+    return join_info
 
   def clip_layer(self, overlay_layer, clipped_layer):
     """This must be tested"""
