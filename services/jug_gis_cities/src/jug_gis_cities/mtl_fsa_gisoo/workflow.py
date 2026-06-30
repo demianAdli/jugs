@@ -183,6 +183,18 @@ def run_workflow(fsa):
       usage_san_san.create_spatial_index()
       _log_layer_summary(usage_san_san)
 
+    with _workflow_step('extract usage margin records with provincial id',
+                        normalized_fsa):
+      usage_margin_san.extract_by_expression(
+        '"g_id_provi" != \'Sans correspondance\'',
+        output_paths['usage_margin'])
+      usage_margin = ScrubLayer(
+        paths.qgis_path,
+        output_paths['usage_margin'],
+        f'usage_margin_{normalized_fsa}')
+      usage_margin.create_spatial_index()
+      _log_layer_summary(usage_margin)
+
   except Exception:
     logger.exception(
       'Montreal FSA GISOO workflow failed. FSA=%s',
