@@ -265,6 +265,17 @@ def run_workflow(fsa):
       usage_roll_only_unique.create_spatial_index()
       _log_layer_summary(usage_roll_only_unique)
 
+    with _workflow_step('difference roll with roll-only', normalized_fsa):
+      roll.difference_layer(
+        overlay_layer=roll_only,
+        output_path=output_paths['roll_clean'])
+      roll_clean = ScrubLayer(
+        paths.qgis_path,
+        output_paths['roll_clean'],
+        f'roll_clean_{normalized_fsa}')
+      roll_clean.create_spatial_index()
+      _log_layer_summary(roll_clean)
+
   except Exception:
     logger.exception(
       'Montreal FSA GISOO workflow failed. FSA=%s',
