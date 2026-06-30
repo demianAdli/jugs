@@ -138,6 +138,24 @@ def run_workflow(fsa):
       usage.create_spatial_index()
       _log_layer_summary(usage)
 
+    with _workflow_step('fix nrcan geometries', normalized_fsa):
+      nrcan.fix_geometries(output_paths['nrcan_fixed'])
+      nrcan_fixed = ScrubLayer(
+        paths.qgis_path,
+        output_paths['nrcan_fixed'],
+        f'nrcan_fixed_{normalized_fsa}')
+      nrcan_fixed.create_spatial_index()
+      _log_layer_summary(nrcan_fixed)
+
+    with _workflow_step('fix usage geometries', normalized_fsa):
+      usage.fix_geometries(output_paths['usage_fixed'])
+      usage_fixed = ScrubLayer(
+        paths.qgis_path,
+        output_paths['usage_fixed'],
+        f'usage_fixed_{normalized_fsa}')
+      usage_fixed.create_spatial_index()
+      _log_layer_summary(usage_fixed)
+
   except Exception:
     logger.exception(
       'Montreal FSA GISOO workflow failed. FSA=%s',

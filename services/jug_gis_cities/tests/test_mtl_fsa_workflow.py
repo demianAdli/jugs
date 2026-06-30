@@ -66,6 +66,13 @@ class _FakeScrubLayer:
             overlay_layer,
             clipped_layer))
 
+    def fix_geometries(self, output_path):
+        self.calls.append((
+            'fix_geometries',
+            self.layer_name,
+            output_path))
+        return output_path
+
     def create_spatial_index(self):
         self.calls.append(('create_spatial_index', self.layer_name))
 
@@ -135,6 +142,16 @@ class TestMtlFsaWorkflow(unittest.TestCase):
             'H3H',
             'usage',
             'usage.shp')
+        nrcan_fixed_path = os.path.join(
+            'D:/GIS/mtl_gisoo_fsa_data/output_data',
+            'H3H',
+            'nrcan_fixed',
+            'nrcan_fixed.shp')
+        usage_fixed_path = os.path.join(
+            'D:/GIS/mtl_gisoo_fsa_data/output_data',
+            'H3H',
+            'usage_fixed',
+            'usage_fixed.shp')
 
         self.assertIn(
             (
@@ -194,11 +211,24 @@ class TestMtlFsaWorkflow(unittest.TestCase):
                 ),
                 _FakeScrubLayer.calls)
 
+        for layer_name, output_path in [
+                ('nrcan_clipped_H3H', nrcan_fixed_path),
+                ('usage_clipped_H3H', usage_fixed_path)]:
+            self.assertIn(
+                (
+                    'fix_geometries',
+                    layer_name,
+                    output_path,
+                ),
+                _FakeScrubLayer.calls)
+
         for output_path, layer_name in [
                 (fsa_boundary_path, 'fsa_boundary_H3H'),
                 (nrcan_path, 'nrcan_clipped_H3H'),
                 (roll_path, 'roll_clipped_H3H'),
-                (usage_path, 'usage_clipped_H3H')]:
+                (usage_path, 'usage_clipped_H3H'),
+                (nrcan_fixed_path, 'nrcan_fixed_H3H'),
+                (usage_fixed_path, 'usage_fixed_H3H')]:
             self.assertIn(
                 ('init', 'C:/QGIS', output_path, layer_name),
                 _FakeScrubLayer.calls)
