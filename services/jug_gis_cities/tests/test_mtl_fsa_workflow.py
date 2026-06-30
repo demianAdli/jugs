@@ -127,6 +127,19 @@ class _FakeScrubLayer:
             include_null))
         return output_path
 
+    def duplicate_text_field(
+            self, source_field, target_field, field_length,
+            overwrite=False, batch_size=10000):
+        self.calls.append((
+            'duplicate_text_field',
+            self.layer_name,
+            source_field,
+            target_field,
+            field_length,
+            overwrite,
+            batch_size))
+        return target_field
+
     def add_field(self, new_field_name):
         self.calls.append((
             'add_field',
@@ -435,6 +448,17 @@ class TestMtlFsaWorkflow(unittest.TestCase):
                 'roll_only_H3H',
                 roll_clean_path,
                 None,
+            ),
+            _FakeScrubLayer.calls)
+        self.assertIn(
+            (
+                'duplicate_text_field',
+                'roll_clean_H3H',
+                'id_provinc',
+                'r_id_provinc',
+                36,
+                False,
+                10000,
             ),
             _FakeScrubLayer.calls)
 

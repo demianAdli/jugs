@@ -276,6 +276,13 @@ def run_workflow(fsa):
       roll_clean.create_spatial_index()
       _log_layer_summary(roll_clean)
 
+    with _workflow_step('duplicate roll provincial id field',
+                        normalized_fsa):
+      roll_clean.duplicate_text_field(
+        source_field='id_provinc',
+        target_field='r_id_provinc',
+        field_length=36)
+
   except Exception:
     logger.exception(
       'Montreal FSA GISOO workflow failed. FSA=%s',
