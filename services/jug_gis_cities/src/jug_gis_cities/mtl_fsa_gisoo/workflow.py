@@ -299,6 +299,21 @@ def run_workflow(fsa):
       usage_roll.create_spatial_index()
       _log_layer_summary(usage_roll)
 
+    with _workflow_step('merge usage roll layers', normalized_fsa):
+      ScrubLayer.merge_layer_paths(
+        layer_paths=[
+          usage_roll.layer_path,
+          usage_only.layer_path,
+          usage_roll_only_unique.layer_path,
+        ],
+        output_path=output_paths['usage_roll_all'])
+      usage_roll_all = ScrubLayer(
+        paths.qgis_path,
+        output_paths['usage_roll_all'],
+        f'usage_roll_all_{normalized_fsa}')
+      usage_roll_all.create_spatial_index()
+      _log_layer_summary(usage_roll_all)
+
   except Exception:
     logger.exception(
       'Montreal FSA GISOO workflow failed. FSA=%s',

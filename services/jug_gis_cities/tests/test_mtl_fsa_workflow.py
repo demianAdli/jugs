@@ -155,6 +155,15 @@ class _FakeScrubLayer:
             join_fields))
         return output_path
 
+    @staticmethod
+    def merge_layer_paths(layer_paths, output_path, crs=None):
+        _FakeScrubLayer.calls.append((
+            'merge_layer_paths',
+            layer_paths,
+            output_path,
+            crs))
+        return output_path
+
     def add_field(self, new_field_name):
         self.calls.append((
             'add_field',
@@ -298,6 +307,11 @@ class TestMtlFsaWorkflow(unittest.TestCase):
             'H3H',
             'usage_roll',
             'usage_roll.shp')
+        usage_roll_all_path = os.path.join(
+            'D:/GIS/mtl_gisoo_fsa_data/output_data',
+            'H3H',
+            'usage_roll_all',
+            'usage_roll_all.shp')
 
         self.assertIn(
             (
@@ -494,6 +508,18 @@ class TestMtlFsaWorkflow(unittest.TestCase):
                 None,
             ),
             _FakeScrubLayer.calls)
+        self.assertIn(
+            (
+                'merge_layer_paths',
+                [
+                    usage_roll_path,
+                    usage_only_path,
+                    usage_roll_only_unique_path,
+                ],
+                usage_roll_all_path,
+                None,
+            ),
+            _FakeScrubLayer.calls)
 
         for output_path, layer_name in [
                 (fsa_boundary_path, 'fsa_boundary_H3H'),
@@ -512,7 +538,8 @@ class TestMtlFsaWorkflow(unittest.TestCase):
                 (usage_roll_only_unique_path,
                  'usage_roll_only_unique_H3H'),
                 (roll_clean_path, 'roll_clean_H3H'),
-                (usage_roll_path, 'usage_roll_H3H')]:
+                (usage_roll_path, 'usage_roll_H3H'),
+                (usage_roll_all_path, 'usage_roll_all_H3H')]:
             self.assertIn(
                 ('init', 'C:/QGIS', output_path, layer_name),
                 _FakeScrubLayer.calls)
