@@ -283,6 +283,22 @@ def run_workflow(fsa):
         target_field='r_id_provinc',
         field_length=36)
 
+    with _workflow_step('join usage margin san with roll clean',
+                        normalized_fsa):
+      usage_margin_san.add_layer_join(
+        joining_layer_path=roll_clean.layer_path,
+        joining_layer_name=roll_clean.layer_name,
+        join_field='r_id_provinc',
+        target_field='g_id_provi',
+        prefix='r_',
+        output_path=output_paths['usage_roll'])
+      usage_roll = ScrubLayer(
+        paths.qgis_path,
+        output_paths['usage_roll'],
+        f'usage_roll_{normalized_fsa}')
+      usage_roll.create_spatial_index()
+      _log_layer_summary(usage_roll)
+
   except Exception:
     logger.exception(
       'Montreal FSA GISOO workflow failed. FSA=%s',

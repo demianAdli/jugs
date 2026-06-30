@@ -140,6 +140,21 @@ class _FakeScrubLayer:
             batch_size))
         return target_field
 
+    def add_layer_join(
+            self, joining_layer_path, joining_layer_name, join_field,
+            target_field, prefix='', output_path=None, join_fields=None):
+        self.calls.append((
+            'add_layer_join',
+            self.layer_name,
+            joining_layer_path,
+            joining_layer_name,
+            join_field,
+            target_field,
+            prefix,
+            output_path,
+            join_fields))
+        return output_path
+
     def add_field(self, new_field_name):
         self.calls.append((
             'add_field',
@@ -278,6 +293,11 @@ class TestMtlFsaWorkflow(unittest.TestCase):
             'H3H',
             'roll_clean',
             'roll_clean.shp')
+        usage_roll_path = os.path.join(
+            'D:/GIS/mtl_gisoo_fsa_data/output_data',
+            'H3H',
+            'usage_roll',
+            'usage_roll.shp')
 
         self.assertIn(
             (
@@ -461,6 +481,19 @@ class TestMtlFsaWorkflow(unittest.TestCase):
                 10000,
             ),
             _FakeScrubLayer.calls)
+        self.assertIn(
+            (
+                'add_layer_join',
+                'usage_margin_san_H3H',
+                roll_clean_path,
+                'roll_clean_H3H',
+                'r_id_provinc',
+                'g_id_provi',
+                'r_',
+                usage_roll_path,
+                None,
+            ),
+            _FakeScrubLayer.calls)
 
         for output_path, layer_name in [
                 (fsa_boundary_path, 'fsa_boundary_H3H'),
@@ -478,7 +511,8 @@ class TestMtlFsaWorkflow(unittest.TestCase):
                 (usage_roll_only_path, 'usage_roll_only_H3H'),
                 (usage_roll_only_unique_path,
                  'usage_roll_only_unique_H3H'),
-                (roll_clean_path, 'roll_clean_H3H')]:
+                (roll_clean_path, 'roll_clean_H3H'),
+                (usage_roll_path, 'usage_roll_H3H')]:
             self.assertIn(
                 ('init', 'C:/QGIS', output_path, layer_name),
                 _FakeScrubLayer.calls)
