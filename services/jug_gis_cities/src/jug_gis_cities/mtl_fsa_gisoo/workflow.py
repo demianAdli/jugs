@@ -156,6 +156,21 @@ def run_workflow(fsa):
       usage_fixed.create_spatial_index()
       _log_layer_summary(usage_fixed)
 
+    with _workflow_step('extract usage records missing from roll',
+                        normalized_fsa):
+      usage_fixed.extract_by_aggregate_membership(
+        lookup_layer=roll,
+        lookup_field='id_provinc',
+        target_field='g_id_provi',
+        output_path=output_paths['usage_margin_sans'],
+        include_matches=False)
+      usage_margin_sans = ScrubLayer(
+        paths.qgis_path,
+        output_paths['usage_margin_sans'],
+        f'usage_margin_sans_{normalized_fsa}')
+      usage_margin_sans.create_spatial_index()
+      _log_layer_summary(usage_margin_sans)
+
   except Exception:
     logger.exception(
       'Montreal FSA GISOO workflow failed. FSA=%s',

@@ -73,6 +73,20 @@ class _FakeScrubLayer:
             output_path))
         return output_path
 
+    def extract_by_aggregate_membership(
+            self, lookup_layer, lookup_field, target_field, output_path,
+            aggregate='array_agg', include_matches=True):
+        self.calls.append((
+            'extract_by_aggregate_membership',
+            self.layer_name,
+            lookup_layer.layer_name,
+            lookup_field,
+            target_field,
+            output_path,
+            aggregate,
+            include_matches))
+        return output_path
+
     def create_spatial_index(self):
         self.calls.append(('create_spatial_index', self.layer_name))
 
@@ -152,6 +166,11 @@ class TestMtlFsaWorkflow(unittest.TestCase):
             'H3H',
             'usage_fixed',
             'usage_fixed.shp')
+        usage_margin_sans_path = os.path.join(
+            'D:/GIS/mtl_gisoo_fsa_data/output_data',
+            'H3H',
+            'usage_margin_sans',
+            'usage_margin_sans.shp')
 
         self.assertIn(
             (
@@ -222,13 +241,27 @@ class TestMtlFsaWorkflow(unittest.TestCase):
                 ),
                 _FakeScrubLayer.calls)
 
+        self.assertIn(
+            (
+                'extract_by_aggregate_membership',
+                'usage_fixed_H3H',
+                'roll_clipped_H3H',
+                'id_provinc',
+                'g_id_provi',
+                usage_margin_sans_path,
+                'array_agg',
+                False,
+            ),
+            _FakeScrubLayer.calls)
+
         for output_path, layer_name in [
                 (fsa_boundary_path, 'fsa_boundary_H3H'),
                 (nrcan_path, 'nrcan_clipped_H3H'),
                 (roll_path, 'roll_clipped_H3H'),
                 (usage_path, 'usage_clipped_H3H'),
                 (nrcan_fixed_path, 'nrcan_fixed_H3H'),
-                (usage_fixed_path, 'usage_fixed_H3H')]:
+                (usage_fixed_path, 'usage_fixed_H3H'),
+                (usage_margin_sans_path, 'usage_margin_sans_H3H')]:
             self.assertIn(
                 ('init', 'C:/QGIS', output_path, layer_name),
                 _FakeScrubLayer.calls)
