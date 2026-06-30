@@ -246,7 +246,8 @@ class TestScrubLayerExtraction(unittest.TestCase):
       joining_layer_path='output/property_assessment.shp',
       joined_layer_path='output/property_usage_joined.shp',
       predicate='within',
-      join_method='one-to-one-first')
+      join_method='one-to-one-first',
+      prefix='pa_')
 
     self.assertEqual(result, 'output/property_usage_joined.shp')
     processing_run_mock.assert_called_once_with(
@@ -258,7 +259,7 @@ class TestScrubLayerExtraction(unittest.TestCase):
         'JOIN_FIELDS': [],
         'METHOD': 1,
         'DISCARD_NONMATCHING': False,
-        'PREFIX': '',
+        'PREFIX': 'pa_',
         'OUTPUT': 'output/property_usage_joined.shp',
       },
       feedback=ANY)

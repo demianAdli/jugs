@@ -244,7 +244,8 @@ class ScrubLayer:
           joining_layer_path,
           joined_layer_path,
           predicate='intersect',
-          join_method='one-to-many'):
+          join_method='one-to-many',
+          prefix=''):
     """Join attributes by location with caller-selected predicate and method."""
     params = {
       'INPUT': self.layer,
@@ -253,7 +254,7 @@ class ScrubLayer:
       'JOIN_FIELDS': [],
       'METHOD': self._normalize_spatial_join_method(join_method),
       'DISCARD_NONMATCHING': False,
-      'PREFIX': '',
+      'PREFIX': prefix,
       'OUTPUT': joined_layer_path
     }
 
@@ -261,11 +262,12 @@ class ScrubLayer:
     processing.run(
       'native:joinattributesbylocation', params, feedback=feedback)
     logger.info(
-      'Spatial join with input layer %s, predicate %s, and method %s '
-      'is completed.',
+      'Spatial join with input layer %s, predicate %s, method %s, and '
+      'prefix %s is completed.',
       self.layer_name,
       predicate,
-      join_method)
+      join_method,
+      prefix)
     return joined_layer_path
 
   @staticmethod
