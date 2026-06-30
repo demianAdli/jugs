@@ -279,6 +279,73 @@ class ScrubLayer:
     processing.run("native:clip", clip_layer_params)
     logger.info('Clipping of %s is completed.', self.layer_name)
 
+  @staticmethod
+  def _normalize_extract_attribute_operator(operator):
+    if isinstance(operator, int):
+      return operator
+
+    normalized_operator = str(operator).strip().lower()
+    operator_codes = {
+      '=': 0,
+      '==': 0,
+      'equals': 0,
+      '!=': 1,
+      '<>': 1,
+      'not equals': 1,
+      '>': 2,
+      'greater than': 2,
+      '>=': 3,
+      'greater than or equal to': 3,
+      '<': 4,
+      'less than': 4,
+      '<=': 5,
+      'less than or equal to': 5,
+      'begins with': 6,
+      'contains': 7,
+      'is null': 8,
+      'is not null': 9,
+      'does not contain': 10,
+    }
+    if normalized_operator not in operator_codes:
+      raise ValueError(f'Unsupported extract-by-attribute operator: {operator}')
+    return operator_codes[normalized_operator]
+
+  def extract_by_attribute(self, field_name, operator, value, output_path):
+    """Extract features by attribute value and persist them to output_path."""
+    QgsApplication.processingRegistry().addProvider(QgsNativeAlgorithms())
+    params = {
+      'INPUT': self.layer,
+      'FIELD': field_name,
+      'OPERATOR': self._normalize_extract_attribute_operator(operator),
+      'VALUE': value,
+      'OUTPUT': output_path
+    }
+    processing.run('native:extractbyattribute', params)
+    logger.info(
+      'Extracted features from %s where %s %s %s into %s.',
+      self.layer_name,
+      field_name,
+      operator,
+      value,
+      output_path)
+    return output_path
+
+  def extract_by_expression(self, expression, output_path):
+    """Extract features by QGIS expression and persist them to output_path."""
+    QgsApplication.processingRegistry().addProvider(QgsNativeAlgorithms())
+    params = {
+      'INPUT': self.layer,
+      'EXPRESSION': expression,
+      'OUTPUT': output_path
+    }
+    processing.run('native:extractbyexpression', params)
+    logger.info(
+      'Extracted features from %s using expression %s into %s.',
+      self.layer_name,
+      expression,
+      output_path)
+    return output_path
+
   def clip_by_predefined_zones(self):
     pass
 

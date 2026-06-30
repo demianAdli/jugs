@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+- Added `ScrubLayer.extract_by_attribute()`.
+- Added `ScrubLayer.extract_by_expression()`.
+
 ### Planned
 - Extend spatial join to support multiple predicates.
 
