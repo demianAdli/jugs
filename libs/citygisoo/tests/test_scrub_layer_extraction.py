@@ -245,7 +245,8 @@ class TestScrubLayerExtraction(unittest.TestCase):
     result = scrub_layer.spatial_join_with_predicate(
       joining_layer_path='output/property_assessment.shp',
       joined_layer_path='output/property_usage_joined.shp',
-      predicate='within')
+      predicate='within',
+      join_method='one-to-one-first')
 
     self.assertEqual(result, 'output/property_usage_joined.shp')
     processing_run_mock.assert_called_once_with(
@@ -255,7 +256,7 @@ class TestScrubLayerExtraction(unittest.TestCase):
         'PREDICATE': [5],
         'JOIN': 'output/property_assessment.shp',
         'JOIN_FIELDS': [],
-        'METHOD': 0,
+        'METHOD': 1,
         'DISCARD_NONMATCHING': False,
         'PREFIX': '',
         'OUTPUT': 'output/property_usage_joined.shp',
@@ -267,9 +268,23 @@ class TestScrubLayerExtraction(unittest.TestCase):
       ScrubLayer._normalize_spatial_join_predicate(['intersects', 'within']),
       [0, 5])
 
+  def test_spatial_join_with_predicate_defaults_to_one_to_many(self):
+    self.assertEqual(
+      ScrubLayer._normalize_spatial_join_method('one-to-many'),
+      0)
+
+  def test_spatial_join_with_predicate_accepts_largest_overlap_method(self):
+    self.assertEqual(
+      ScrubLayer._normalize_spatial_join_method('largest overlap'),
+      2)
+
   def test_spatial_join_with_predicate_rejects_unknown_predicate(self):
     with self.assertRaises(ValueError):
       ScrubLayer._normalize_spatial_join_predicate('near')
+
+  def test_spatial_join_with_predicate_rejects_unknown_method(self):
+    with self.assertRaises(ValueError):
+      ScrubLayer._normalize_spatial_join_method('nearest')
 
   def test_extract_by_attribute_rejects_unknown_operator(self):
     with self.assertRaises(ValueError):

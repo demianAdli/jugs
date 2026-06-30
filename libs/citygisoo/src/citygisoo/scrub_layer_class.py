@@ -217,18 +217,41 @@ class ScrubLayer:
       raise ValueError(f'Unsupported spatial join predicate: {predicate}')
     return [predicate_codes[normalized_predicate]]
 
+  @staticmethod
+  def _normalize_spatial_join_method(join_method):
+    if isinstance(join_method, int):
+      return join_method
+
+    normalized_method = str(join_method).strip().lower()
+    method_codes = {
+      'one-to-many': 0,
+      'create separate feature for each matching feature': 0,
+      'separate feature for each matching feature': 0,
+      'all matches': 0,
+      'one-to-one-first': 1,
+      'first match': 1,
+      'take attributes of the first matching feature only': 1,
+      'one-to-one-largest-overlap': 2,
+      'largest overlap': 2,
+      'take attributes of the feature with largest overlap only': 2,
+    }
+    if normalized_method not in method_codes:
+      raise ValueError(f'Unsupported spatial join method: {join_method}')
+    return method_codes[normalized_method]
+
   def spatial_join_with_predicate(
           self,
           joining_layer_path,
           joined_layer_path,
-          predicate='intersect'):
-    """Join attributes by location with a caller-selected predicate."""
+          predicate='intersect',
+          join_method='one-to-many'):
+    """Join attributes by location with caller-selected predicate and method."""
     params = {
       'INPUT': self.layer,
       'PREDICATE': self._normalize_spatial_join_predicate(predicate),
       'JOIN': joining_layer_path,
       'JOIN_FIELDS': [],
-      'METHOD': 0,
+      'METHOD': self._normalize_spatial_join_method(join_method),
       'DISCARD_NONMATCHING': False,
       'PREFIX': '',
       'OUTPUT': joined_layer_path
@@ -238,9 +261,11 @@ class ScrubLayer:
     processing.run(
       'native:joinattributesbylocation', params, feedback=feedback)
     logger.info(
-      'Spatial join with input layer %s and predicate %s is completed.',
+      'Spatial join with input layer %s, predicate %s, and method %s '
+      'is completed.',
       self.layer_name,
-      predicate)
+      predicate,
+      join_method)
     return joined_layer_path
 
   @staticmethod
