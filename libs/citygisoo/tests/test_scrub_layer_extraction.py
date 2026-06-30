@@ -105,6 +105,7 @@ def _build_scrub_layer():
 def _build_lookup_layer(layer_name):
   lookup_layer = ScrubLayer.__new__(ScrubLayer)
   lookup_layer.layer_name = layer_name
+  lookup_layer.layer_path = f'{layer_name}.shp'
   return lookup_layer
 
 
@@ -197,6 +198,44 @@ class TestScrubLayerExtraction(unittest.TestCase):
       '"g_id_provi"'
       ')',
       'output/usage_margin_sans.shp')
+
+  @patch('src.citygisoo.scrub_layer_class.processing.run')
+  def test_difference_layer_runs_qgis_algorithm(self, processing_run_mock):
+    scrub_layer = _build_scrub_layer()
+
+    result = scrub_layer.difference_layer(
+      overlay_layer='output/roll.shp',
+      output_path='output/usage_only.shp')
+
+    self.assertEqual(result, 'output/usage_only.shp')
+    processing_run_mock.assert_called_once_with(
+      'native:difference',
+      {
+        'INPUT': 'fsa_boundaries.gpkg',
+        'OVERLAY': 'output/roll.shp',
+        'OUTPUT': 'output/usage_only.shp',
+      })
+
+  @patch('src.citygisoo.scrub_layer_class.processing.run')
+  def test_difference_layer_accepts_scrub_layer_overlay_and_grid_size(
+          self, processing_run_mock):
+    scrub_layer = _build_scrub_layer()
+    overlay_layer = _build_lookup_layer('roll_clipped_H3H')
+
+    result = scrub_layer.difference_layer(
+      overlay_layer=overlay_layer,
+      output_path='output/usage_only.shp',
+      grid_size=0.001)
+
+    self.assertEqual(result, 'output/usage_only.shp')
+    processing_run_mock.assert_called_once_with(
+      'native:difference',
+      {
+        'INPUT': 'fsa_boundaries.gpkg',
+        'OVERLAY': 'roll_clipped_H3H.shp',
+        'OUTPUT': 'output/usage_only.shp',
+        'GRID_SIZE': 0.001,
+      })
 
   def test_extract_by_attribute_rejects_unknown_operator(self):
     with self.assertRaises(ValueError):

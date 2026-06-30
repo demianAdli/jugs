@@ -280,6 +280,26 @@ class ScrubLayer:
     processing.run("native:clip", clip_layer_params)
     logger.info('Clipping of %s is completed.', self.layer_name)
 
+  def difference_layer(self, overlay_layer, output_path, grid_size=None):
+    """Run QGIS vector overlay difference and persist the result."""
+    QgsApplication.processingRegistry().addProvider(QgsNativeAlgorithms())
+    overlay_input = getattr(overlay_layer, 'layer_path', overlay_layer)
+    params = {
+      'INPUT': self.layer_path,
+      'OVERLAY': overlay_input,
+      'OUTPUT': output_path
+    }
+    if grid_size is not None:
+      params['GRID_SIZE'] = grid_size
+
+    processing.run('native:difference', params)
+    logger.info(
+      'Difference of %s with overlay %s is completed into %s.',
+      self.layer_name,
+      overlay_input,
+      output_path)
+    return output_path
+
   @staticmethod
   def _normalize_extract_attribute_operator(operator):
     if isinstance(operator, int):
