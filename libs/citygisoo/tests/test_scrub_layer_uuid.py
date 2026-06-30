@@ -22,6 +22,7 @@ if _SABU_CHASSIS_SRC not in sys.path:
 
 class _Dummy:
   AddAttributes = 1
+  ChangeAttributeValues = 2
   String = 10
   NoError = 0
 
@@ -83,6 +84,7 @@ class _FakeQVariant:
 
 class _FakeQgsVectorDataProvider:
   AddAttributes = 1
+  ChangeAttributeValues = 2
 
 
 class _FakeQgsField:
@@ -107,14 +109,25 @@ class _FakeProvider:
   def __init__(self, layer):
     self.layer = layer
     self.added_fields = []
+    self.change_maps = []
 
   def capabilities(self):
-    return _FakeQgsVectorDataProvider.AddAttributes
+    return (
+      _FakeQgsVectorDataProvider.AddAttributes
+      | _FakeQgsVectorDataProvider.ChangeAttributeValues)
 
   def addAttributes(self, fields):
     for field in fields:
       self.layer.field_names.append(field.name)
       self.added_fields.append(field)
+    return True
+
+  def changeAttributeValues(self, change_map):
+    self.change_maps.append(change_map)
+    for feature_id, field_values in change_map.items():
+      feature = self.layer.feature_by_id[feature_id]
+      for field_index, value in field_values.items():
+        feature[field_index] = value
     return True
 
 
@@ -134,6 +147,7 @@ class _FakeLayer:
   def __init__(self, field_names=None, features=None):
     self.field_names = field_names or []
     self.features = features or []
+    self.feature_by_id = {feature.id(): feature for feature in self.features}
     self.provider = _FakeProvider(self)
     self.updated_features = []
 
@@ -154,46 +168,6 @@ class _FakeLayer:
     return True
 
 
-class _FakeExpression:
-  last_expression_text = None
-
-  def __init__(self, expression_text):
-    self.expression_text = expression_text
-    _FakeExpression.last_expression_text = expression_text
-
-  def hasParserError(self):
-    return False
-
-  def parserErrorString(self):
-    return ''
-
-  def evaluate(self, context):
-    return f'uuid-{context.feature.id()}'
-
-  def hasEvalError(self):
-    return False
-
-  def evalErrorString(self):
-    return ''
-
-
-class _FakeExpressionContext:
-  def __init__(self):
-    self.feature = None
-
-  def appendScopes(self, scopes):
-    return None
-
-  def setFeature(self, feature):
-    self.feature = feature
-
-
-class _FakeExpressionContextUtils:
-  @staticmethod
-  def globalProjectLayerScopes(layer):
-    return []
-
-
 @contextmanager
 def _fake_edit(layer):
   yield
@@ -209,13 +183,9 @@ def _build_scrub_layer(layer):
 class TestScrubLayerUuid(unittest.TestCase):
   def setUp(self):
     scrub_layer_module.QgsField = _FakeQgsField
-    scrub_layer_module.QgsExpression = _FakeExpression
-    scrub_layer_module.QgsExpressionContext = _FakeExpressionContext
-    scrub_layer_module.QgsExpressionContextUtils = _FakeExpressionContextUtils
     scrub_layer_module.QgsVectorDataProvider = _FakeQgsVectorDataProvider
     scrub_layer_module.QVariant = _FakeQVariant
     scrub_layer_module.edit = _fake_edit
-    _FakeExpression.last_expression_text = None
 
   def test_add_uuid_field_adds_string_field_and_populates_features(self):
     features = [_FakeFeature(1), _FakeFeature(2)]
@@ -227,12 +197,12 @@ class TestScrubLayerUuid(unittest.TestCase):
     self.assertEqual(result, 'uid')
     self.assertEqual(layer.field_names, ['uid'])
     self.assertEqual(layer.provider.added_fields[0].length, 36)
-    self.assertEqual(
-      _FakeExpression.last_expression_text,
-      "replace(replace(uuid(), '{', ''), '}', '')")
-    self.assertEqual(features[0].values[0], 'uuid-1')
-    self.assertEqual(features[1].values[0], 'uuid-2')
-    self.assertEqual(layer.updated_features, features)
+    self.assertEqual(len(features[0].values[0]), 36)
+    self.assertEqual(len(features[1].values[0]), 36)
+    self.assertNotIn('{', features[0].values[0])
+    self.assertNotIn('}', features[0].values[0])
+    self.assertEqual(len(layer.provider.change_maps), 1)
+    self.assertEqual(layer.updated_features, [])
 
   def test_add_uuid_field_rejects_existing_field_by_default(self):
     layer = _FakeLayer(field_names=['uid'])
@@ -248,8 +218,15 @@ class TestScrubLayerUuid(unittest.TestCase):
 
     scrub_layer.add_uuid_field('uid', overwrite=True)
 
-    self.assertEqual(feature.values[0], 'uuid-3')
+    self.assertEqual(len(feature.values[0]), 36)
     self.assertEqual(layer.provider.added_fields, [])
+
+  def test_add_uuid_field_rejects_invalid_batch_size(self):
+    layer = _FakeLayer(features=[_FakeFeature(1)])
+    scrub_layer = _build_scrub_layer(layer)
+
+    with self.assertRaises(ValueError):
+      scrub_layer.add_uuid_field('uid', batch_size=0)
 
 
 if __name__ == '__main__':

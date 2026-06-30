@@ -13,6 +13,7 @@ import glob
 import os
 import shutil
 import tempfile
+import uuid
 
 import processing
 
@@ -614,47 +615,67 @@ class ScrubLayer:
           self,
           field_name='uuid',
           field_length=36,
-          overwrite=False):
-    """Add and populate a text UUID field for every feature."""
+          overwrite=False,
+          batch_size=10000):
+    """Add and populate a text UUID field for every feature.
+
+    Values match the QGIS expression:
+    replace(replace(uuid(), '{', ''), '}', '')
+    """
     idx = self.layer.fields().indexFromName(field_name)
     if idx != -1 and not overwrite:
       raise ValueError(
         f'Field {field_name} already exists on {self.layer_name}.')
 
+    provider = self.layer.dataProvider()
     if idx == -1:
-      functionalities = self.layer.dataProvider().capabilities()
+      functionalities = provider.capabilities()
       if not functionalities & QgsVectorDataProvider.AddAttributes:
         raise ValueError(
           f'Layer {self.layer_name} does not support adding fields.')
 
       new_field = QgsField(field_name, QVariant.String, len=field_length)
-      added = self.layer.dataProvider().addAttributes([new_field])
+      added = provider.addAttributes([new_field])
       self.layer.updateFields()
       if not added:
         raise RuntimeError(
           f'Failed to add UUID field {field_name} to {self.layer_name}.')
       idx = self.layer.fields().indexFromName(field_name)
 
-    expression_text = "replace(replace(uuid(), '{', ''), '}', '')"
-    expression = QgsExpression(expression_text)
-    if expression.hasParserError():
-      raise ValueError(
-        f'Invalid UUID expression: {expression.parserErrorString()}')
-
-    context = QgsExpressionContext()
-    context.appendScopes(
-      QgsExpressionContextUtils.globalProjectLayerScopes(self.layer))
+    if batch_size <= 0:
+      raise ValueError('batch_size must be greater than zero.')
 
     updated_count = 0
+    can_bulk_update = (
+      provider.capabilities() & QgsVectorDataProvider.ChangeAttributeValues)
+    if can_bulk_update:
+      change_map = {}
+      for feature in self.layer.getFeatures():
+        change_map[feature.id()] = {idx: str(uuid.uuid4())}
+        if len(change_map) >= batch_size:
+          if not provider.changeAttributeValues(change_map):
+            raise RuntimeError(
+              f'Failed to update UUID field {field_name} on '
+              f'{self.layer_name}.')
+          updated_count += len(change_map)
+          change_map = {}
+
+      if change_map:
+        if not provider.changeAttributeValues(change_map):
+          raise RuntimeError(
+            f'Failed to update UUID field {field_name} on {self.layer_name}.')
+        updated_count += len(change_map)
+
+      logger.info(
+        'Assigned UUID values to field %s on %s for %s features.',
+        field_name,
+        self.layer_name,
+        updated_count)
+      return field_name
+
     with edit(self.layer):
       for feature in self.layer.getFeatures():
-        context.setFeature(feature)
-        uuid_value = expression.evaluate(context)
-        if expression.hasEvalError():
-          raise ValueError(
-            f'Failed to evaluate UUID expression: '
-            f'{expression.evalErrorString()}')
-        feature[idx] = uuid_value
+        feature[idx] = str(uuid.uuid4())
         if self.layer.updateFeature(feature):
           updated_count += 1
         else:
