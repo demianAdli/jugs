@@ -776,8 +776,8 @@ class TestMtlFsaWorkflow(unittest.TestCase):
         self.assertIn(
             (
                 'extract_by_expression',
-                'inter_summary_H3H',
-                '"restore_group" = 0 OR "restore_group" IS NULL',
+                'summary_joined_H3H',
+                '"sum_restore_group" = 0 OR "sum_restore_group" IS NULL',
                 inter_kept_path,
             ),
             _FakeScrubLayer.calls)
@@ -789,8 +789,8 @@ class TestMtlFsaWorkflow(unittest.TestCase):
         ))
         inter_kept_extract_index = _FakeScrubLayer.calls.index((
             'extract_by_expression',
-            'inter_summary_H3H',
-            '"restore_group" = 0 OR "restore_group" IS NULL',
+            'summary_joined_H3H',
+            '"sum_restore_group" = 0 OR "sum_restore_group" IS NULL',
             inter_kept_path,
         ))
         self.assertLess(summary_joined_init_index, inter_kept_extract_index)

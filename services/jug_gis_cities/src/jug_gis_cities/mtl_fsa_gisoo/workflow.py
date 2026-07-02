@@ -504,10 +504,10 @@ def run_workflow(fsa):
       summary_joined.create_spatial_index()
       _log_layer_summary(summary_joined)
 
-    with _workflow_step('extract kept inter summary records',
+    with _workflow_step('extract kept summary joined records',
                         normalized_fsa):
-      inter_summary.extract_by_expression(
-        '"restore_group" = 0 OR "restore_group" IS NULL',
+      summary_joined.extract_by_expression(
+        '"sum_restore_group" = 0 OR "sum_restore_group" IS NULL',
         output_paths['inter_kept'])
       inter_kept = ScrubLayer(
         paths.qgis_path,
