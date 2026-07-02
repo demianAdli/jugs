@@ -364,6 +364,14 @@ def run_workflow(fsa):
       inter_nrcan.add_field('inter_area')
       inter_nrcan.assign_area('inter_area')
 
+    with _workflow_step('assign inter nrcan area ratio field',
+                        normalized_fsa):
+      inter_nrcan.add_field('area_ratio')
+      inter_nrcan.assign_field_ratio(
+        target_field='area_ratio',
+        numerator_field='inter_area',
+        denominator_field='nrcan_area')
+
   except Exception:
     logger.exception(
       'Montreal FSA GISOO workflow failed. FSA=%s',

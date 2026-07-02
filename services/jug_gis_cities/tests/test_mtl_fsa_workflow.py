@@ -205,6 +205,16 @@ class _FakeScrubLayer:
             field_name))
         return field_name
 
+    def assign_field_ratio(
+            self, target_field, numerator_field, denominator_field):
+        self.calls.append((
+            'assign_field_ratio',
+            self.layer_name,
+            target_field,
+            numerator_field,
+            denominator_field))
+        return target_field
+
     def create_spatial_index(self):
         self.calls.append(('create_spatial_index', self.layer_name))
 
@@ -640,6 +650,22 @@ class TestMtlFsaWorkflow(unittest.TestCase):
                 'assign_area',
                 'inter_nrcan_H3H',
                 'inter_area',
+            ),
+            _FakeScrubLayer.calls)
+        self.assertIn(
+            (
+                'add_field',
+                'inter_nrcan_H3H',
+                'area_ratio',
+            ),
+            _FakeScrubLayer.calls)
+        self.assertIn(
+            (
+                'assign_field_ratio',
+                'inter_nrcan_H3H',
+                'area_ratio',
+                'inter_area',
+                'nrcan_area',
             ),
             _FakeScrubLayer.calls)
 
