@@ -99,6 +99,7 @@ output_paths = {
   'inter_summary': '',
   'summary_joined': '',
   'inter_kept': '',
+  'nrcan_joined_summary': '',
   'nrcan_restored': '',
   'nrcan_restored_with_usage_id': '',
   'nrcan_intersected': '',
