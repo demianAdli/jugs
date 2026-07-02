@@ -302,6 +302,9 @@ class _FakeJoiningLayer:
   def isValid(self):
     return True
 
+  def id(self):
+    return f'{self.layer_name}-id'
+
 
 class _FakeQgsVectorLayerJoinInfo:
   def __init__(self):
@@ -931,7 +934,97 @@ class TestScrubLayerExtraction(unittest.TestCase):
       join_field='id_provinc',
       join_fields=['usage'],
       prefix='roll_',
-      output_path='output/joined.shp')
+      output_path='output/joined.shp',
+      selected_features_only=False,
+      joining_selected_features_only=False,
+      join_method=1,
+      discard_nonmatching=False,
+      unjoinable_output_path=None)
+
+  @patch('src.citygisoo.scrub_layer_class.processing.run')
+  def test_field_join_runs_qgis_algorithm_with_compatible_defaults(
+          self, processing_run_mock):
+    scrub_layer = _build_scrub_layer()
+
+    with patch(
+            'src.citygisoo.scrub_layer_class.QgsVectorLayer',
+            _FakeJoiningLayer):
+      scrub_layer.field_join(
+        joining_layer_path='output/roll.shp',
+        joining_layer_name='roll',
+        target_field='g_id_provi',
+        join_field='id_provinc',
+        prefix='roll_',
+        output_path='output/joined.shp')
+
+    processing_run_mock.assert_called_once()
+    algorithm, params = processing_run_mock.call_args.args
+    self.assertEqual(algorithm, 'native:joinattributestable')
+    self.assertEqual(
+      params,
+      {
+        'INPUT': scrub_layer.layer,
+        'FIELD': 'g_id_provi',
+        'INPUT_2': params['INPUT_2'],
+        'FIELD_2': 'id_provinc',
+        'FIELDS_TO_COPY': [],
+        'METHOD': 1,
+        'DISCARD_NONMATCHING': False,
+        'PREFIX': 'roll_',
+        'OUTPUT': 'output/joined.shp',
+      })
+    self.assertIsInstance(params['INPUT_2'], _FakeJoiningLayer)
+
+  @patch('src.citygisoo.scrub_layer_class.processing.run')
+  def test_field_join_accepts_full_processing_options(
+          self, processing_run_mock):
+    scrub_layer = _build_scrub_layer()
+    scrub_layer.layer = _FakeSelectableVectorLayer()
+
+    with patch(
+            'src.citygisoo.scrub_layer_class.QgsVectorLayer',
+            _FakeJoiningLayer):
+      scrub_layer.field_join(
+        joining_layer_path='output/roll.shp',
+        joining_layer_name='roll',
+        target_field='g_id_provi',
+        join_field='id_provinc',
+        join_fields=['usage'],
+        prefix='roll_',
+        output_path='output/joined.shp',
+        selected_features_only=True,
+        joining_selected_features_only=True,
+        join_method=0,
+        discard_nonmatching=True,
+        unjoinable_output_path='output/unjoinable.shp')
+
+    params = processing_run_mock.call_args.args[1]
+    self.assertIsInstance(
+      params['INPUT'],
+      _FakeQgsProcessingFeatureSourceDefinition)
+    self.assertEqual(params['INPUT'].source, 'selectable-layer-id')
+    self.assertTrue(params['INPUT'].selectedFeaturesOnly)
+    self.assertIsInstance(
+      params['INPUT_2'],
+      _FakeQgsProcessingFeatureSourceDefinition)
+    self.assertEqual(params['INPUT_2'].source, 'roll-id')
+    self.assertTrue(params['INPUT_2'].selectedFeaturesOnly)
+    self.assertEqual(params['FIELDS_TO_COPY'], ['usage'])
+    self.assertEqual(params['METHOD'], 0)
+    self.assertTrue(params['DISCARD_NONMATCHING'])
+    self.assertEqual(params['NON_MATCHING'], 'output/unjoinable.shp')
+
+  def test_field_join_method_accepts_readable_names(self):
+    self.assertEqual(
+      ScrubLayer._normalize_field_join_method('one-to-many'),
+      0)
+    self.assertEqual(
+      ScrubLayer._normalize_field_join_method('first match'),
+      1)
+
+  def test_field_join_method_rejects_unknown_method(self):
+    with self.assertRaises(ValueError):
+      ScrubLayer._normalize_field_join_method('nearest')
 
   @patch('src.citygisoo.scrub_layer_class.processing.run')
   def test_merge_layer_paths_runs_qgis_algorithm_for_explicit_paths(

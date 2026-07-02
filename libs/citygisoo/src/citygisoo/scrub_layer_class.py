@@ -302,7 +302,12 @@ class ScrubLayer:
           join_field,
           join_fields=None,
           prefix='',
-          output_path=None):
+          output_path=None,
+          selected_features_only=False,
+          joining_selected_features_only=False,
+          join_method=1,
+          discard_nonmatching=False,
+          unjoinable_output_path=None):
     """Joins fields from another layer and persists the result.
 
     If output_path is None, the current layer dataset is replaced in place.
@@ -327,17 +332,39 @@ class ScrubLayer:
       processing_output_path = os.path.join(
         temp_dir, f'{self.layer_name}{layer_extension}')
 
+    input_layer = self.layer
+    if selected_features_only:
+      layer_source = (
+        self.layer.id()
+        if callable(getattr(self.layer, 'id', None))
+        else self.layer_path)
+      input_layer = QgsProcessingFeatureSourceDefinition(
+        layer_source,
+        selectedFeaturesOnly=True)
+
+    input_layer_2 = joining_layer
+    if joining_selected_features_only:
+      joining_layer_source = (
+        joining_layer.id()
+        if callable(getattr(joining_layer, 'id', None))
+        else joining_layer_path)
+      input_layer_2 = QgsProcessingFeatureSourceDefinition(
+        joining_layer_source,
+        selectedFeaturesOnly=True)
+
     params = {
-      'INPUT': self.layer,
+      'INPUT': input_layer,
       'FIELD': target_field,
-      'INPUT_2': joining_layer,
+      'INPUT_2': input_layer_2,
       'FIELD_2': join_field,
       'FIELDS_TO_COPY': join_fields or [],
-      'METHOD': 1,
-      'DISCARD_NONMATCHING': False,
+      'METHOD': self._normalize_field_join_method(join_method),
+      'DISCARD_NONMATCHING': discard_nonmatching,
       'PREFIX': prefix,
       'OUTPUT': processing_output_path
     }
+    if unjoinable_output_path is not None:
+      params['NON_MATCHING'] = unjoinable_output_path
 
     processing.run('native:joinattributestable', params)
 
@@ -354,6 +381,25 @@ class ScrubLayer:
       self.layer_name,
       joining_layer_name)
 
+  @staticmethod
+  def _normalize_field_join_method(join_method):
+    if isinstance(join_method, int):
+      return join_method
+
+    normalized_method = str(join_method).strip().lower()
+    method_codes = {
+      'one-to-many': 0,
+      'create separate feature for each matching feature': 0,
+      'separate feature for each matching feature': 0,
+      'all matches': 0,
+      'one-to-one-first': 1,
+      'first match': 1,
+      'take attributes of the first matching feature only': 1,
+    }
+    if normalized_method not in method_codes:
+      raise ValueError(f'Unsupported field join method: {join_method}')
+    return method_codes[normalized_method]
+
   def add_layer_join(
           self,
           joining_layer_path,
@@ -362,7 +408,12 @@ class ScrubLayer:
           target_field,
           prefix='',
           output_path=None,
-          join_fields=None):
+          join_fields=None,
+          selected_features_only=False,
+          joining_selected_features_only=False,
+          join_method=1,
+          discard_nonmatching=False,
+          unjoinable_output_path=None):
     """Add a QGIS layer-properties join or persist it to output_path.
 
     Without output_path, this creates a live join on this layer, equivalent to
@@ -377,7 +428,12 @@ class ScrubLayer:
         join_field=join_field,
         join_fields=join_fields,
         prefix=prefix,
-        output_path=output_path)
+        output_path=output_path,
+        selected_features_only=selected_features_only,
+        joining_selected_features_only=joining_selected_features_only,
+        join_method=join_method,
+        discard_nonmatching=discard_nonmatching,
+        unjoinable_output_path=unjoinable_output_path)
       return output_path
 
     joining_layer = QgsVectorLayer(
