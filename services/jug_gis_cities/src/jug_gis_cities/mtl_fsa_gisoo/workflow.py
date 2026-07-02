@@ -334,6 +334,15 @@ def run_workflow(fsa):
       usage_roll_all.create_spatial_index()
       _log_layer_summary(usage_roll_all)
 
+    with _workflow_step('delete duplicate usage geometries', normalized_fsa):
+      usage_dup.delete_duplicate_geometries(output_paths['usage_dup_clean'])
+      clean_usage_dup = ScrubLayer(
+        paths.qgis_path,
+        output_paths['usage_dup_clean'],
+        f'clean_usage_dup_{normalized_fsa}')
+      clean_usage_dup.create_spatial_index()
+      _log_layer_summary(clean_usage_dup)
+
   except Exception:
     logger.exception(
       'Montreal FSA GISOO workflow failed. FSA=%s',
