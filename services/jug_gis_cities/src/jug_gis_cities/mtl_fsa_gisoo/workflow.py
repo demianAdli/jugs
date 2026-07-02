@@ -454,6 +454,28 @@ def run_workflow(fsa):
           'END'),
         field_type=2)
 
+    with _workflow_step('assign inter summary restore reason field',
+                        normalized_fsa):
+      inter_summary.assign_field_expression(
+        target_field='restore_reason',
+        expression=(
+          'CASE\n'
+          'WHEN\n'
+          '    "number_parts" > 1\n'
+          '    AND "min_inter_area" < 30\n'
+          '    AND "max_area_ratio" >= 0.70\n'
+          "THEN 'dominant_piece'\n"
+          'WHEN\n'
+          '    "number_parts" >= 3\n'
+          '    AND "nrcan_area" <= 75\n'
+          '    AND "max_inter_area" < 30\n'
+          '    AND "sum_area_ratio" >= 0.95\n'
+          "THEN 'small_building_multi_split'\n"
+          "ELSE 'keep'\n"
+          'END'),
+        field_type=10,
+        field_length=32)
+
   except Exception:
     logger.exception(
       'Montreal FSA GISOO workflow failed. FSA=%s',
