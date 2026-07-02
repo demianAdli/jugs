@@ -13,6 +13,8 @@
 - Added `ScrubLayer.duplicate_text_field()`.
 - Added `ScrubLayer.delete_duplicate_geometries()` for QGIS Delete Duplicate
   Geometries.
+- Added `ScrubLayer.intersection_layer()` for QGIS vector overlay
+  Intersection.
 
 ### Planned
 - Extend spatial join to support multiple predicates.

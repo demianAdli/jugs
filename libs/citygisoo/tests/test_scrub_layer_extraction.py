@@ -398,6 +398,52 @@ class TestScrubLayerExtraction(unittest.TestCase):
       })
 
   @patch('src.citygisoo.scrub_layer_class.processing.run')
+  def test_intersection_layer_runs_qgis_algorithm_with_defaults(
+          self, processing_run_mock):
+    scrub_layer = _build_scrub_layer()
+
+    result = scrub_layer.intersection_layer(
+      overlay_layer='output/fsa_limit.shp',
+      output_path='output/fsa_intersection.shp')
+
+    self.assertEqual(result, 'output/fsa_intersection.shp')
+    processing_run_mock.assert_called_once_with(
+      'native:intersection',
+      {
+        'INPUT': 'fsa_boundaries.gpkg',
+        'OVERLAY': 'output/fsa_limit.shp',
+        'INPUT_FIELDS': [],
+        'OVERLAY_FIELDS': [],
+        'OVERLAY_FIELDS_PREFIX': '',
+        'OUTPUT': 'output/fsa_intersection.shp',
+      })
+
+  @patch('src.citygisoo.scrub_layer_class.processing.run')
+  def test_intersection_layer_accepts_field_filters_and_overlay_prefix(
+          self, processing_run_mock):
+    scrub_layer = _build_scrub_layer()
+    overlay_layer = _build_lookup_layer('roll_clipped_H3H')
+
+    result = scrub_layer.intersection_layer(
+      overlay_layer=overlay_layer,
+      output_path='output/fsa_roll_intersection.shp',
+      input_fields='g_fsa',
+      overlay_fields=['id_provinc', 'height'],
+      overlay_fields_prefix='roll_')
+
+    self.assertEqual(result, 'output/fsa_roll_intersection.shp')
+    processing_run_mock.assert_called_once_with(
+      'native:intersection',
+      {
+        'INPUT': 'fsa_boundaries.gpkg',
+        'OVERLAY': 'roll_clipped_H3H.shp',
+        'INPUT_FIELDS': ['g_fsa'],
+        'OVERLAY_FIELDS': ['id_provinc', 'height'],
+        'OVERLAY_FIELDS_PREFIX': 'roll_',
+        'OUTPUT': 'output/fsa_roll_intersection.shp',
+      })
+
+  @patch('src.citygisoo.scrub_layer_class.processing.run')
   def test_delete_duplicate_geometries_runs_qgis_algorithm(
           self, processing_run_mock):
     scrub_layer = _build_scrub_layer()

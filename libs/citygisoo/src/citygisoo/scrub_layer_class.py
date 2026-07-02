@@ -445,6 +445,41 @@ class ScrubLayer:
     return output_path
 
   @staticmethod
+  def _normalize_field_selection(fields):
+    if fields is None:
+      return []
+    if isinstance(fields, str):
+      return [fields]
+    return list(fields)
+
+  def intersection_layer(
+          self,
+          overlay_layer,
+          output_path,
+          input_fields=None,
+          overlay_fields=None,
+          overlay_fields_prefix=''):
+    """Run QGIS vector overlay intersection and persist the result."""
+    QgsApplication.processingRegistry().addProvider(QgsNativeAlgorithms())
+    overlay_input = getattr(overlay_layer, 'layer_path', overlay_layer)
+    params = {
+      'INPUT': self.layer_path,
+      'OVERLAY': overlay_input,
+      'INPUT_FIELDS': self._normalize_field_selection(input_fields),
+      'OVERLAY_FIELDS': self._normalize_field_selection(overlay_fields),
+      'OVERLAY_FIELDS_PREFIX': overlay_fields_prefix,
+      'OUTPUT': output_path
+    }
+
+    processing.run('native:intersection', params)
+    logger.info(
+      'Intersection of %s with overlay %s is completed into %s.',
+      self.layer_name,
+      overlay_input,
+      output_path)
+    return output_path
+
+  @staticmethod
   def _normalize_extract_attribute_operator(operator):
     if isinstance(operator, int):
       return operator
