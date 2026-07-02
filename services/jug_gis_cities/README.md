@@ -1,6 +1,64 @@
 # jug_gis_cities
 
-Geospatial data-cleaning service for Sabu city GIS components.
+**Project Designer and Developer:** Alireza Adli  
+**Website:** [demianadli.com](https://demianadli.com)  
+**Contact:** [demianadli.com/profile](https://demianadli.com/profile)
+
+Geospatial data-cleaning service for Sabu that utilizes `citygisoo` to develop automated geospatial data-cleaning workflows for different cities and municipalities.
+
+This directory contains the packaging, Dockerization, and REST API files for the technical part of the service. The automated geospatial workflows can be found in:
+
+```text
+src/jug_gis_cities
+```
+
+Inside `src/jug_gis_cities`, workflow components follow the naming convention:
+
+```text
+[district_name]_gisoo
+```
+
+The most updated case is `mtl_fsa_gisoo`. In this name, `fsa` refers to using Forward Sortation Areas (FSAs) to divide a larger district into smaller areas for workflow execution.
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Logs](#logs)
+- [Install For Local Runs](#install-for-local-runs)
+- [Direct Python Run](#direct-python-run)
+- [REST API Run](#rest-api-run)
+- [Docker API Run](#docker-api-run)
+- [Docker Direct Run](#docker-direct-run)
+- [Published Package Docker Build](#published-package-docker-build)
+
+## Overview
+
+`jug_gis_cities` is the Sabu geospatial data-cleaning service for city and municipality workflows. It imports and uses `citygisoo`, a PyQGIS-based shared library, to compose reusable automated or semi-automated geospatial data-cleaning workflows.
+
+The service-level technical infrastructure is kept in the current service directory. This includes package configuration, Docker files, REST API execution, and deployment-related files.
+
+The city- or district-specific workflow logic is organized under:
+
+```text
+src/jug_gis_cities
+```
+
+Each workflow component is named using the convention:
+
+```text
+[district_name]_gisoo
+```
+
+Examples include:
+
+```text
+saint_malachie_gisoo
+mtl_fsa_gisoo
+```
+
+In `mtl_fsa_gisoo`, the `fsa` part refers to Forward Sortation Areas. This workflow uses FSAs to divide a larger district into smaller areas so that the cleaning workflow can be executed in a more manageable way.
+
+## Logs
 
 Logs are written to:
 
