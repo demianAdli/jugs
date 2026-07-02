@@ -534,6 +534,17 @@ def run_workflow(fsa):
       nrcan_joined_summary.create_spatial_index()
       _log_layer_summary(nrcan_joined_summary)
 
+    with _workflow_step('extract nrcan restored records', normalized_fsa):
+      nrcan_joined_summary.extract_by_expression(
+        '"restore_group" = 1',
+        output_paths['nrcan_restored'])
+      nrcan_restored = ScrubLayer(
+        paths.qgis_path,
+        output_paths['nrcan_restored'],
+        f'nrcan_restored_{normalized_fsa}')
+      nrcan_restored.create_spatial_index()
+      _log_layer_summary(nrcan_restored)
+
   except Exception:
     logger.exception(
       'Montreal FSA GISOO workflow failed. FSA=%s',

@@ -449,6 +449,11 @@ class TestMtlFsaWorkflow(unittest.TestCase):
             'H3H',
             'nrcan_joined_summary',
             'nrcan_joined_summary.shp')
+        nrcan_restored_path = os.path.join(
+            'D:/GIS/mtl_gisoo_fsa_data/output_data',
+            'H3H',
+            'nrcan_restored',
+            'nrcan_restored.shp')
 
         self.assertIn(
             (
@@ -820,6 +825,14 @@ class TestMtlFsaWorkflow(unittest.TestCase):
                 None,
             ),
             _FakeScrubLayer.calls)
+        self.assertIn(
+            (
+                'extract_by_expression',
+                'nrcan_joined_summary_H3H',
+                '"restore_group" = 1',
+                nrcan_restored_path,
+            ),
+            _FakeScrubLayer.calls)
 
         self.assertIn(
             ('init', 'C:/QGIS', inter_summary_path, 'inter_summary_H3H'),
@@ -851,7 +864,8 @@ class TestMtlFsaWorkflow(unittest.TestCase):
                 (inter_kept_path, 'inter_kept_H3H'),
                 (summary_joined_path, 'summary_joined_H3H'),
                 (nrcan_joined_summary_path,
-                 'nrcan_joined_summary_H3H')]:
+                 'nrcan_joined_summary_H3H'),
+                (nrcan_restored_path, 'nrcan_restored_H3H')]:
             self.assertIn(
                 ('init', 'C:/QGIS', output_path, layer_name),
                 _FakeScrubLayer.calls)
