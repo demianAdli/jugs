@@ -164,14 +164,58 @@ class _FakeQgsVectorDataProvider:
 
 
 class _FakeQVariant:
+  Double = 'Double'
+  Int = 'Int'
   String = 'String'
 
 
 class _FakeQgsField:
-  def __init__(self, name, field_type, len=None):
+  def __init__(self, name, field_type, len=None, prec=None):
     self.name = name
     self.field_type = field_type
     self.length = len
+    self.precision = prec
+
+
+class _FakeQgsExpression:
+  def __init__(self, expression):
+    self.expression = expression
+    self._eval_error = False
+
+  def hasParserError(self):
+    return False
+
+  def parserErrorString(self):
+    return ''
+
+  def evaluate(self, context):
+    feature = context.feature
+    if feature['number_parts'] > 1 and feature['max_area_ratio'] >= 0.70:
+      return 1
+    return 0
+
+  def hasEvalError(self):
+    return self._eval_error
+
+  def evalErrorString(self):
+    return ''
+
+
+class _FakeQgsExpressionContext:
+  def __init__(self):
+    self.feature = None
+
+  def appendScopes(self, scopes):
+    return None
+
+  def setFeature(self, feature):
+    self.feature = feature
+
+
+class _FakeQgsExpressionContextUtils:
+  @staticmethod
+  def globalProjectLayerScopes(layer):
+    return []
 
 
 class _FakeFields:
@@ -304,6 +348,10 @@ class TestScrubLayerExtraction(unittest.TestCase):
     scrub_layer_module.QgsApplication = _FakeQgsApplication
     scrub_layer_module.QgsProcessingFeatureSourceDefinition = (
       _FakeQgsProcessingFeatureSourceDefinition)
+    scrub_layer_module.QgsExpression = _FakeQgsExpression
+    scrub_layer_module.QgsExpressionContext = _FakeQgsExpressionContext
+    scrub_layer_module.QgsExpressionContextUtils = (
+      _FakeQgsExpressionContextUtils)
     scrub_layer_module.QgsField = _FakeQgsField
     scrub_layer_module.QgsVectorDataProvider = _FakeQgsVectorDataProvider
     scrub_layer_module.QVariant = _FakeQVariant
@@ -754,6 +802,33 @@ class TestScrubLayerExtraction(unittest.TestCase):
     self.assertEqual(scrub_layer.layer.updated_features, [10, 11])
     self.assertEqual(feature_with_ratio['area_ratio'], 0.25)
     self.assertIsNone(feature_with_zero_denominator['area_ratio'])
+
+  def test_assign_field_expression_adds_and_updates_target_field(self):
+    scrub_layer = _build_scrub_layer()
+    matching_feature = _FakeFeature(
+      10,
+      {'number_parts': 2, 'max_area_ratio': 0.75})
+    non_matching_feature = _FakeFeature(
+      11,
+      {'number_parts': 1, 'max_area_ratio': 0.75})
+    scrub_layer.layer = _FakeAttributeLayer(
+      ['number_parts', 'max_area_ratio'],
+      [matching_feature, non_matching_feature])
+
+    result = scrub_layer.assign_field_expression(
+      target_field='restore_group',
+      expression='CASE WHEN "number_parts" > 1 THEN 1 ELSE 0 END',
+      field_type=_FakeQVariant.Int)
+
+    self.assertEqual(result, 'restore_group')
+    added_field = scrub_layer.layer.provider.added_fields[0]
+    self.assertEqual(added_field.name, 'restore_group')
+    self.assertEqual(added_field.field_type, _FakeQVariant.Int)
+    self.assertTrue(scrub_layer.layer.started_editing)
+    self.assertTrue(scrub_layer.layer.committed_changes)
+    self.assertEqual(scrub_layer.layer.updated_features, [10, 11])
+    self.assertEqual(matching_feature['restore_group'], 1)
+    self.assertEqual(non_matching_feature['restore_group'], 0)
 
   @patch('src.citygisoo.scrub_layer_class.processing.run')
   def test_spatial_join_with_predicate_runs_qgis_algorithm(

@@ -1071,6 +1071,74 @@ class ScrubLayer:
       target_field,
       self.layer_name)
 
+  def assign_field_expression(
+          self,
+          target_field,
+          expression,
+          field_type=None,
+          field_length=0,
+          field_precision=0):
+    """Add or update a field using a QGIS expression evaluated per feature."""
+    if not target_field:
+      raise ValueError('target_field is required.')
+    if not expression:
+      raise ValueError('expression is required.')
+    if field_type is None:
+      field_type = QVariant.Double
+
+    provider = self.layer.dataProvider()
+    target_idx = self.layer.fields().indexFromName(target_field)
+    if target_idx == -1:
+      functionalities = provider.capabilities()
+      if not functionalities & QgsVectorDataProvider.AddAttributes:
+        raise ValueError(
+          f'Layer {self.layer_name} does not support adding fields.')
+
+      new_field = QgsField(
+        target_field,
+        field_type,
+        len=field_length,
+        prec=field_precision)
+      added = provider.addAttributes([new_field])
+      self.layer.updateFields()
+      if not added:
+        raise RuntimeError(
+          f'Failed to add expression field {target_field} to '
+          f'{self.layer_name}.')
+      target_idx = self.layer.fields().indexFromName(target_field)
+
+    qgis_expression = QgsExpression(expression)
+    if qgis_expression.hasParserError():
+      raise ValueError(
+        f'Invalid expression for {target_field}: '
+        f'{qgis_expression.parserErrorString()}')
+
+    context = QgsExpressionContext()
+    context.appendScopes(
+      QgsExpressionContextUtils.globalProjectLayerScopes(self.layer))
+
+    self.layer.startEditing()
+    updated_count = 0
+    for feature in self.layer.getFeatures():
+      context.setFeature(feature)
+      value = qgis_expression.evaluate(context)
+      if qgis_expression.hasEvalError():
+        self.layer.commitChanges()
+        raise ValueError(
+          f'Failed to evaluate expression for feature {feature.id()} on '
+          f'{self.layer_name}: {qgis_expression.evalErrorString()}')
+      feature[target_idx] = value
+      self.layer.updateFeature(feature)
+      updated_count += 1
+
+    self.layer.commitChanges()
+    logger.info(
+      'Assigned expression values to field %s on %s for %s features.',
+      target_field,
+      self.layer_name,
+      updated_count)
+    return target_field
+
   def duplicate_text_field(
           self,
           source_field,
