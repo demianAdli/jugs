@@ -578,6 +578,21 @@ def run_workflow(fsa):
       nrcan_restored_with_usage_id.create_spatial_index()
       _log_layer_summary(nrcan_restored_with_usage_id)
 
+    with _workflow_step('merge kept and restored nrcan intersections',
+                        normalized_fsa):
+      ScrubLayer.merge_layer_paths(
+        layer_paths=[
+          inter_kept.layer_path,
+          nrcan_restored_with_usage_id.layer_path,
+        ],
+        output_path=output_paths['nrcan_intersected'])
+      nrcan_intersected = ScrubLayer(
+        paths.qgis_path,
+        output_paths['nrcan_intersected'],
+        f'nrcan_intersected_{normalized_fsa}')
+      nrcan_intersected.create_spatial_index()
+      _log_layer_summary(nrcan_intersected)
+
   except Exception:
     logger.exception(
       'Montreal FSA GISOO workflow failed. FSA=%s',

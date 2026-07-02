@@ -472,6 +472,11 @@ class TestMtlFsaWorkflow(unittest.TestCase):
             'H3H',
             'nrcan_restored_with_usage_id',
             'nrcan_restored_with_usage_id.shp')
+        nrcan_intersected_path = os.path.join(
+            'D:/GIS/mtl_gisoo_fsa_data/output_data',
+            'H3H',
+            'nrcan_intersected',
+            'nrcan_intersected.shp')
 
         self.assertIn(
             (
@@ -889,6 +894,17 @@ class TestMtlFsaWorkflow(unittest.TestCase):
                 None,
             ),
             _FakeScrubLayer.calls)
+        self.assertIn(
+            (
+                'merge_layer_paths',
+                [
+                    inter_kept_path,
+                    nrcan_restored_with_usage_id_path,
+                ],
+                nrcan_intersected_path,
+                None,
+            ),
+            _FakeScrubLayer.calls)
 
         self.assertIn(
             ('init', 'C:/QGIS', inter_summary_path, 'inter_summary_H3H'),
@@ -924,7 +940,8 @@ class TestMtlFsaWorkflow(unittest.TestCase):
                 (nrcan_restored_path, 'nrcan_restored_H3H'),
                 (dominant_parts_path, 'dominant_parts_H3H'),
                 (nrcan_restored_with_usage_id_path,
-                 'nrcan_restored_with_usage_id_H3H')]:
+                 'nrcan_restored_with_usage_id_H3H'),
+                (nrcan_intersected_path, 'nrcan_intersected_H3H')]:
             self.assertIn(
                 ('init', 'C:/QGIS', output_path, layer_name),
                 _FakeScrubLayer.calls)
