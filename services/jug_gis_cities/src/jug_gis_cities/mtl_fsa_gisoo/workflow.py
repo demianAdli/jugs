@@ -360,6 +360,10 @@ def run_workflow(fsa):
       inter_nrcan.create_spatial_index()
       _log_layer_summary(inter_nrcan)
 
+    with _workflow_step('assign inter nrcan area field', normalized_fsa):
+      inter_nrcan.add_field('inter_area')
+      inter_nrcan.assign_area('inter_area')
+
   except Exception:
     logger.exception(
       'Montreal FSA GISOO workflow failed. FSA=%s',

@@ -628,6 +628,20 @@ class TestMtlFsaWorkflow(unittest.TestCase):
                 '',
             ),
             _FakeScrubLayer.calls)
+        self.assertIn(
+            (
+                'add_field',
+                'inter_nrcan_H3H',
+                'inter_area',
+            ),
+            _FakeScrubLayer.calls)
+        self.assertIn(
+            (
+                'assign_area',
+                'inter_nrcan_H3H',
+                'inter_area',
+            ),
+            _FakeScrubLayer.calls)
 
         for output_path, layer_name in [
                 (fsa_boundary_path, 'fsa_boundary_H3H'),
