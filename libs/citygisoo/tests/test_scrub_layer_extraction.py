@@ -398,6 +398,33 @@ class TestScrubLayerExtraction(unittest.TestCase):
       })
 
   @patch('src.citygisoo.scrub_layer_class.processing.run')
+  def test_delete_duplicate_geometries_runs_qgis_algorithm(
+          self, processing_run_mock):
+    scrub_layer = _build_scrub_layer()
+
+    result = scrub_layer.delete_duplicate_geometries(
+      'output/fsa_boundaries_unique.gpkg')
+
+    self.assertEqual(result, 'output/fsa_boundaries_unique.gpkg')
+    processing_run_mock.assert_called_once_with(
+      'native:deleteduplicategeometries',
+      {
+        'INPUT': scrub_layer.layer,
+        'OUTPUT': 'output/fsa_boundaries_unique.gpkg',
+      })
+
+  @patch.object(ScrubLayer, 'delete_duplicate_geometries')
+  def test_delete_duplicates_delegates_to_delete_duplicate_geometries(
+          self, delete_duplicate_geometries_mock):
+    scrub_layer = _build_scrub_layer()
+
+    result = scrub_layer.delete_duplicates('output/fsa_unique.gpkg')
+
+    self.assertEqual(result, delete_duplicate_geometries_mock.return_value)
+    delete_duplicate_geometries_mock.assert_called_once_with(
+      'output/fsa_unique.gpkg')
+
+  @patch('src.citygisoo.scrub_layer_class.processing.run')
   def test_extract_unique_by_field_saves_first_feature_per_value(
           self, processing_run_mock):
     scrub_layer = _build_scrub_layer()

@@ -11,6 +11,8 @@
 - Added `ScrubLayer.spatial_join_with_predicate()`.
 - Added `ScrubLayer.extract_unique_by_field()`.
 - Added `ScrubLayer.duplicate_text_field()`.
+- Added `ScrubLayer.delete_duplicate_geometries()` for QGIS Delete Duplicate
+  Geometries.
 
 ### Planned
 - Extend spatial join to support multiple predicates.

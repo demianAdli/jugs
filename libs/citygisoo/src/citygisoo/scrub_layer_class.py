@@ -664,15 +664,23 @@ class ScrubLayer:
       self.layer_name,
       singleparts_layer_path)
 
-  def delete_duplicates(self, deleted_duplicates_layer):
+  def delete_duplicate_geometries(self, output_path):
+    """Delete duplicate geometries using QGIS native processing."""
     QgsApplication.processingRegistry().addProvider(QgsNativeAlgorithms())
-    params = {'INPUT': self.layer_path,
-              'OUTPUT': deleted_duplicates_layer}
-    processing.run("native:deleteduplicategeometries", params)
+    params = {
+      'INPUT': self.layer,
+      'OUTPUT': output_path
+    }
+    processing.run('native:deleteduplicategeometries', params)
     logger.info(
       'Deleted duplicate geometries from %s into %s.',
       self.layer_name,
-      deleted_duplicates_layer)
+      output_path)
+    return output_path
+
+  def delete_duplicates(self, deleted_duplicates_layer):
+    """Backward-compatible alias for delete_duplicate_geometries()."""
+    return self.delete_duplicate_geometries(deleted_duplicates_layer)
 
   def extract_unique_by_field(
           self,
