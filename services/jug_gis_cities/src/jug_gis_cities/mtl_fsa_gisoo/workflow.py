@@ -545,6 +545,23 @@ def run_workflow(fsa):
       nrcan_restored.create_spatial_index()
       _log_layer_summary(nrcan_restored)
 
+    with _workflow_step('extract dominant summary joined parts',
+                        normalized_fsa):
+      summary_joined.extract_by_expression(
+        '"sum_restore_group" = 1 '
+        'AND "inter_area" = "sum_max_inter_area"',
+        output_paths['dominant_parts'])
+      dominant_parts = ScrubLayer(
+        paths.qgis_path,
+        output_paths['dominant_parts'],
+        f'dominant_parts_{normalized_fsa}')
+      dominant_parts.keep_only_fields([
+        'nrcan_id',
+        'usagedup_id',
+      ])
+      dominant_parts.create_spatial_index()
+      _log_layer_summary(dominant_parts)
+
   except Exception:
     logger.exception(
       'Montreal FSA GISOO workflow failed. FSA=%s',

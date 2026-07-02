@@ -275,6 +275,14 @@ class _FakeScrubLayer:
             field_precision))
         return target_field
 
+    def keep_only_fields(self, fields_to_keep, strict=True):
+        self.calls.append((
+            'keep_only_fields',
+            self.layer_name,
+            fields_to_keep,
+            strict))
+        return self
+
     def create_spatial_index(self):
         self.calls.append(('create_spatial_index', self.layer_name))
 
@@ -454,6 +462,11 @@ class TestMtlFsaWorkflow(unittest.TestCase):
             'H3H',
             'nrcan_restored',
             'nrcan_restored.shp')
+        dominant_parts_path = os.path.join(
+            'D:/GIS/mtl_gisoo_fsa_data/output_data',
+            'H3H',
+            'dominant_parts',
+            'dominant_parts.shp')
 
         self.assertIn(
             (
@@ -833,6 +846,26 @@ class TestMtlFsaWorkflow(unittest.TestCase):
                 nrcan_restored_path,
             ),
             _FakeScrubLayer.calls)
+        self.assertIn(
+            (
+                'extract_by_expression',
+                'summary_joined_H3H',
+                '"sum_restore_group" = 1 '
+                'AND "inter_area" = "sum_max_inter_area"',
+                dominant_parts_path,
+            ),
+            _FakeScrubLayer.calls)
+        self.assertIn(
+            (
+                'keep_only_fields',
+                'dominant_parts_H3H',
+                [
+                    'nrcan_id',
+                    'usagedup_id',
+                ],
+                True,
+            ),
+            _FakeScrubLayer.calls)
 
         self.assertIn(
             ('init', 'C:/QGIS', inter_summary_path, 'inter_summary_H3H'),
@@ -865,7 +898,8 @@ class TestMtlFsaWorkflow(unittest.TestCase):
                 (summary_joined_path, 'summary_joined_H3H'),
                 (nrcan_joined_summary_path,
                  'nrcan_joined_summary_H3H'),
-                (nrcan_restored_path, 'nrcan_restored_H3H')]:
+                (nrcan_restored_path, 'nrcan_restored_H3H'),
+                (dominant_parts_path, 'dominant_parts_H3H')]:
             self.assertIn(
                 ('init', 'C:/QGIS', output_path, layer_name),
                 _FakeScrubLayer.calls)

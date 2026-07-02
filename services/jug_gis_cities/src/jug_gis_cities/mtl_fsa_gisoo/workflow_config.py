@@ -101,6 +101,7 @@ output_paths = {
   'inter_kept': '',
   'nrcan_joined_summary': '',
   'nrcan_restored': '',
+  'dominant_parts': '',
   'nrcan_restored_with_usage_id': '',
   'nrcan_intersected': '',
   'nrcan_spatial_join_usage': '',
