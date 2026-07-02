@@ -92,6 +92,26 @@ def run_workflow(fsa):
       nrcan_mtl.add_uuid_field('nrcan_id', overwrite=True)
       usage_mtl.add_uuid_field('usage_id', overwrite=True)
 
+    with _workflow_step('duplicate nrcan layer with UUIDs',
+                        normalized_fsa):
+      nrcan_mtl.duplicate_layer(output_paths['nrcan_preserved'])
+      nrcan_preserved = ScrubLayer(
+        paths.qgis_path,
+        output_paths['nrcan_preserved'],
+        f'nrcan_preserved_{normalized_fsa}')
+      nrcan_preserved.create_spatial_index()
+      _log_layer_summary(nrcan_preserved)
+
+    with _workflow_step('duplicate usage layer with UUIDs',
+                        normalized_fsa):
+      usage_mtl.duplicate_layer(output_paths['usage_dup'])
+      usage_dup = ScrubLayer(
+        paths.qgis_path,
+        output_paths['usage_dup'],
+        f'usage_dup_{normalized_fsa}')
+      usage_dup.create_spatial_index()
+      _log_layer_summary(usage_dup)
+
     with _workflow_step('extract FSA boundary', normalized_fsa):
       fsa_layer.extract_by_attribute(
         paths.fsa_field_name,

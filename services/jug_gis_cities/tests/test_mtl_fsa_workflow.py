@@ -67,6 +67,13 @@ class _FakeScrubLayer:
             overwrite))
         return field_name
 
+    def duplicate_layer(self, output_path):
+        self.calls.append((
+            'duplicate_layer',
+            self.layer_name,
+            output_path))
+        return output_path
+
     def clip_layer(self, overlay_layer, clipped_layer):
         self.calls.append((
             'clip_layer',
@@ -247,6 +254,16 @@ class TestMtlFsaWorkflow(unittest.TestCase):
             'H3H',
             'usage',
             'usage.shp')
+        nrcan_preserved_path = os.path.join(
+            'D:/GIS/mtl_gisoo_fsa_data/output_data',
+            'H3H',
+            'nrcan_preserved',
+            'nrcan_preserved.shp')
+        usage_dup_path = os.path.join(
+            'D:/GIS/mtl_gisoo_fsa_data/output_data',
+            'H3H',
+            'usage_dup',
+            'usage_dup.shp')
         nrcan_fixed_path = os.path.join(
             'D:/GIS/mtl_gisoo_fsa_data/output_data',
             'H3H',
@@ -357,6 +374,23 @@ class TestMtlFsaWorkflow(unittest.TestCase):
                 True,
             ))
             self.assertLess(uuid_call_index, extract_call_index)
+
+        for layer_name, output_path in [
+                ('nrcan_mtl', nrcan_preserved_path),
+                ('usage_mtl', usage_dup_path)]:
+            self.assertIn(
+                (
+                    'duplicate_layer',
+                    layer_name,
+                    output_path,
+                ),
+                _FakeScrubLayer.calls)
+            duplicate_call_index = _FakeScrubLayer.calls.index((
+                'duplicate_layer',
+                layer_name,
+                output_path,
+            ))
+            self.assertLess(duplicate_call_index, extract_call_index)
 
         for layer_name, output_path in [
                 ('nrcan_mtl', nrcan_path),
@@ -523,6 +557,8 @@ class TestMtlFsaWorkflow(unittest.TestCase):
 
         for output_path, layer_name in [
                 (fsa_boundary_path, 'fsa_boundary_H3H'),
+                (nrcan_preserved_path, 'nrcan_preserved_H3H'),
+                (usage_dup_path, 'usage_dup_H3H'),
                 (nrcan_path, 'nrcan_clipped_H3H'),
                 (roll_path, 'roll_clipped_H3H'),
                 (usage_path, 'usage_clipped_H3H'),
