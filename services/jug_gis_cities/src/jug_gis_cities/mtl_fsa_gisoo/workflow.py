@@ -158,6 +158,10 @@ def run_workflow(fsa):
       usage.create_spatial_index()
       _log_layer_summary(usage)
 
+    with _workflow_step('assign nrcan area field', normalized_fsa):
+      nrcan.add_field('nrcan_area')
+      nrcan.assign_area('nrcan_area')
+
     with _workflow_step('fix nrcan geometries', normalized_fsa):
       nrcan.fix_geometries(output_paths['nrcan_fixed'])
       nrcan_fixed = ScrubLayer(

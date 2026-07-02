@@ -417,6 +417,32 @@ class TestMtlFsaWorkflow(unittest.TestCase):
                 ),
                 _FakeScrubLayer.calls)
 
+        self.assertIn(
+            (
+                'add_field',
+                'nrcan_clipped_H3H',
+                'nrcan_area',
+            ),
+            _FakeScrubLayer.calls)
+        self.assertIn(
+            (
+                'assign_area',
+                'nrcan_clipped_H3H',
+                'nrcan_area',
+            ),
+            _FakeScrubLayer.calls)
+        assign_nrcan_area_index = _FakeScrubLayer.calls.index((
+            'assign_area',
+            'nrcan_clipped_H3H',
+            'nrcan_area',
+        ))
+        fix_nrcan_index = _FakeScrubLayer.calls.index((
+            'fix_geometries',
+            'nrcan_clipped_H3H',
+            nrcan_fixed_path,
+        ))
+        self.assertLess(assign_nrcan_area_index, fix_nrcan_index)
+
         for layer_name, output_path in [
                 ('nrcan_clipped_H3H', nrcan_fixed_path),
                 ('usage_clipped_H3H', usage_fixed_path)]:
