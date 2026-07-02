@@ -372,6 +372,67 @@ def run_workflow(fsa):
         numerator_field='inter_area',
         denominator_field='nrcan_area')
 
+    with _workflow_step('summarize inter nrcan by nrcan id',
+                        normalized_fsa):
+      inter_nrcan.aggregate_table(
+        group_by_expression='"nrcan_id"',
+        aggregates=[
+          {
+            'output_field': 'nrcan_id',
+            'aggregate_function': 'first_value',
+            'input_expression': '"nrcan_id"',
+            'field_type': 10,
+          },
+          {
+            'output_field': 'number_parts',
+            'aggregate_function': 'count',
+            'input_expression': '"nrcan_id"',
+            'field_type': 2,
+          },
+          {
+            'output_field': 'min_inter_area',
+            'aggregate_function': 'minimum',
+            'input_expression': '"inter_area"',
+            'field_type': 6,
+          },
+          {
+            'output_field': 'max_inter_area',
+            'aggregate_function': 'maximum',
+            'input_expression': '"inter_area"',
+            'field_type': 6,
+          },
+          {
+            'output_field': 'max_area_ratio',
+            'aggregate_function': 'maximum',
+            'input_expression': '"area_ratio"',
+            'field_type': 6,
+          },
+          {
+            'output_field': 'nrcan_area',
+            'aggregate_function': 'first_value',
+            'input_expression': '"nrcan_area"',
+            'field_type': 6,
+          },
+          {
+            'output_field': 'sum_inter_area',
+            'aggregate_function': 'sum',
+            'input_expression': '"inter_area"',
+            'field_type': 6,
+          },
+          {
+            'output_field': 'sum_area_ratio',
+            'aggregate_function': 'sum',
+            'input_expression': '"area_ratio"',
+            'field_type': 6,
+          },
+        ],
+        output_path=output_paths['inter_summary'])
+      inter_summary = ScrubLayer(
+        paths.qgis_path,
+        output_paths['inter_summary'],
+        f'inter_summary_{normalized_fsa}')
+      _log_layer_summary(inter_summary)
+
   except Exception:
     logger.exception(
       'Montreal FSA GISOO workflow failed. FSA=%s',
