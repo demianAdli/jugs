@@ -81,6 +81,19 @@ class _FakeScrubLayer:
             output_path))
         return output_path
 
+    def intersection_layer(
+            self, overlay_layer, output_path, input_fields=None,
+            overlay_fields=None, overlay_fields_prefix=''):
+        self.calls.append((
+            'intersection_layer',
+            self.layer_name,
+            overlay_layer.layer_name,
+            output_path,
+            input_fields,
+            overlay_fields,
+            overlay_fields_prefix))
+        return output_path
+
     def clip_layer(self, overlay_layer, clipped_layer):
         self.calls.append((
             'clip_layer',
@@ -341,6 +354,11 @@ class TestMtlFsaWorkflow(unittest.TestCase):
             'H3H',
             'usage_roll_all',
             'usage_roll_all.shp')
+        inter_nrcan_path = os.path.join(
+            'D:/GIS/mtl_gisoo_fsa_data/output_data',
+            'H3H',
+            'inter_nrcan',
+            'inter_nrcan.shp')
 
         self.assertIn(
             (
@@ -599,6 +617,17 @@ class TestMtlFsaWorkflow(unittest.TestCase):
                 usage_dup_clean_path,
             ),
             _FakeScrubLayer.calls)
+        self.assertIn(
+            (
+                'intersection_layer',
+                'nrcan_clipped_H3H',
+                'clean_usage_dup_H3H',
+                inter_nrcan_path,
+                None,
+                ['usagedup_id'],
+                '',
+            ),
+            _FakeScrubLayer.calls)
 
         for output_path, layer_name in [
                 (fsa_boundary_path, 'fsa_boundary_H3H'),
@@ -621,7 +650,8 @@ class TestMtlFsaWorkflow(unittest.TestCase):
                  'usage_roll_only_unique_H3H'),
                 (roll_clean_path, 'roll_clean_H3H'),
                 (usage_roll_path, 'usage_roll_H3H'),
-                (usage_roll_all_path, 'usage_roll_all_H3H')]:
+                (usage_roll_all_path, 'usage_roll_all_H3H'),
+                (inter_nrcan_path, 'inter_nrcan_H3H')]:
             self.assertIn(
                 ('init', 'C:/QGIS', output_path, layer_name),
                 _FakeScrubLayer.calls)

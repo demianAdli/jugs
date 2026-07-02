@@ -94,6 +94,7 @@ output_paths = {
   'nrcan_preserved': '',
   'usage_dup': '',
   'usage_dup_clean': '',
+  'inter_nrcan': '',
   'nrcan_inter': '',
   'inter_summary': '',
   'inter_kept': '',

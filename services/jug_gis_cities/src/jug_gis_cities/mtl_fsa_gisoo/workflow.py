@@ -347,6 +347,19 @@ def run_workflow(fsa):
       clean_usage_dup.create_spatial_index()
       _log_layer_summary(clean_usage_dup)
 
+    with _workflow_step('intersect nrcan with clean usage duplicate',
+                        normalized_fsa):
+      nrcan.intersection_layer(
+        overlay_layer=clean_usage_dup,
+        output_path=output_paths['inter_nrcan'],
+        overlay_fields=['usagedup_id'])
+      inter_nrcan = ScrubLayer(
+        paths.qgis_path,
+        output_paths['inter_nrcan'],
+        f'inter_nrcan_{normalized_fsa}')
+      inter_nrcan.create_spatial_index()
+      _log_layer_summary(inter_nrcan)
+
   except Exception:
     logger.exception(
       'Montreal FSA GISOO workflow failed. FSA=%s',
