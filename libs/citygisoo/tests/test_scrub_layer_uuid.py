@@ -52,10 +52,12 @@ def _install_qgis_stubs():
     'QgsFeatureRequest',
     'QgsField',
     'QgsProcessingFeedback',
+    'QgsProcessingFeatureSourceDefinition',
     'QgsProject',
     'QgsVectorDataProvider',
     'QgsVectorFileWriter',
     'QgsVectorLayer',
+    'QgsVectorLayerJoinInfo',
     'edit',
   ]
   for name in qgis_core_names:

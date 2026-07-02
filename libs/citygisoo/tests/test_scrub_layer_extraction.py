@@ -56,6 +56,7 @@ def _install_qgis_stubs():
     'QgsFeatureRequest',
     'QgsField',
     'QgsProcessingFeedback',
+    'QgsProcessingFeatureSourceDefinition',
     'QgsProject',
     'QgsVectorDataProvider',
     'QgsVectorFileWriter',
@@ -94,6 +95,12 @@ class _FakeQgsApplication:
     return _Dummy()
 
 
+class _FakeQgsProcessingFeatureSourceDefinition:
+  def __init__(self, source, selectedFeaturesOnly=False):
+    self.source = source
+    self.selectedFeaturesOnly = selectedFeaturesOnly
+
+
 def _build_scrub_layer():
   scrub_layer = ScrubLayer.__new__(ScrubLayer)
   scrub_layer.layer = object()
@@ -121,6 +128,14 @@ class _FakeFeature:
   def __getitem__(self, field_name):
     return self._attributes[field_name]
 
+  def __setitem__(self, field_name, value):
+    if isinstance(field_name, int):
+      field_name = self._field_names[field_name]
+    self._attributes[field_name] = value
+
+  def bind_fields(self, field_names):
+    self._field_names = field_names
+
 
 class _FakeVectorLayer:
   def __init__(self, features):
@@ -136,6 +151,11 @@ class _FakeVectorLayer:
 
   def removeSelection(self):
     self.selection_removed = True
+
+
+class _FakeSelectableVectorLayer:
+  def id(self):
+    return 'selectable-layer-id'
 
 
 class _FakeQgsVectorDataProvider:
@@ -192,6 +212,11 @@ class _FakeAttributeLayer:
     self.field_names = list(field_names)
     self._features = features
     self.provider = _FakeProvider(self)
+    self.updated_features = []
+    self.started_editing = False
+    self.committed_changes = False
+    for feature in self._features:
+      feature.bind_fields(self.field_names)
 
   def fields(self):
     return _FakeFields(self.field_names)
@@ -204,6 +229,15 @@ class _FakeAttributeLayer:
 
   def getFeatures(self):
     return iter(self._features)
+
+  def startEditing(self):
+    self.started_editing = True
+
+  def updateFeature(self, feature):
+    self.updated_features.append(feature.id())
+
+  def commitChanges(self):
+    self.committed_changes = True
 
 
 class _FakeJoinMainLayer:
@@ -268,6 +302,8 @@ class _FakeQgsProject:
 class TestScrubLayerExtraction(unittest.TestCase):
   def setUp(self):
     scrub_layer_module.QgsApplication = _FakeQgsApplication
+    scrub_layer_module.QgsProcessingFeatureSourceDefinition = (
+      _FakeQgsProcessingFeatureSourceDefinition)
     scrub_layer_module.QgsField = _FakeQgsField
     scrub_layer_module.QgsVectorDataProvider = _FakeQgsVectorDataProvider
     scrub_layer_module.QVariant = _FakeQVariant
@@ -358,6 +394,137 @@ class TestScrubLayerExtraction(unittest.TestCase):
       '"g_id_provi"'
       ')',
       'output/usage_margin_sans.shp')
+
+  @patch('src.citygisoo.scrub_layer_class.processing.run')
+  def test_aggregate_table_runs_qgis_algorithm(self, processing_run_mock):
+    scrub_layer = _build_scrub_layer()
+
+    result = scrub_layer.aggregate_table(
+      group_by_expression='"usagedup_id"',
+      aggregates=[
+        {
+          'output_field': 'nrcan_count',
+          'aggregate_function': 'count',
+          'input_expression': '"nrcan_id"',
+          'field_type': 2,
+        },
+        {
+          'output_field': 'max_area_ratio',
+          'aggregate_function': 'maximum',
+          'input_expression': '"area_ratio"',
+          'field_type': 6,
+          'length': 20,
+          'precision': 6,
+        },
+      ],
+      output_path='output/inter_summary.shp')
+
+    self.assertEqual(result, 'output/inter_summary.shp')
+    processing_run_mock.assert_called_once_with(
+      'native:aggregate',
+      {
+        'INPUT': scrub_layer.layer,
+        'GROUP_BY': '"usagedup_id"',
+        'AGGREGATES': [
+          {
+            'name': 'nrcan_count',
+            'aggregate': 'count',
+            'input': '"nrcan_id"',
+            'type': 2,
+            'length': 0,
+            'precision': 0,
+            'delimiter': ',',
+          },
+          {
+            'name': 'max_area_ratio',
+            'aggregate': 'maximum',
+            'input': '"area_ratio"',
+            'type': 6,
+            'length': 20,
+            'precision': 6,
+            'delimiter': ',',
+          },
+        ],
+        'OUTPUT': 'output/inter_summary.shp',
+      })
+
+  @patch('src.citygisoo.scrub_layer_class.processing.run')
+  def test_aggregate_table_accepts_native_qgis_aggregate_keys(
+          self, processing_run_mock):
+    scrub_layer = _build_scrub_layer()
+
+    scrub_layer.aggregate_table(
+      group_by_expression='"g_fsa"',
+      aggregates=[
+        {
+          'name': 'fsa_label',
+          'aggregate': 'first_value',
+          'input': '"g_fsa"',
+          'type': 10,
+          'delimiter': ';',
+        },
+      ],
+      output_path='output/fsa_summary.shp')
+
+    processing_run_mock.assert_called_once_with(
+      'native:aggregate',
+      {
+        'INPUT': scrub_layer.layer,
+        'GROUP_BY': '"g_fsa"',
+        'AGGREGATES': [
+          {
+            'name': 'fsa_label',
+            'aggregate': 'first_value',
+            'input': '"g_fsa"',
+            'type': 10,
+            'length': 0,
+            'precision': 0,
+            'delimiter': ';',
+          },
+        ],
+        'OUTPUT': 'output/fsa_summary.shp',
+      })
+
+  @patch('src.citygisoo.scrub_layer_class.processing.run')
+  def test_aggregate_table_can_use_selected_features_only(
+          self, processing_run_mock):
+    scrub_layer = _build_scrub_layer()
+    scrub_layer.layer = _FakeSelectableVectorLayer()
+
+    scrub_layer.aggregate_table(
+      group_by_expression='"usagedup_id"',
+      aggregates=[
+        {
+          'output_field': 'nrcan_count',
+          'aggregate_function': 'count',
+          'input_expression': '"nrcan_id"',
+          'field_type': 2,
+        },
+      ],
+      output_path='output/inter_summary.shp',
+      selected_features_only=True)
+
+    params = processing_run_mock.call_args.args[1]
+    self.assertIsInstance(
+      params['INPUT'],
+      _FakeQgsProcessingFeatureSourceDefinition)
+    self.assertEqual(params['INPUT'].source, 'selectable-layer-id')
+    self.assertTrue(params['INPUT'].selectedFeaturesOnly)
+
+  def test_aggregate_table_rejects_missing_required_aggregate_fields(self):
+    scrub_layer = _build_scrub_layer()
+
+    with self.assertRaises(ValueError):
+      scrub_layer.aggregate_table(
+        group_by_expression='"usagedup_id"',
+        aggregates=[
+          {
+            'output_field': 'nrcan_count',
+            'aggregate_function': 'count',
+            'field_type': 2,
+          },
+        ],
+        output_path='output/inter_summary.shp')
 
   @patch('src.citygisoo.scrub_layer_class.processing.run')
   def test_difference_layer_runs_qgis_algorithm(self, processing_run_mock):
@@ -564,6 +731,29 @@ class TestScrubLayerExtraction(unittest.TestCase):
         source_field='missing',
         target_field='r_id_provinc',
         field_length=36)
+
+  def test_assign_field_ratio_updates_target_values(self):
+    scrub_layer = _build_scrub_layer()
+    feature_with_ratio = _FakeFeature(
+      10,
+      {'area_ratio': None, 'inter_area': 25, 'nrcan_area': 100})
+    feature_with_zero_denominator = _FakeFeature(
+      11,
+      {'area_ratio': None, 'inter_area': 25, 'nrcan_area': 0})
+    scrub_layer.layer = _FakeAttributeLayer(
+      ['area_ratio', 'inter_area', 'nrcan_area'],
+      [feature_with_ratio, feature_with_zero_denominator])
+
+    scrub_layer.assign_field_ratio(
+      target_field='area_ratio',
+      numerator_field='inter_area',
+      denominator_field='nrcan_area')
+
+    self.assertTrue(scrub_layer.layer.started_editing)
+    self.assertTrue(scrub_layer.layer.committed_changes)
+    self.assertEqual(scrub_layer.layer.updated_features, [10, 11])
+    self.assertEqual(feature_with_ratio['area_ratio'], 0.25)
+    self.assertIsNone(feature_with_zero_denominator['area_ratio'])
 
   @patch('src.citygisoo.scrub_layer_class.processing.run')
   def test_spatial_join_with_predicate_runs_qgis_algorithm(

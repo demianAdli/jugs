@@ -22,7 +22,7 @@ from qgis.core import QgsApplication, QgsField, QgsProject, \
   QgsProcessingFeedback, QgsVectorLayer, QgsVectorDataProvider, \
   QgsExpressionContext, QgsExpressionContextUtils, edit, QgsFeatureRequest, \
   QgsExpression, QgsVectorFileWriter, QgsCoordinateReferenceSystem, \
-  QgsVectorLayerJoinInfo
+  QgsVectorLayerJoinInfo, QgsProcessingFeatureSourceDefinition
 from qgis.PyQt.QtCore import QVariant
 from qgis.analysis import QgsNativeAlgorithms
 
@@ -583,6 +583,114 @@ class ScrubLayer:
 
     return self.extract_by_expression(expression, output_path)
 
+  @staticmethod
+  def _normalize_aggregate_definition(aggregate_definition):
+    """Normalize one QGIS aggregate table row.
+
+    The QGIS aggregate algorithm expects dict keys named like the processing
+    internals. This accepts those keys and clearer caller-facing aliases.
+    """
+    if not isinstance(aggregate_definition, dict):
+      raise TypeError('Each aggregate definition must be a dictionary.')
+
+    output_field = (
+      aggregate_definition.get('output_field')
+      or aggregate_definition.get('name'))
+    aggregate_function = (
+      aggregate_definition.get('aggregate_function')
+      or aggregate_definition.get('aggregate'))
+    input_expression = (
+      aggregate_definition.get('input_expression')
+      or aggregate_definition.get('input'))
+    field_type = (
+      aggregate_definition.get('field_type')
+      if 'field_type' in aggregate_definition
+      else aggregate_definition.get('type'))
+
+    missing_fields = [
+      field_name
+      for field_name, field_value in [
+        ('output_field', output_field),
+        ('aggregate_function', aggregate_function),
+        ('input_expression', input_expression),
+        ('field_type', field_type),
+      ]
+      if field_value is None
+    ]
+    if missing_fields:
+      raise ValueError(
+        f'Aggregate definition is missing {missing_fields}.')
+
+    return {
+      'name': output_field,
+      'aggregate': aggregate_function,
+      'input': input_expression,
+      'type': field_type,
+      'length': aggregate_definition.get('length', 0),
+      'precision': aggregate_definition.get('precision', 0),
+      'delimiter': aggregate_definition.get('delimiter', ','),
+    }
+
+  def aggregate_table(
+          self,
+          group_by_expression,
+          aggregates,
+          output_path,
+          selected_features_only=False,
+          template_layer=None):
+    """Run Processing Toolbox > Vector table > Aggregate.
+
+    Args:
+      group_by_expression: QGIS group-by expression.
+      aggregates: Sequence of aggregate table rows. Each row must define
+        output_field, aggregate_function, input_expression, and field_type.
+        QGIS processing aliases name, aggregate, input, and type are also
+        accepted. Optional length, precision, and delimiter are passed through.
+      output_path: Destination output layer/table path.
+      selected_features_only: Match QGIS's input "selected features only"
+        checkbox. Defaults to False.
+      template_layer: Kept as an explicit option matching the QGIS dialog.
+        The native processing algorithm uses AGGREGATES, so this remains empty
+        by default and is not sent as a processing parameter.
+    """
+    if template_layer not in (None, ''):
+      logger.warning(
+        'Template layer %s was provided for aggregate_table, but QGIS '
+        'native:aggregate expects aggregate definitions directly.',
+        template_layer)
+
+    normalized_aggregates = [
+      self._normalize_aggregate_definition(aggregate_definition)
+      for aggregate_definition in aggregates
+    ]
+    if not normalized_aggregates:
+      raise ValueError('At least one aggregate definition is required.')
+
+    QgsApplication.processingRegistry().addProvider(QgsNativeAlgorithms())
+    input_layer = self.layer
+    if selected_features_only:
+      layer_source = (
+        self.layer.id()
+        if callable(getattr(self.layer, 'id', None))
+        else self.layer_path)
+      input_layer = QgsProcessingFeatureSourceDefinition(
+        layer_source,
+        selectedFeaturesOnly=True)
+
+    params = {
+      'INPUT': input_layer,
+      'GROUP_BY': group_by_expression,
+      'AGGREGATES': normalized_aggregates,
+      'OUTPUT': output_path
+    }
+    processing.run('native:aggregate', params)
+    logger.info(
+      'Aggregated table for %s by %s into %s.',
+      self.layer_name,
+      group_by_expression,
+      output_path)
+    return output_path
+
   def clip_by_predefined_zones(self):
     pass
 
@@ -921,6 +1029,46 @@ class ScrubLayer:
     logger.info(
       'Assigned area values to field %s on %s.',
       field_name,
+      self.layer_name)
+
+  def assign_field_ratio(
+          self,
+          target_field,
+          numerator_field,
+          denominator_field):
+    target_idx = self.layer.fields().indexFromName(target_field)
+    numerator_idx = self.layer.fields().indexFromName(numerator_field)
+    denominator_idx = self.layer.fields().indexFromName(denominator_field)
+    missing_fields = [
+      field_name
+      for field_name, field_idx in [
+        (target_field, target_idx),
+        (numerator_field, numerator_idx),
+        (denominator_field, denominator_idx),
+      ]
+      if field_idx == -1
+    ]
+    if missing_fields:
+      raise KeyError(
+        f'Fields {missing_fields} were not found on {self.layer_name}.')
+
+    self.layer.startEditing()
+    for feature in self.layer.getFeatures():
+      numerator = feature[numerator_field]
+      denominator = feature[denominator_field]
+      if denominator in (None, 0):
+        ratio = None
+      else:
+        ratio = float(numerator) / float(denominator)
+      feature[target_idx] = ratio
+      self.layer.updateFeature(feature)
+
+    self.layer.commitChanges()
+    logger.info(
+      'Assigned %s / %s values to field %s on %s.',
+      numerator_field,
+      denominator_field,
+      target_field,
       self.layer_name)
 
   def duplicate_text_field(
