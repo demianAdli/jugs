@@ -169,7 +169,12 @@ class _FakeScrubLayer:
 
     def add_layer_join(
             self, joining_layer_path, joining_layer_name, join_field,
-            target_field, prefix='', output_path=None, join_fields=None):
+            target_field, prefix='', output_path=None, join_fields=None,
+            selected_features_only=False,
+            joining_selected_features_only=False,
+            join_method=1,
+            discard_nonmatching=False,
+            unjoinable_output_path=None):
         self.calls.append((
             'add_layer_join',
             self.layer_name,
@@ -179,7 +184,35 @@ class _FakeScrubLayer:
             target_field,
             prefix,
             output_path,
-            join_fields))
+            join_fields,
+            selected_features_only,
+            joining_selected_features_only,
+            join_method,
+            discard_nonmatching,
+            unjoinable_output_path))
+        return output_path
+
+    def field_join(
+            self, joining_layer_path, joining_layer_name, target_field,
+            join_field, join_fields=None, prefix='', output_path=None,
+            selected_features_only=False,
+            joining_selected_features_only=False, join_method=1,
+            discard_nonmatching=False, unjoinable_output_path=None):
+        self.calls.append((
+            'field_join',
+            self.layer_name,
+            joining_layer_path,
+            joining_layer_name,
+            target_field,
+            join_field,
+            join_fields,
+            prefix,
+            output_path,
+            selected_features_only,
+            joining_selected_features_only,
+            join_method,
+            discard_nonmatching,
+            unjoinable_output_path))
         return output_path
 
     @staticmethod
@@ -213,6 +246,33 @@ class _FakeScrubLayer:
             target_field,
             numerator_field,
             denominator_field))
+        return target_field
+
+    def aggregate_table(
+            self, group_by_expression, aggregates, output_path,
+            selected_features_only=False, template_layer=None):
+        self.calls.append((
+            'aggregate_table',
+            self.layer_name,
+            group_by_expression,
+            aggregates,
+            output_path,
+            selected_features_only,
+            template_layer))
+        return output_path
+
+    def assign_field_expression(
+            self, target_field, expression, field_type=None,
+            field_length=0,
+            field_precision=0):
+        self.calls.append((
+            'assign_field_expression',
+            self.layer_name,
+            target_field,
+            expression,
+            field_type,
+            field_length,
+            field_precision))
         return target_field
 
     def create_spatial_index(self):
@@ -369,6 +429,16 @@ class TestMtlFsaWorkflow(unittest.TestCase):
             'H3H',
             'inter_nrcan',
             'inter_nrcan.shp')
+        inter_summary_path = os.path.join(
+            'D:/GIS/mtl_gisoo_fsa_data/output_data',
+            'H3H',
+            'inter_summary',
+            'inter_summary.shp')
+        summary_joined_path = os.path.join(
+            'D:/GIS/mtl_gisoo_fsa_data/output_data',
+            'H3H',
+            'summary_joined',
+            'summary_joined.shp')
 
         self.assertIn(
             (
@@ -606,6 +676,11 @@ class TestMtlFsaWorkflow(unittest.TestCase):
                 'r_',
                 usage_roll_path,
                 None,
+                False,
+                False,
+                1,
+                False,
+                None,
             ),
             _FakeScrubLayer.calls)
         self.assertIn(
@@ -668,6 +743,35 @@ class TestMtlFsaWorkflow(unittest.TestCase):
                 'nrcan_area',
             ),
             _FakeScrubLayer.calls)
+        self.assertIn(
+            (
+                'field_join',
+                'inter_nrcan_H3H',
+                inter_summary_path,
+                'inter_summary_H3H',
+                'nrcan_id',
+                'nrcan_id',
+                [
+                    'restore_group',
+                    'restore_reason',
+                    'number_parts',
+                    'min_inter_area',
+                    'max_inter_area',
+                    'max_area_ratio',
+                ],
+                'sum_',
+                summary_joined_path,
+                False,
+                False,
+                'first match',
+                False,
+                None,
+            ),
+            _FakeScrubLayer.calls)
+
+        self.assertIn(
+            ('init', 'C:/QGIS', inter_summary_path, 'inter_summary_H3H'),
+            _FakeScrubLayer.calls)
 
         for output_path, layer_name in [
                 (fsa_boundary_path, 'fsa_boundary_H3H'),
@@ -691,7 +795,8 @@ class TestMtlFsaWorkflow(unittest.TestCase):
                 (roll_clean_path, 'roll_clean_H3H'),
                 (usage_roll_path, 'usage_roll_H3H'),
                 (usage_roll_all_path, 'usage_roll_all_H3H'),
-                (inter_nrcan_path, 'inter_nrcan_H3H')]:
+                (inter_nrcan_path, 'inter_nrcan_H3H'),
+                (summary_joined_path, 'summary_joined_H3H')]:
             self.assertIn(
                 ('init', 'C:/QGIS', output_path, layer_name),
                 _FakeScrubLayer.calls)
