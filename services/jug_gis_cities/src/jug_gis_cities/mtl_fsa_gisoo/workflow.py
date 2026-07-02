@@ -433,6 +433,27 @@ def run_workflow(fsa):
         f'inter_summary_{normalized_fsa}')
       _log_layer_summary(inter_summary)
 
+    with _workflow_step('assign inter summary restore group field',
+                        normalized_fsa):
+      inter_summary.assign_field_expression(
+        target_field='restore_group',
+        expression=(
+          'CASE\n'
+          'WHEN\n'
+          '    "number_parts" > 1\n'
+          '    AND "min_inter_area" < 30\n'
+          '    AND "max_area_ratio" >= 0.70\n'
+          'THEN 1\n'
+          'WHEN\n'
+          '    "number_parts" >= 3\n'
+          '    AND "nrcan_area" <= 75\n'
+          '    AND "max_inter_area" < 30\n'
+          '    AND "sum_area_ratio" >= 0.95\n'
+          'THEN 1\n'
+          'ELSE 0\n'
+          'END'),
+        field_type=2)
+
   except Exception:
     logger.exception(
       'Montreal FSA GISOO workflow failed. FSA=%s',
