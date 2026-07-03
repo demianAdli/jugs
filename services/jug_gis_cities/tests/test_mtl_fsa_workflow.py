@@ -27,16 +27,6 @@ for _path in [_SABU_CHASSIS_SRC, _JUG_GIS_CITIES_SRC]:
 class _FakeGeoPackageFeatureProcessor:
   calls = []
 
-  def add_area_field(self, layer, field_name, overwrite=False,
-                     batch_size=10000):
-    self.calls.append((
-      'add_area_field',
-      layer.layer_name,
-      field_name,
-      overwrite,
-      batch_size))
-    return field_name
-
   def extract_by_membership(
           self,
           source_layer,
@@ -105,6 +95,14 @@ class _FakeScrubLayer:
   def fix_geometries(self, output_path):
     self.calls.append(('fix_geometries', self.layer_name, output_path))
     return output_path
+
+  def add_field(self, new_field_name):
+    self.calls.append(('add_field', self.layer_name, new_field_name))
+    return new_field_name
+
+  def assign_area(self, field_name):
+    self.calls.append(('assign_area', self.layer_name, field_name))
+    return field_name
 
   def difference_layer(self, overlay_layer, output_path, grid_size=None):
     self.calls.append((
@@ -178,7 +176,9 @@ class TestMtlFsaWorkflow(unittest.TestCase):
     roll_path = _output_path('roll')
     usage_path = _output_path('usage')
     nrcan_fixed_path = _output_path('nrcan_fixed')
+    nrcan_preserved_fixed_path = _output_path('nrcan_preserved_fixed')
     usage_fixed_path = _output_path('usage_fixed')
+    usage_dup_fixed_path = _output_path('usage_dup_fixed')
     usage_margin_san_path = _output_path('usage_margin_san')
     usage_san_san_path = _output_path('usage_san_san')
 
@@ -254,15 +254,6 @@ class TestMtlFsaWorkflow(unittest.TestCase):
 
     self.assertIn(
       (
-        'add_area_field',
-        'nrcan_clipped_H3H',
-        'nrcan_area',
-        False,
-        10000,
-      ),
-      _FakeGeoPackageFeatureProcessor.calls)
-    self.assertIn(
-      (
         'fix_geometries',
         'nrcan_clipped_H3H',
         nrcan_fixed_path,
@@ -270,9 +261,77 @@ class TestMtlFsaWorkflow(unittest.TestCase):
       _FakeScrubLayer.calls)
     self.assertIn(
       (
+        'add_field',
+        'nrcan_fixed_H3H',
+        'nrcan_area',
+      ),
+      _FakeScrubLayer.calls)
+    self.assertIn(
+      (
+        'assign_area',
+        'nrcan_fixed_H3H',
+        'nrcan_area',
+      ),
+      _FakeScrubLayer.calls)
+    nrcan_fixed_init_index = _FakeScrubLayer.calls.index((
+      'init',
+      'C:/QGIS',
+      nrcan_fixed_path,
+      'nrcan_fixed_H3H',
+    ))
+    assign_nrcan_area_index = _FakeScrubLayer.calls.index((
+      'assign_area',
+      'nrcan_fixed_H3H',
+      'nrcan_area',
+    ))
+    self.assertLess(nrcan_fixed_init_index, assign_nrcan_area_index)
+    self.assertIn(
+      (
+        'fix_geometries',
+        'nrcan_preserved_H3H',
+        nrcan_preserved_fixed_path,
+      ),
+      _FakeScrubLayer.calls)
+    self.assertIn(
+      (
+        'add_field',
+        'nrcan_preserved_fixed_H3H',
+        'nrcan_area',
+      ),
+      _FakeScrubLayer.calls)
+    self.assertIn(
+      (
+        'assign_area',
+        'nrcan_preserved_fixed_H3H',
+        'nrcan_area',
+      ),
+      _FakeScrubLayer.calls)
+    nrcan_preserved_fixed_init_index = _FakeScrubLayer.calls.index((
+      'init',
+      'C:/QGIS',
+      nrcan_preserved_fixed_path,
+      'nrcan_preserved_fixed_H3H',
+    ))
+    assign_nrcan_preserved_area_index = _FakeScrubLayer.calls.index((
+      'assign_area',
+      'nrcan_preserved_fixed_H3H',
+      'nrcan_area',
+    ))
+    self.assertLess(
+      nrcan_preserved_fixed_init_index,
+      assign_nrcan_preserved_area_index)
+    self.assertIn(
+      (
         'fix_geometries',
         'usage_clipped_H3H',
         usage_fixed_path,
+      ),
+      _FakeScrubLayer.calls)
+    self.assertIn(
+      (
+        'fix_geometries',
+        'usage_dup_H3H',
+        usage_dup_fixed_path,
       ),
       _FakeScrubLayer.calls)
     self.assertIn(

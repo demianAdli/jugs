@@ -145,7 +145,7 @@ def run_workflow(fsa):
       nrcan_preserved_mtl.clip_layer(
         fsa_boundary.layer_path,
         output_paths['nrcan_preserved'])
-      _load_output_layer(
+      nrcan_preserved = _load_output_layer(
         output_paths,
         'nrcan_preserved',
         normalized_fsa)
@@ -171,13 +171,10 @@ def run_workflow(fsa):
       usage_dup_mtl.clip_layer(
         fsa_boundary.layer_path,
         output_paths['usage_dup'])
-      _load_output_layer(
+      usage_dup = _load_output_layer(
         output_paths,
         'usage_dup',
         normalized_fsa)
-
-    with _workflow_step('assign nrcan area field', normalized_fsa):
-      processor.add_area_field(nrcan, 'nrcan_area')
 
     with _workflow_step('fix nrcan geometries', normalized_fsa):
       nrcan.fix_geometries(output_paths['nrcan_fixed'])
@@ -186,11 +183,33 @@ def run_workflow(fsa):
         'nrcan_fixed',
         normalized_fsa)
 
+    with _workflow_step('assign nrcan area field', normalized_fsa):
+      nrcan_fixed.add_field('nrcan_area')
+      nrcan_fixed.assign_area('nrcan_area')
+
+    with _workflow_step('fix nrcan preserved geometries', normalized_fsa):
+      nrcan_preserved.fix_geometries(output_paths['nrcan_preserved_fixed'])
+      nrcan_preserved_fixed = _load_output_layer(
+        output_paths,
+        'nrcan_preserved_fixed',
+        normalized_fsa)
+
+    with _workflow_step('assign nrcan preserved area field', normalized_fsa):
+      nrcan_preserved_fixed.add_field('nrcan_area')
+      nrcan_preserved_fixed.assign_area('nrcan_area')
+
     with _workflow_step('fix usage geometries', normalized_fsa):
       usage.fix_geometries(output_paths['usage_fixed'])
       usage_fixed = _load_output_layer(
         output_paths,
         'usage_fixed',
+        normalized_fsa)
+
+    with _workflow_step('fix usage duplicate geometries', normalized_fsa):
+      usage_dup.fix_geometries(output_paths['usage_dup_fixed'])
+      _load_output_layer(
+        output_paths,
+        'usage_dup_fixed',
         normalized_fsa)
 
     with _workflow_step('extract usage records missing from roll',
