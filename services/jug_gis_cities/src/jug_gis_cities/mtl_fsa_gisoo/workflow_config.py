@@ -36,11 +36,16 @@ input_paths = {
     input_data_dir,
     'mtl_auto_with_heights',
     'mtl_auto_with_heights.gpkg'),
-  'mtl_mahm_usage_2026':
+  'mtl_mahm_usage_2026_gpkg':
   os.path.join(
     input_data_dir,
-    'mtl_mahm_usage_2026',
-    'mamh_usage_predo_2026_s_poly.shp'),
+    'mtl_mahm_usage_2026_gpkg',
+    'mamh_usage_predo_2026_s_poly.gpkg'),
+  'usage_dup':
+  os.path.join(
+    input_data_dir,
+    'mamh_usage_predo_2026_gpkg_dup',
+    'mamh_usage_predo_2026_dup.gpkg'),
   'fsa':
   os.path.join(
     input_data_dir,
@@ -92,7 +97,6 @@ output_paths = {
   'usage_roll': '',
   'usage_roll_all': '',
   'nrcan_preserved': '',
-  'usage_dup': '',
   'usage_dup_clean': '',
   'inter_nrcan': '',
   'nrcan_inter': '',
