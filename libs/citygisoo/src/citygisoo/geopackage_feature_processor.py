@@ -322,20 +322,6 @@ class GeoPackageFeatureProcessor:
       output_path,
       layer_name=layer_name)
 
-  def add_uuid_field(
-          self,
-          layer,
-          field_name,
-          overwrite=False,
-          batch_size=10000):
-    """Add and populate a UUID text field on a GeoPackage layer."""
-    return self.add_calculated_field(
-      layer,
-      FieldSpec(field_name, QVariant.String, length=36),
-      lambda feature: str(uuid.uuid4()),
-      overwrite=overwrite,
-      batch_size=batch_size)
-
   def add_calculated_field(
           self,
           layer,
