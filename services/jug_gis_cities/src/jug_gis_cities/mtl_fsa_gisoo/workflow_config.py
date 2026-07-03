@@ -44,7 +44,7 @@ input_paths = {
   'mtl_mahm_usage_2026_gpkg':
   os.path.join(
     input_data_dir,
-    'mtl_mahm_usage_2026_gpkg',
+    'mamh_usage_predo_2026_gpkg',
     'mamh_usage_predo_2026_s_poly.gpkg'),
   'usage_dup':
   os.path.join(

@@ -195,7 +195,7 @@ class TestMtlFsaWorkflow(unittest.TestCase):
         os.path.join(
           data_dir,
           'input_data',
-          'mtl_mahm_usage_2026_gpkg',
+          'mamh_usage_predo_2026_gpkg',
           'mamh_usage_predo_2026_s_poly.gpkg'),
         'usage_mtl',
       ),
