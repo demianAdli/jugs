@@ -1069,15 +1069,30 @@ class ScrubLayer:
         new_field_name)
 
   def assign_area(self, field_name):
-    self.layer.startEditing()
     idx = self.layer.fields().indexFromName(field_name)
+    if idx == -1:
+      raise KeyError(
+        f'Field {field_name} was not found on {self.layer_name}.')
+
+    area_expression = QgsExpression('$area')
+    if area_expression.hasParserError():
+      raise ValueError(
+        f'Invalid area expression: '
+        f'{area_expression.parserErrorString()}')
 
     context = QgsExpressionContext()
     context.appendScopes(
       QgsExpressionContextUtils.globalProjectLayerScopes(self.layer))
 
+    self.layer.startEditing()
     for feature in self.layer.getFeatures():
-      area = feature.geometry().area()
+      context.setFeature(feature)
+      area = area_expression.evaluate(context)
+      if area_expression.hasEvalError():
+        self.layer.commitChanges()
+        raise ValueError(
+          f'Failed to evaluate area for feature {feature.id()} on '
+          f'{self.layer_name}: {area_expression.evalErrorString()}')
       feature[idx] = area
       self.layer.updateFeature(feature)
 

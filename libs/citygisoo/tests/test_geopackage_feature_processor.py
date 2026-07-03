@@ -47,6 +47,7 @@ def _install_qgis_stubs():
   qgis_core_names = [
     'QgsApplication',
     'QgsCoordinateReferenceSystem',
+    'QgsDistanceArea',
     'QgsExpression',
     'QgsExpressionContext',
     'QgsExpressionContextUtils',
@@ -97,6 +98,37 @@ class _FakeQgsVectorDataProvider:
   ChangeAttributeValues = 2
 
 
+class _FakeQgsDistanceArea:
+  def __init__(self):
+    self.source_crs = None
+    self.transform_context = None
+    self.ellipsoid = None
+
+  def setSourceCrs(self, crs, transform_context):
+    self.source_crs = crs
+    self.transform_context = transform_context
+
+  def setEllipsoid(self, ellipsoid):
+    self.ellipsoid = ellipsoid
+
+  def measureArea(self, geometry):
+    return geometry.measured_area
+
+
+class _FakeQgsProject:
+  @classmethod
+  def instance(cls):
+    return cls
+
+  @classmethod
+  def transformContext(cls):
+    return 'transform-context'
+
+  @classmethod
+  def ellipsoid(cls):
+    return 'WGS84'
+
+
 class _FakeQgsField:
   def __init__(self, name, field_type, len=0, prec=0):
     self.name_value = name
@@ -135,10 +167,20 @@ class _FakeFields:
       yield _FakeQgsField(field_name, _FakeQVariant.String)
 
 
+class _FakeGeometry:
+  def __init__(self, raw_area=None, measured_area=None):
+    self.raw_area = raw_area
+    self.measured_area = measured_area
+
+  def area(self):
+    return self.raw_area
+
+
 class _FakeFeature:
-  def __init__(self, fid, attributes):
+  def __init__(self, fid, attributes, geometry=None):
     self.fid = fid
     self.attributes_by_name = dict(attributes)
+    self.geometry_value = geometry
 
   def id(self):
     return self.fid
@@ -148,6 +190,9 @@ class _FakeFeature:
 
   def attributes(self):
     return list(self.attributes_by_name.values())
+
+  def geometry(self):
+    return self.geometry_value
 
 
 class _FakeProvider:
@@ -191,6 +236,9 @@ class _FakeLayer:
   def updateFields(self):
     return None
 
+  def crs(self):
+    return 'EPSG:4326'
+
 
 class _FakeScrubLayer:
   def __init__(self, layer_path, layer_name, layer):
@@ -217,8 +265,10 @@ class _FakeFeatureRequestWithNameFallback:
 
 class GeoPackageFeatureProcessorTest(unittest.TestCase):
   def setUp(self):
+    processor_module.QgsDistanceArea = _FakeQgsDistanceArea
     processor_module.QVariant = _FakeQVariant
     processor_module.QgsField = _FakeQgsField
+    processor_module.QgsProject = _FakeQgsProject
     processor_module.QgsVectorDataProvider = _FakeQgsVectorDataProvider
 
   def test_extract_by_membership_writes_non_matching_features(self):
@@ -311,6 +361,28 @@ class GeoPackageFeatureProcessorTest(unittest.TestCase):
           2: {2: None},
         }
       ])
+
+  def test_add_area_field_uses_qgis_distance_area_measurement(self):
+    processor = GeoPackageFeatureProcessor()
+    feature = _FakeFeature(
+      1,
+      {'nrcan_area': None},
+      geometry=_FakeGeometry(
+        raw_area=1.4146205001234341e-08,
+        measured_area=122.98721536854282))
+    layer = _FakeLayer(
+      'nrcan.gpkg',
+      ['nrcan_id'],
+      [feature])
+    scrub_layer = _FakeScrubLayer('nrcan.gpkg', 'nrcan', layer)
+
+    result = processor.add_area_field(scrub_layer, 'nrcan_area')
+
+    self.assertEqual(result, 'nrcan_area')
+    self.assertEqual(layer.provider.added_fields[0].name(), 'nrcan_area')
+    self.assertEqual(
+      layer.provider.change_maps,
+      [{1: {1: 122.98721536854282}}])
 
   def test_add_calculated_field_rejects_existing_field_without_overwrite(self):
     processor = GeoPackageFeatureProcessor()

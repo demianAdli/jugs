@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from collections import defaultdict
 
 from qgis.core import (
+  QgsDistanceArea,
   QgsFeature,
   QgsFeatureRequest,
   QgsField,
@@ -234,6 +235,23 @@ class GeoPackageFeatureProcessor:
       len=field_spec.length,
       prec=field_spec.precision)
 
+  def _area_measure(self, layer):
+    measure = QgsDistanceArea()
+    project = QgsProject.instance()
+    transform_context = project.transformContext()
+    crs = layer.crs() if callable(getattr(layer, 'crs', None)) else None
+    if crs is not None:
+      measure.setSourceCrs(crs, transform_context)
+
+    ellipsoid = (
+      project.ellipsoid()
+      if callable(getattr(project, 'ellipsoid', None))
+      else None)
+    if not ellipsoid or str(ellipsoid).upper() == 'NONE':
+      ellipsoid = 'WGS84'
+    measure.setEllipsoid(ellipsoid)
+    return measure
+
   def extract_by_membership(
           self,
           source_layer,
@@ -386,11 +404,13 @@ class GeoPackageFeatureProcessor:
           field_name,
           overwrite=False,
           batch_size=10000):
-    """Add or update a field with feature.geometry().area()."""
+    """Add or update a square-meter area field using QGIS measurement."""
+    qgs_layer = self._resolve_layer(layer)
+    measure = self._area_measure(qgs_layer)
     return self.add_calculated_field(
       layer,
       FieldSpec(field_name, QVariant.Double),
-      lambda feature: feature.geometry().area(),
+      lambda feature: measure.measureArea(feature.geometry()),
       overwrite=overwrite,
       batch_size=batch_size)
 

@@ -50,9 +50,11 @@ def _install_qgis_stubs():
   qgis_core_names = [
     'QgsApplication',
     'QgsCoordinateReferenceSystem',
+    'QgsDistanceArea',
     'QgsExpression',
     'QgsExpressionContext',
     'QgsExpressionContextUtils',
+    'QgsFeature',
     'QgsFeatureRequest',
     'QgsField',
     'QgsProcessingFeedback',
@@ -62,6 +64,7 @@ def _install_qgis_stubs():
     'QgsVectorFileWriter',
     'QgsVectorLayer',
     'QgsVectorLayerJoinInfo',
+    'QgsWkbTypes',
     'edit',
   ]
   for name in qgis_core_names:
@@ -117,10 +120,19 @@ def _build_lookup_layer(layer_name):
   return lookup_layer
 
 
+class _FakeGeometry:
+  def __init__(self, raw_area):
+    self.raw_area = raw_area
+
+  def area(self):
+    return self.raw_area
+
+
 class _FakeFeature:
-  def __init__(self, feature_id, attributes):
+  def __init__(self, feature_id, attributes, geometry=None):
     self._feature_id = feature_id
     self._attributes = attributes
+    self._geometry = geometry
 
   def id(self):
     return self._feature_id
@@ -132,6 +144,9 @@ class _FakeFeature:
     if isinstance(field_name, int):
       field_name = self._field_names[field_name]
     self._attributes[field_name] = value
+
+  def geometry(self):
+    return self._geometry
 
   def bind_fields(self, field_names):
     self._field_names = field_names
@@ -189,6 +204,8 @@ class _FakeQgsExpression:
     return ''
 
   def evaluate(self, context):
+    if self.expression == '$area':
+      return context.feature['qgis_area']
     feature = context.feature
     if feature['number_parts'] > 1 and feature['max_area_ratio'] >= 0.70:
       return 1
@@ -805,6 +822,24 @@ class TestScrubLayerExtraction(unittest.TestCase):
     self.assertEqual(scrub_layer.layer.updated_features, [10, 11])
     self.assertEqual(feature_with_ratio['area_ratio'], 0.25)
     self.assertIsNone(feature_with_zero_denominator['area_ratio'])
+
+  def test_assign_area_uses_qgis_area_expression(self):
+    scrub_layer = _build_scrub_layer()
+    feature = _FakeFeature(
+      10,
+      {
+        'nrcan_area': None,
+        'qgis_area': 122.98721536854282,
+      },
+      geometry=_FakeGeometry(1.4146205001234341e-08))
+    scrub_layer.layer = _FakeAttributeLayer(['nrcan_area'], [feature])
+
+    scrub_layer.assign_area('nrcan_area')
+
+    self.assertTrue(scrub_layer.layer.started_editing)
+    self.assertTrue(scrub_layer.layer.committed_changes)
+    self.assertEqual(scrub_layer.layer.updated_features, [10])
+    self.assertEqual(feature['nrcan_area'], 122.98721536854282)
 
   def test_assign_field_expression_adds_and_updates_target_field(self):
     scrub_layer = _build_scrub_layer()
