@@ -235,13 +235,143 @@ def run_workflow(fsa):
         'usage_san_san',
         normalized_fsa)
 
+    with _workflow_step('extract usage margin records with provincial id',
+                        normalized_fsa):
+      processor.extract_where(
+        source_layer=usage_margin_san,
+        predicate=(
+          lambda feature:
+          feature['g_id_provi'] is not None
+          and feature['g_id_provi'] != 'Sans correspondance'),
+        output_path=output_paths['usage_margin'],
+        layer_name=f'usage_margin_{normalized_fsa}')
+      usage_margin = _load_output_layer(
+        output_paths,
+        'usage_margin',
+        normalized_fsa)
+
+    with _workflow_step('assign usage margin area field', normalized_fsa):
+      processor.add_area_field(usage_margin, 'area_ex')
+
+    with _workflow_step('extract usage-only records by area',
+                        normalized_fsa):
+      processor.extract_where(
+        source_layer=usage_margin,
+        predicate=(
+          lambda feature:
+          feature['area_ex'] is not None
+          and feature['g_sup_tota'] is not None
+          and float(feature['area_ex']) > 0.9 * float(feature['g_sup_tota'])),
+        output_path=output_paths['usage_only'],
+        layer_name=f'usage_only_{normalized_fsa}')
+      usage_only = _load_output_layer(
+        output_paths,
+        'usage_only',
+        normalized_fsa)
+
+    with _workflow_step('extract roll records missing from usage',
+                        normalized_fsa):
+      processor.extract_by_membership(
+        source_layer=roll,
+        lookup_layer=usage,
+        source_field='id_provinc',
+        lookup_field='g_id_provi',
+        output_path=output_paths['roll_only'],
+        include_matches=False,
+        layer_name=f'roll_only_{normalized_fsa}')
+      roll_only = _load_output_layer(
+        output_paths,
+        'roll_only',
+        normalized_fsa)
+
+    with _workflow_step('spatial join usage with roll-only',
+                        normalized_fsa):
+      usage.spatial_join_with_predicate(
+        joining_layer_path=roll_only.layer_path,
+        joined_layer_path=output_paths['usage_roll_only_all'],
+        predicate='contains',
+        join_method='one-to-many',
+        prefix='ro_')
+      usage_roll_only_all = _load_output_layer(
+        output_paths,
+        'usage_roll_only_all',
+        normalized_fsa)
+
+    with _workflow_step('extract usage-roll-only matched records',
+                        normalized_fsa):
+      processor.extract_where(
+        source_layer=usage_roll_only_all,
+        predicate=lambda feature: feature['ro_roll_id'] is not None,
+        output_path=output_paths['usage_roll_only'],
+        layer_name=f'usage_roll_only_{normalized_fsa}')
+      usage_roll_only = _load_output_layer(
+        output_paths,
+        'usage_roll_only',
+        normalized_fsa)
+
+    with _workflow_step('extract unique usage-roll-only records',
+                        normalized_fsa):
+      processor.extract_unique_by_field(
+        source_layer=usage_roll_only,
+        field_name='ro_id_provinc',
+        output_path=output_paths['usage_roll_only_unique'],
+        include_null=False,
+        layer_name=f'usage_roll_only_unique_{normalized_fsa}')
+      usage_roll_only_unique = _load_output_layer(
+        output_paths,
+        'usage_roll_only_unique',
+        normalized_fsa)
+
+    with _workflow_step('difference roll with roll-only', normalized_fsa):
+      roll.difference_layer(
+        overlay_layer=roll_only,
+        output_path=output_paths['roll_clean'])
+      roll_clean = _load_output_layer(
+        output_paths,
+        'roll_clean',
+        normalized_fsa)
+
+    with _workflow_step('duplicate roll provincial id field',
+                        normalized_fsa):
+      roll_clean.duplicate_text_field(
+        source_field='id_provinc',
+        target_field='r_id_provinc',
+        field_length=36)
+
+    with _workflow_step('join usage margin san with roll clean',
+                        normalized_fsa):
+      usage_margin_san.add_layer_join(
+        joining_layer_path=roll_clean.layer_path,
+        joining_layer_name=roll_clean.layer_name,
+        join_field='r_id_provinc',
+        target_field='g_id_provi',
+        prefix='r_',
+        output_path=output_paths['usage_roll'])
+      usage_roll = _load_output_layer(
+        output_paths,
+        'usage_roll',
+        normalized_fsa)
+
+    with _workflow_step('merge usage roll layers', normalized_fsa):
+      ScrubLayer.merge_layer_paths(
+        layer_paths=[
+          usage_roll.layer_path,
+          usage_only.layer_path,
+          usage_roll_only_unique.layer_path,
+        ],
+        output_path=output_paths['usage_roll_all'])
+      usage_roll_all = _load_output_layer(
+        output_paths,
+        'usage_roll_all',
+        normalized_fsa)
+
   except Exception:
     logger.exception(
       'Montreal FSA GISOO workflow failed. FSA=%s',
       normalized_fsa)
     raise
 
-  output_path = usage_san_san.layer_path
+  output_path = usage_roll_all.layer_path
   logger.info(
     'Completed Montreal FSA GISOO partial workflow. '
     'FSA=%s Output=%s Elapsed=%.3fs',

@@ -57,6 +57,31 @@ class _FakeGeoPackageFeatureProcessor:
       layer_name))
     return output_path
 
+  def extract_where(self, source_layer, predicate, output_path,
+                    layer_name=None):
+    self.calls.append((
+      'extract_where',
+      source_layer.layer_name,
+      output_path,
+      layer_name))
+    return output_path
+
+  def extract_unique_by_field(
+          self,
+          source_layer,
+          field_name,
+          output_path,
+          include_null=True,
+          layer_name=None):
+    self.calls.append((
+      'extract_unique_by_field',
+      source_layer.layer_name,
+      field_name,
+      output_path,
+      include_null,
+      layer_name))
+    return output_path
+
 
 class _FakeScrubLayer:
   calls = []
@@ -123,6 +148,80 @@ class _FakeScrubLayer:
       grid_size))
     return output_path
 
+  def spatial_join_with_predicate(
+          self,
+          joining_layer_path,
+          joined_layer_path,
+          predicate='intersect',
+          join_method='one-to-many',
+          prefix=''):
+    self.calls.append((
+      'spatial_join_with_predicate',
+      self.layer_name,
+      joining_layer_path,
+      joined_layer_path,
+      predicate,
+      join_method,
+      prefix))
+    return joined_layer_path
+
+  def duplicate_text_field(
+          self,
+          source_field,
+          target_field,
+          field_length,
+          overwrite=False,
+          batch_size=10000):
+    self.calls.append((
+      'duplicate_text_field',
+      self.layer_name,
+      source_field,
+      target_field,
+      field_length,
+      overwrite,
+      batch_size))
+    return target_field
+
+  def add_layer_join(
+          self,
+          joining_layer_path,
+          joining_layer_name,
+          join_field,
+          target_field,
+          prefix='',
+          output_path=None,
+          join_fields=None,
+          selected_features_only=False,
+          joining_selected_features_only=False,
+          join_method=1,
+          discard_nonmatching=False,
+          unjoinable_output_path=None):
+    self.calls.append((
+      'add_layer_join',
+      self.layer_name,
+      joining_layer_path,
+      joining_layer_name,
+      join_field,
+      target_field,
+      prefix,
+      output_path,
+      join_fields,
+      selected_features_only,
+      joining_selected_features_only,
+      join_method,
+      discard_nonmatching,
+      unjoinable_output_path))
+    return output_path
+
+  @staticmethod
+  def merge_layer_paths(layer_paths, output_path, crs=None):
+    _FakeScrubLayer.calls.append((
+      'merge_layer_paths',
+      layer_paths,
+      output_path,
+      crs))
+    return output_path
+
   def create_spatial_index(self):
     self.calls.append(('create_spatial_index', self.layer_name))
 
@@ -164,7 +263,7 @@ class TestMtlFsaWorkflow(unittest.TestCase):
     _FakeScrubLayer.calls = []
     _FakeScrubLayer.instances = []
 
-  def test_run_workflow_stops_after_difference_usage_with_margin_san(self):
+  def test_run_workflow_stops_after_merge_usage_roll_layers(self):
     with tempfile.TemporaryDirectory() as temp_dir:
       data_dir = os.path.join(temp_dir, 'data')
       output_dir = os.path.join(temp_dir, 'output')
@@ -191,8 +290,17 @@ class TestMtlFsaWorkflow(unittest.TestCase):
     usage_dup_fixed_path = _output_path('usage_dup_fixed')
     usage_margin_san_path = _output_path('usage_margin_san')
     usage_san_san_path = _output_path('usage_san_san')
+    usage_margin_path = _output_path('usage_margin')
+    usage_only_path = _output_path('usage_only')
+    roll_only_path = _output_path('roll_only')
+    usage_roll_only_all_path = _output_path('usage_roll_only_all')
+    usage_roll_only_path = _output_path('usage_roll_only')
+    usage_roll_only_unique_path = _output_path('usage_roll_only_unique')
+    roll_clean_path = _output_path('roll_clean')
+    usage_roll_path = _output_path('usage_roll')
+    usage_roll_all_path = _output_path('usage_roll_all')
 
-    self.assertEqual(result, usage_san_san_path)
+    self.assertEqual(result, usage_roll_all_path)
     self.assertNotIn(
       'add_uuid_field',
       [call[0] for call in _FakeScrubLayer.calls])
@@ -342,6 +450,122 @@ class TestMtlFsaWorkflow(unittest.TestCase):
         'usage_clipped_H3H',
         'usage_margin_san_H3H',
         usage_san_san_path,
+        None,
+      ),
+      _FakeScrubLayer.calls)
+    self.assertIn(
+      (
+        'extract_where',
+        'usage_margin_san_H3H',
+        usage_margin_path,
+        'usage_margin_H3H',
+      ),
+      _FakeGeoPackageFeatureProcessor.calls)
+    self.assertIn(
+      (
+        'add_area_field',
+        'usage_margin_H3H',
+        'area_ex',
+        False,
+        10000,
+      ),
+      _FakeGeoPackageFeatureProcessor.calls)
+    self.assertIn(
+      (
+        'extract_where',
+        'usage_margin_H3H',
+        usage_only_path,
+        'usage_only_H3H',
+      ),
+      _FakeGeoPackageFeatureProcessor.calls)
+    self.assertIn(
+      (
+        'extract_by_membership',
+        'roll_clipped_H3H',
+        'usage_clipped_H3H',
+        'id_provinc',
+        'g_id_provi',
+        roll_only_path,
+        False,
+        'roll_only_H3H',
+      ),
+      _FakeGeoPackageFeatureProcessor.calls)
+    self.assertIn(
+      (
+        'spatial_join_with_predicate',
+        'usage_clipped_H3H',
+        roll_only_path,
+        usage_roll_only_all_path,
+        'contains',
+        'one-to-many',
+        'ro_',
+      ),
+      _FakeScrubLayer.calls)
+    self.assertIn(
+      (
+        'extract_where',
+        'usage_roll_only_all_H3H',
+        usage_roll_only_path,
+        'usage_roll_only_H3H',
+      ),
+      _FakeGeoPackageFeatureProcessor.calls)
+    self.assertIn(
+      (
+        'extract_unique_by_field',
+        'usage_roll_only_H3H',
+        'ro_id_provinc',
+        usage_roll_only_unique_path,
+        False,
+        'usage_roll_only_unique_H3H',
+      ),
+      _FakeGeoPackageFeatureProcessor.calls)
+    self.assertIn(
+      (
+        'difference_layer',
+        'roll_clipped_H3H',
+        'roll_only_H3H',
+        roll_clean_path,
+        None,
+      ),
+      _FakeScrubLayer.calls)
+    self.assertIn(
+      (
+        'duplicate_text_field',
+        'roll_clean_H3H',
+        'id_provinc',
+        'r_id_provinc',
+        36,
+        False,
+        10000,
+      ),
+      _FakeScrubLayer.calls)
+    self.assertIn(
+      (
+        'add_layer_join',
+        'usage_margin_san_H3H',
+        roll_clean_path,
+        'roll_clean_H3H',
+        'r_id_provinc',
+        'g_id_provi',
+        'r_',
+        usage_roll_path,
+        None,
+        False,
+        False,
+        1,
+        False,
+        None,
+      ),
+      _FakeScrubLayer.calls)
+    self.assertIn(
+      (
+        'merge_layer_paths',
+        [
+          usage_roll_path,
+          usage_only_path,
+          usage_roll_only_unique_path,
+        ],
+        usage_roll_all_path,
         None,
       ),
       _FakeScrubLayer.calls)
