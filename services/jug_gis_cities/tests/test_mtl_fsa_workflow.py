@@ -172,6 +172,8 @@ class TestMtlFsaWorkflow(unittest.TestCase):
         f'{output_key}.gpkg')
 
     fsa_boundary_path = _output_path('fsa_boundary')
+    nrcan_preserved_path = _output_path('nrcan_preserved')
+    usage_dup_path = _output_path('usage_dup')
     nrcan_path = _output_path('nrcan')
     roll_path = _output_path('roll')
     usage_path = _output_path('usage')
@@ -202,6 +204,30 @@ class TestMtlFsaWorkflow(unittest.TestCase):
       _FakeScrubLayer.calls)
     self.assertIn(
       (
+        'init',
+        'C:/QGIS',
+        os.path.join(
+          data_dir,
+          'input_data',
+          'mtl_auto_with_heights_preserved',
+          'mtl_auto_with_heights_preserved.gpkg'),
+        'nrcan_preserved_mtl',
+      ),
+      _FakeScrubLayer.calls)
+    self.assertIn(
+      (
+        'init',
+        'C:/QGIS',
+        os.path.join(
+          data_dir,
+          'input_data',
+          'mamh_usage_predo_2026_gpkg_dup',
+          'mamh_usage_predo_2026_dup.gpkg'),
+        'usage_dup_mtl',
+      ),
+      _FakeScrubLayer.calls)
+    self.assertIn(
+      (
         'extract_by_attribute',
         'fsa_boundaries',
         'g_fsa',
@@ -213,8 +239,10 @@ class TestMtlFsaWorkflow(unittest.TestCase):
 
     for layer_name, output_path in [
             ('nrcan_mtl', nrcan_path),
+            ('nrcan_preserved_mtl', nrcan_preserved_path),
             ('roll_mtl', roll_path),
-            ('usage_mtl', usage_path)]:
+            ('usage_mtl', usage_path),
+            ('usage_dup_mtl', usage_dup_path)]:
       self.assertIn(
         (
           'clip_layer',

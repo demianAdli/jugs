@@ -94,17 +94,27 @@ def run_workflow(fsa):
         paths.qgis_path,
         paths.input_paths['mtl_nrcan_heights'],
         'nrcan_mtl')
+      nrcan_preserved_mtl = ScrubLayer(
+        paths.qgis_path,
+        paths.input_paths['mtl_nrcan_preserved'],
+        'nrcan_preserved_mtl')
       usage_mtl = ScrubLayer(
         paths.qgis_path,
         paths.input_paths['mtl_mahm_usage_2026_gpkg'],
         'usage_mtl')
+      usage_dup_mtl = ScrubLayer(
+        paths.qgis_path,
+        paths.input_paths['mtl_usage_dup'],
+        'usage_dup_mtl')
       fsa_layer = ScrubLayer(
         paths.qgis_path,
         paths.input_paths['fsa'],
         'fsa_boundaries')
       _log_layer_summary(roll_mtl)
       _log_layer_summary(nrcan_mtl)
+      _log_layer_summary(nrcan_preserved_mtl)
       _log_layer_summary(usage_mtl)
+      _log_layer_summary(usage_dup_mtl)
       _log_layer_summary(fsa_layer)
 
     with _workflow_step('extract FSA boundary', normalized_fsa):
@@ -132,6 +142,14 @@ def run_workflow(fsa):
         normalized_fsa,
         layer_name=f'nrcan_clipped_{normalized_fsa}')
 
+      nrcan_preserved_mtl.clip_layer(
+        fsa_boundary.layer_path,
+        output_paths['nrcan_preserved'])
+      _load_output_layer(
+        output_paths,
+        'nrcan_preserved',
+        normalized_fsa)
+
       roll_mtl.clip_layer(
         fsa_boundary.layer_path,
         output_paths['roll'])
@@ -149,6 +167,14 @@ def run_workflow(fsa):
         'usage',
         normalized_fsa,
         layer_name=f'usage_clipped_{normalized_fsa}')
+
+      usage_dup_mtl.clip_layer(
+        fsa_boundary.layer_path,
+        output_paths['usage_dup'])
+      _load_output_layer(
+        output_paths,
+        'usage_dup',
+        normalized_fsa)
 
     with _workflow_step('assign nrcan area field', normalized_fsa):
       processor.add_area_field(nrcan, 'nrcan_area')

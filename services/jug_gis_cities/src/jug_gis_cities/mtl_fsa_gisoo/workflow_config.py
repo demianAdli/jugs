@@ -36,7 +36,7 @@ input_paths = {
     input_data_dir,
     'mtl_auto_with_heights',
     'mtl_auto_with_heights.gpkg'),
-  'nrcan_preserved':
+  'mtl_nrcan_preserved':
   os.path.join(
     input_data_dir,
     'mtl_auto_with_heights_preserved',
@@ -46,7 +46,7 @@ input_paths = {
     input_data_dir,
     'mamh_usage_predo_2026_gpkg',
     'mamh_usage_predo_2026_s_poly.gpkg'),
-  'usage_dup':
+  'mtl_usage_dup':
   os.path.join(
     input_data_dir,
     'mamh_usage_predo_2026_gpkg_dup',
@@ -85,6 +85,8 @@ def get_fsa_output_paths_dir(fsa):
 # Preparing a bedding for output data layers paths
 output_paths = {
   'fsa_boundary': '',
+  'nrcan_preserved': '',
+  'usage_dup': '',
   'nrcan': '',
   'usage': '',
   'roll': '',
