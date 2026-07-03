@@ -27,6 +27,16 @@ for _path in [_SABU_CHASSIS_SRC, _JUG_GIS_CITIES_SRC]:
 class _FakeGeoPackageFeatureProcessor:
   calls = []
 
+  def add_area_field(self, layer, field_name, overwrite=False,
+                     batch_size=10000):
+    self.calls.append((
+      'add_area_field',
+      layer.layer_name,
+      field_name,
+      overwrite,
+      batch_size))
+    return field_name
+
   def extract_by_membership(
           self,
           source_layer,
@@ -261,30 +271,21 @@ class TestMtlFsaWorkflow(unittest.TestCase):
       _FakeScrubLayer.calls)
     self.assertIn(
       (
-        'add_field',
+        'add_area_field',
         'nrcan_fixed_H3H',
         'nrcan_area',
+        False,
+        10000,
       ),
-      _FakeScrubLayer.calls)
+      _FakeGeoPackageFeatureProcessor.calls)
     self.assertIn(
       (
-        'assign_area',
+        'init',
+        'C:/QGIS',
+        nrcan_fixed_path,
         'nrcan_fixed_H3H',
-        'nrcan_area',
       ),
       _FakeScrubLayer.calls)
-    nrcan_fixed_init_index = _FakeScrubLayer.calls.index((
-      'init',
-      'C:/QGIS',
-      nrcan_fixed_path,
-      'nrcan_fixed_H3H',
-    ))
-    assign_nrcan_area_index = _FakeScrubLayer.calls.index((
-      'assign_area',
-      'nrcan_fixed_H3H',
-      'nrcan_area',
-    ))
-    self.assertLess(nrcan_fixed_init_index, assign_nrcan_area_index)
     self.assertIn(
       (
         'fix_geometries',
@@ -294,32 +295,21 @@ class TestMtlFsaWorkflow(unittest.TestCase):
       _FakeScrubLayer.calls)
     self.assertIn(
       (
-        'add_field',
+        'add_area_field',
         'nrcan_preserved_fixed_H3H',
         'nrcan_area',
+        False,
+        10000,
       ),
-      _FakeScrubLayer.calls)
+      _FakeGeoPackageFeatureProcessor.calls)
     self.assertIn(
       (
-        'assign_area',
+        'init',
+        'C:/QGIS',
+        nrcan_preserved_fixed_path,
         'nrcan_preserved_fixed_H3H',
-        'nrcan_area',
       ),
       _FakeScrubLayer.calls)
-    nrcan_preserved_fixed_init_index = _FakeScrubLayer.calls.index((
-      'init',
-      'C:/QGIS',
-      nrcan_preserved_fixed_path,
-      'nrcan_preserved_fixed_H3H',
-    ))
-    assign_nrcan_preserved_area_index = _FakeScrubLayer.calls.index((
-      'assign_area',
-      'nrcan_preserved_fixed_H3H',
-      'nrcan_area',
-    ))
-    self.assertLess(
-      nrcan_preserved_fixed_init_index,
-      assign_nrcan_preserved_area_index)
     self.assertIn(
       (
         'fix_geometries',

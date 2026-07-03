@@ -184,8 +184,7 @@ def run_workflow(fsa):
         normalized_fsa)
 
     with _workflow_step('assign nrcan area field', normalized_fsa):
-      nrcan_fixed.add_field('nrcan_area')
-      nrcan_fixed.assign_area('nrcan_area')
+      processor.add_area_field(nrcan_fixed, 'nrcan_area')
 
     with _workflow_step('fix nrcan preserved geometries', normalized_fsa):
       nrcan_preserved.fix_geometries(output_paths['nrcan_preserved_fixed'])
@@ -195,8 +194,7 @@ def run_workflow(fsa):
         normalized_fsa)
 
     with _workflow_step('assign nrcan preserved area field', normalized_fsa):
-      nrcan_preserved_fixed.add_field('nrcan_area')
-      nrcan_preserved_fixed.assign_area('nrcan_area')
+      processor.add_area_field(nrcan_preserved_fixed, 'nrcan_area')
 
     with _workflow_step('fix usage geometries', normalized_fsa):
       usage.fix_geometries(output_paths['usage_fixed'])
