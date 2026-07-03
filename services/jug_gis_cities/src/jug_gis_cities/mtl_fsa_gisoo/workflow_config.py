@@ -36,6 +36,11 @@ input_paths = {
     input_data_dir,
     'mtl_auto_with_heights',
     'mtl_auto_with_heights.gpkg'),
+  'nrcan_preserved':
+  os.path.join(
+    input_data_dir,
+    'mtl_auto_with_heights_preserved',
+    'mtl_auto_with_heights_preserved.gpkg'),
   'mtl_mahm_usage_2026_gpkg':
   os.path.join(
     input_data_dir,
@@ -96,7 +101,6 @@ output_paths = {
   'roll_clean': '',
   'usage_roll': '',
   'usage_roll_all': '',
-  'nrcan_preserved': '',
   'usage_dup_clean': '',
   'inter_nrcan': '',
   'nrcan_inter': '',
