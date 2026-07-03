@@ -3,6 +3,9 @@
 ## [Unreleased]
 
 ### Added
+- Added `GeoPackageFeatureProcessor` for Python-first GeoPackage attribute
+  processing, including membership extraction, predicate extraction,
+  calculated fields, grouped aggregation, and field joins.
 - Added `ScrubLayer.add_uuid_field()`.
 - Added `ScrubLayer.extract_by_attribute()`.
 - Added `ScrubLayer.extract_by_expression()`.
