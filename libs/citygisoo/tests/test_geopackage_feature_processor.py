@@ -39,28 +39,43 @@ class _Dummy:
 def _install_qgis_stubs():
   qgis_module = types.ModuleType('qgis')
   qgis_core_module = types.ModuleType('qgis.core')
+  qgis_analysis_module = types.ModuleType('qgis.analysis')
   qgis_pyqt_module = types.ModuleType('qgis.PyQt')
   qgis_qtcore_module = types.ModuleType('qgis.PyQt.QtCore')
+  processing_module = types.ModuleType('processing')
 
   qgis_core_names = [
+    'QgsApplication',
+    'QgsCoordinateReferenceSystem',
+    'QgsExpression',
+    'QgsExpressionContext',
+    'QgsExpressionContextUtils',
     'QgsFeature',
     'QgsFeatureRequest',
     'QgsField',
+    'QgsProcessingFeatureSourceDefinition',
+    'QgsProcessingFeedback',
     'QgsProject',
     'QgsVectorDataProvider',
     'QgsVectorFileWriter',
+    'QgsVectorLayerJoinInfo',
     'QgsVectorLayer',
     'QgsWkbTypes',
+    'edit',
   ]
   for name in qgis_core_names:
     setattr(qgis_core_module, name, _Dummy)
 
+  qgis_analysis_module.QgsNativeAlgorithms = _Dummy
   qgis_qtcore_module.QVariant = _Dummy
+  processing_module.run = Mock()
 
   sys.modules['qgis'] = qgis_module
   sys.modules['qgis.core'] = qgis_core_module
+  sys.modules['qgis.analysis'] = qgis_analysis_module
   sys.modules['qgis.PyQt'] = qgis_pyqt_module
   sys.modules['qgis.PyQt.QtCore'] = qgis_qtcore_module
+  sys.modules['processing'] = processing_module
 
 
 _install_qgis_stubs()
@@ -184,6 +199,22 @@ class _FakeScrubLayer:
     self.layer = layer
 
 
+class _FakeFeatureRequestWithNameFallback:
+  NoGeometry = 1
+
+  def __init__(self):
+    self.subset_attributes = None
+    self.flags = None
+
+  def setSubsetOfAttributes(self, attributes, fields):
+    if attributes and isinstance(attributes[0], int):
+      raise TypeError("index 0 has type 'int' but 'str' is expected")
+    self.subset_attributes = list(attributes)
+
+  def setFlags(self, flags):
+    self.flags = flags
+
+
 class GeoPackageFeatureProcessorTest(unittest.TestCase):
   def setUp(self):
     processor_module.QVariant = _FakeQVariant
@@ -291,6 +322,24 @@ class GeoPackageFeatureProcessorTest(unittest.TestCase):
         scrub_layer,
         FieldSpec('status', _FakeQVariant.String),
         lambda feature: 'x')
+
+  def test_request_for_fields_falls_back_to_name_subset_overload(self):
+    processor = GeoPackageFeatureProcessor()
+    layer = _FakeLayer('layer.gpkg', ['status'], [])
+
+    with patch.object(
+            processor_module,
+            'QgsFeatureRequest',
+            _FakeFeatureRequestWithNameFallback):
+      request = processor._request_for_fields(
+        layer,
+        ['status'],
+        include_geometry=False)
+
+    self.assertEqual(request.subset_attributes, ['status'])
+    self.assertEqual(
+      request.flags,
+      _FakeFeatureRequestWithNameFallback.NoGeometry)
 
 
 if __name__ == '__main__':

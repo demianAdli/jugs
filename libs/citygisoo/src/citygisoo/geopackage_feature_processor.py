@@ -103,7 +103,10 @@ class GeoPackageFeatureProcessor:
       for field_name in field_names
     ]
     if hasattr(request, 'setSubsetOfAttributes'):
-      request.setSubsetOfAttributes(field_indexes, layer.fields())
+      try:
+        request.setSubsetOfAttributes(field_indexes, layer.fields())
+      except TypeError:
+        request.setSubsetOfAttributes(list(field_names), layer.fields())
     if not include_geometry and hasattr(QgsFeatureRequest, 'NoGeometry'):
       request.setFlags(QgsFeatureRequest.NoGeometry)
     return request
