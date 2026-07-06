@@ -205,7 +205,7 @@ def run_workflow(fsa):
 
     with _workflow_step('fix usage duplicate geometries', normalized_fsa):
       usage_dup.fix_geometries(output_paths['usage_dup_fixed'])
-      _load_output_layer(
+      usage_dup_fixed = _load_output_layer(
         output_paths,
         'usage_dup_fixed',
         normalized_fsa)
@@ -365,6 +365,15 @@ def run_workflow(fsa):
       usage_roll_all = _load_output_layer(
         output_paths,
         'usage_roll_all',
+        normalized_fsa)
+
+    # Procedure: NRCan Intersection by Usage begins from here.
+    with _workflow_step('delete duplicate usage geometries', normalized_fsa):
+      usage_dup_fixed.delete_duplicate_geometries(
+        output_paths['usage_dup_clean'])
+      _load_output_layer(
+        output_paths,
+        'usage_dup_clean',
         normalized_fsa)
 
   except Exception:

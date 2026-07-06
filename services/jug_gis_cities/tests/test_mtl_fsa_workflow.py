@@ -131,6 +131,13 @@ class _FakeScrubLayer:
     self.calls.append(('fix_geometries', self.layer_name, output_path))
     return output_path
 
+  def delete_duplicate_geometries(self, output_path):
+    self.calls.append((
+      'delete_duplicate_geometries',
+      self.layer_name,
+      output_path))
+    return output_path
+
   def add_field(self, new_field_name):
     self.calls.append(('add_field', self.layer_name, new_field_name))
     return new_field_name
@@ -289,7 +296,7 @@ class TestMtlFsaWorkflow(unittest.TestCase):
     usage_fixed_path = _output_path('usage_fixed')
     usage_dup_fixed_path = _output_path('usage_dup_fixed')
     usage_margin_san_path = _output_path('usage_margin_san')
-    usage_san_san_path = _output_path('usage_san_san')
+    usage_clean_path = _output_path('usage_clean')
     usage_margin_path = _output_path('usage_margin')
     usage_only_path = _output_path('usage_only')
     roll_only_path = _output_path('roll_only')
@@ -299,6 +306,7 @@ class TestMtlFsaWorkflow(unittest.TestCase):
     roll_clean_path = _output_path('roll_clean')
     usage_roll_path = _output_path('usage_roll')
     usage_roll_all_path = _output_path('usage_roll_all')
+    usage_dup_clean_path = _output_path('usage_dup_clean')
 
     self.assertEqual(result, usage_roll_all_path)
     self.assertNotIn(
@@ -434,6 +442,13 @@ class TestMtlFsaWorkflow(unittest.TestCase):
       _FakeScrubLayer.calls)
     self.assertIn(
       (
+        'delete_duplicate_geometries',
+        'usage_dup_fixed_H3H',
+        usage_dup_clean_path,
+      ),
+      _FakeScrubLayer.calls)
+    self.assertIn(
+      (
         'extract_by_membership',
         'usage_fixed_H3H',
         'roll_clipped_H3H',
@@ -449,7 +464,7 @@ class TestMtlFsaWorkflow(unittest.TestCase):
         'difference_layer',
         'usage_clipped_H3H',
         'usage_margin_san_H3H',
-        usage_san_san_path,
+        usage_clean_path,
         None,
       ),
       _FakeScrubLayer.calls)
@@ -542,7 +557,7 @@ class TestMtlFsaWorkflow(unittest.TestCase):
     self.assertIn(
       (
         'add_layer_join',
-        'usage_margin_san_H3H',
+        'usage_clean_H3H',
         roll_clean_path,
         'roll_clean_H3H',
         'r_id_provinc',
