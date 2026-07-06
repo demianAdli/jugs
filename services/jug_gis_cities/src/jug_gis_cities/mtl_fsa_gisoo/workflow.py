@@ -70,7 +70,7 @@ def _load_output_layer(output_paths, output_key, fsa, layer_name=None):
 
 
 def run_workflow(fsa):
-  """Run the Montreal FSA GISOO cleaning workflow through usage_san_san."""
+  """Run the Montreal FSA GISOO cleaning workflow through usage_clean."""
   normalized_fsa = paths.normalize_fsa(fsa)
   output_paths = dict(paths.output_paths)
   output_paths_dir = paths.get_fsa_output_paths_dir(normalized_fsa)
@@ -229,10 +229,10 @@ def run_workflow(fsa):
                         normalized_fsa):
       usage.difference_layer(
         overlay_layer=usage_margin_san,
-        output_path=output_paths['usage_san_san'])
-      usage_san_san = _load_output_layer(
+        output_path=output_paths['usage_clean'])
+      usage_clean = _load_output_layer(
         output_paths,
-        'usage_san_san',
+        'usage_clean',
         normalized_fsa)
 
     with _workflow_step('extract usage margin records with provincial id',
@@ -241,7 +241,7 @@ def run_workflow(fsa):
         source_layer=usage_margin_san,
         predicate=(
           lambda feature:
-          feature['g_id_provi'] is not None
+          processor.is_not_null_value(feature['g_id_provi'])
           and feature['g_id_provi'] != 'Sans correspondance'),
         output_path=output_paths['usage_margin'],
         layer_name=f'usage_margin_{normalized_fsa}')
@@ -259,8 +259,8 @@ def run_workflow(fsa):
         source_layer=usage_margin,
         predicate=(
           lambda feature:
-          feature['area_ex'] is not None
-          and feature['g_sup_tota'] is not None
+          processor.is_not_null_value(feature['area_ex'])
+          and processor.is_not_null_value(feature['g_sup_tota'])
           and float(feature['area_ex']) > 0.9 * float(feature['g_sup_tota'])),
         output_path=output_paths['usage_only'],
         layer_name=f'usage_only_{normalized_fsa}')
@@ -301,7 +301,9 @@ def run_workflow(fsa):
                         normalized_fsa):
       processor.extract_where(
         source_layer=usage_roll_only_all,
-        predicate=lambda feature: feature['ro_roll_id'] is not None,
+        predicate=(
+          lambda feature:
+          processor.is_not_null_value(feature['ro_roll_id'])),
         output_path=output_paths['usage_roll_only'],
         layer_name=f'usage_roll_only_{normalized_fsa}')
       usage_roll_only = _load_output_layer(
@@ -338,9 +340,9 @@ def run_workflow(fsa):
         target_field='r_id_provinc',
         field_length=36)
 
-    with _workflow_step('join usage margin san with roll clean',
+    with _workflow_step('join usage clean with roll clean',
                         normalized_fsa):
-      usage_margin_san.add_layer_join(
+      usage_clean.add_layer_join(
         joining_layer_path=roll_clean.layer_path,
         joining_layer_name=roll_clean.layer_name,
         join_field='r_id_provinc',

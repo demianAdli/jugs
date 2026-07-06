@@ -95,7 +95,7 @@ output_paths = {
   'usage_fixed': '',
   'usage_dup_fixed': '',
   'usage_margin_san': '',
-  'usage_san_san': '',
+  'usage_clean': '',
   'usage_margin': '',
   'usage_only': '',
   'roll_only': '',
