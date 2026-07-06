@@ -107,7 +107,6 @@ output_paths = {
   'usage_roll_all': '',
   'usage_dup_clean': '',
   'inter_nrcan': '',
-  'nrcan_inter': '',
   'inter_summary': '',
   'summary_joined': '',
   'inter_kept': '',
@@ -116,6 +115,5 @@ output_paths = {
   'dominant_parts': '',
   'nrcan_restored_with_usage_id': '',
   'nrcan_intersected': '',
-  'nrcan_spatial_join_usage': '',
   'mtl_fsa_gisoo': ''
 }
