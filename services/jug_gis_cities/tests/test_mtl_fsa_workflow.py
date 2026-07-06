@@ -838,17 +838,6 @@ class TestMtlFsaWorkflow(unittest.TestCase):
       _FakeGeoPackageFeatureProcessor.calls)
     self.assertIn(
       (
-        'keep_only_fields',
-        'dominant_parts_H3H',
-        [
-          'nrcan_id',
-          'usage_id',
-        ],
-        True,
-      ),
-      _FakeScrubLayer.calls)
-    self.assertIn(
-      (
         'field_join',
         'nrcan_restored_H3H',
         dominant_parts_path,

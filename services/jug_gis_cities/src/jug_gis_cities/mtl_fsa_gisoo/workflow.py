@@ -587,10 +587,6 @@ def run_workflow(fsa):
         output_paths,
         'dominant_parts',
         normalized_fsa)
-      dominant_parts.keep_only_fields([
-        'nrcan_id',
-        'usage_id',
-      ])
 
     with _workflow_step('join nrcan restored with dominant usage id',
                         normalized_fsa):
