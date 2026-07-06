@@ -381,7 +381,7 @@ def run_workflow(fsa):
       nrcan_fixed.intersection_layer(
         overlay_layer=clean_usage_dup,
         output_path=output_paths['inter_nrcan'],
-        overlay_fields=['usagedup_id'])
+        overlay_fields=['usage_id'])
       inter_nrcan = _load_output_layer(
         output_paths,
         'inter_nrcan',
@@ -589,7 +589,7 @@ def run_workflow(fsa):
         normalized_fsa)
       dominant_parts.keep_only_fields([
         'nrcan_id',
-        'usagedup_id',
+        'usage_id',
       ])
 
     with _workflow_step('join nrcan restored with dominant usage id',
@@ -599,7 +599,7 @@ def run_workflow(fsa):
         joining_layer_name=dominant_parts.layer_name,
         target_field='nrcan_id',
         join_field='nrcan_id',
-        join_fields=['usagedup_id'],
+        join_fields=['usage_id'],
         output_path=output_paths['nrcan_restored_with_usage_id'])
       nrcan_restored_with_usage_id = _load_output_layer(
         output_paths,

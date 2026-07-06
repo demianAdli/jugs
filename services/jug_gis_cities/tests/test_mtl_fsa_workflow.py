@@ -708,7 +708,7 @@ class TestMtlFsaWorkflow(unittest.TestCase):
         'usage_dup_clean_H3H',
         inter_nrcan_path,
         None,
-        ['usagedup_id'],
+        ['usage_id'],
         '',
       ),
       _FakeScrubLayer.calls)
@@ -842,7 +842,7 @@ class TestMtlFsaWorkflow(unittest.TestCase):
         'dominant_parts_H3H',
         [
           'nrcan_id',
-          'usagedup_id',
+          'usage_id',
         ],
         True,
       ),
@@ -855,7 +855,7 @@ class TestMtlFsaWorkflow(unittest.TestCase):
         'dominant_parts_H3H',
         'nrcan_id',
         'nrcan_id',
-        ['usagedup_id'],
+        ['usage_id'],
         '',
         nrcan_restored_with_usage_id_path,
         False,
