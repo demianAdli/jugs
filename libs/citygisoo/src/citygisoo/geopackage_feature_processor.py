@@ -26,6 +26,12 @@ from qgis.PyQt.QtCore import QVariant
 from sabu_chassis.logging import get_logger
 
 
+try:
+  from qgis.core import NULL as QGIS_NULL
+except ImportError:
+  QGIS_NULL = None
+
+
 logger = get_logger(__name__)
 
 
@@ -127,6 +133,32 @@ class GeoPackageFeatureProcessor:
 
   def _feature_value(self, feature, field_name):
     return feature[field_name]
+
+  @staticmethod
+  def is_null_value(value):
+    """Return True for Python, Qt, and PyQGIS NULL attribute values."""
+    if value is None:
+      return True
+    if QGIS_NULL is not None:
+      try:
+        if value == QGIS_NULL:
+          return True
+      except TypeError:
+        pass
+
+    is_null = getattr(value, 'isNull', None)
+    if callable(is_null) and is_null():
+      return True
+
+    is_valid = getattr(value, 'isValid', None)
+    if callable(is_valid) and not is_valid():
+      return True
+
+    return False
+
+  @classmethod
+  def is_not_null_value(cls, value):
+    return not cls.is_null_value(value)
 
   def _write_options(self, output_path, layer_name=None):
     options = QgsVectorFileWriter.SaveVectorOptions()
@@ -330,7 +362,7 @@ class GeoPackageFeatureProcessor:
     kept_features = []
     for feature in self._iter_features(source_qgs_layer, [field_name]):
       value = self._feature_value(feature, field_name)
-      if value is None and not include_null:
+      if self.is_null_value(value) and not include_null:
         continue
       if value in seen_values:
         continue
@@ -430,7 +462,7 @@ class GeoPackageFeatureProcessor:
     def _ratio(feature):
       numerator = self._feature_value(feature, numerator_field)
       denominator = self._feature_value(feature, denominator_field)
-      if denominator in (None, 0):
+      if self.is_null_value(denominator) or denominator == 0:
         return None
       return float(numerator) / float(denominator)
 
@@ -449,7 +481,7 @@ class GeoPackageFeatureProcessor:
     non_null_values = [
       value
       for value in values
-      if value is not None
+      if self.is_not_null_value(value)
     ]
 
     if aggregate_function == 'count':

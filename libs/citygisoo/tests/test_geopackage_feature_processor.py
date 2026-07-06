@@ -98,6 +98,16 @@ class _FakeQgsVectorDataProvider:
   ChangeAttributeValues = 2
 
 
+class _FakeNullValue:
+  def isNull(self):
+    return True
+
+
+class _FakeInvalidValue:
+  def isValid(self):
+    return False
+
+
 class _FakeQgsDistanceArea:
   def __init__(self):
     self.source_crs = None
@@ -319,6 +329,45 @@ class GeoPackageFeatureProcessorTest(unittest.TestCase):
         lookup_field='g_id_provi',
         output_path='usage_missing.gpkg')
 
+  def test_extract_where_can_filter_qgis_null_values(self):
+    processor = GeoPackageFeatureProcessor()
+    layer = _FakeLayer(
+      'usage_roll_only_all.gpkg',
+      ['ro_roll_id'],
+      [
+        _FakeFeature(1, {'ro_roll_id': _FakeNullValue()}),
+        _FakeFeature(2, {'ro_roll_id': None}),
+        _FakeFeature(3, {'ro_roll_id': 'roll-1'}),
+      ])
+    scrub_layer = _FakeScrubLayer(
+      'usage_roll_only_all.gpkg',
+      'usage_roll_only_all',
+      layer)
+
+    with patch.object(
+            processor,
+            '_write_features_like_source',
+            return_value='usage_roll_only.gpkg') as write_mock:
+      result = processor.extract_where(
+        source_layer=scrub_layer,
+        predicate=(
+          lambda feature:
+          processor.is_not_null_value(feature['ro_roll_id'])),
+        output_path='usage_roll_only.gpkg')
+
+    self.assertEqual(result, 'usage_roll_only.gpkg')
+    written_features = write_mock.call_args.args[1]
+    self.assertEqual([feature.id() for feature in written_features], [3])
+
+  def test_null_value_detection_handles_python_qt_and_pyqgis_nulls(self):
+    processor = GeoPackageFeatureProcessor()
+
+    self.assertTrue(processor.is_null_value(None))
+    self.assertTrue(processor.is_null_value(_FakeNullValue()))
+    self.assertTrue(processor.is_null_value(_FakeInvalidValue()))
+    self.assertFalse(processor.is_null_value(''))
+    self.assertFalse(processor.is_null_value('NULL'))
+
   def test_add_ratio_field_adds_double_field_and_handles_zero_denominator(self):
     processor = GeoPackageFeatureProcessor()
     feature_with_ratio = _FakeFeature(
@@ -383,6 +432,38 @@ class GeoPackageFeatureProcessorTest(unittest.TestCase):
     self.assertEqual(
       layer.provider.change_maps,
       [{1: {1: 122.98721536854282}}])
+
+  def test_extract_unique_by_field_skips_qgis_null_values(self):
+    processor = GeoPackageFeatureProcessor()
+    qgis_null = _FakeNullValue()
+    layer = _FakeLayer(
+      'usage_roll_only.gpkg',
+      ['ro_id_provinc'],
+      [
+        _FakeFeature(1, {'ro_id_provinc': qgis_null}),
+        _FakeFeature(2, {'ro_id_provinc': None}),
+        _FakeFeature(3, {'ro_id_provinc': 'A'}),
+        _FakeFeature(4, {'ro_id_provinc': 'A'}),
+        _FakeFeature(5, {'ro_id_provinc': 'B'}),
+      ])
+    scrub_layer = _FakeScrubLayer(
+      'usage_roll_only.gpkg',
+      'usage_roll_only',
+      layer)
+
+    with patch.object(
+            processor,
+            '_write_features_like_source',
+            return_value='usage_roll_only_unique.gpkg') as write_mock:
+      result = processor.extract_unique_by_field(
+        source_layer=scrub_layer,
+        field_name='ro_id_provinc',
+        output_path='usage_roll_only_unique.gpkg',
+        include_null=False)
+
+    self.assertEqual(result, 'usage_roll_only_unique.gpkg')
+    written_features = write_mock.call_args.args[1]
+    self.assertEqual([feature.id() for feature in written_features], [3, 5])
 
   def test_add_calculated_field_rejects_existing_field_without_overwrite(self):
     processor = GeoPackageFeatureProcessor()
