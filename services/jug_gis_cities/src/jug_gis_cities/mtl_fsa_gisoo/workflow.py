@@ -70,7 +70,7 @@ def _load_output_layer(output_paths, output_key, fsa, layer_name=None):
 
 
 def run_workflow(fsa):
-  """Run the Montreal FSA GISOO cleaning workflow through usage_clean."""
+  """Run the Montreal FSA GISOO cleaning workflow."""
   normalized_fsa = paths.normalize_fsa(fsa)
   output_paths = dict(paths.output_paths)
   output_paths_dir = paths.get_fsa_output_paths_dir(normalized_fsa)
@@ -371,9 +371,252 @@ def run_workflow(fsa):
     with _workflow_step('delete duplicate usage geometries', normalized_fsa):
       usage_dup_fixed.delete_duplicate_geometries(
         output_paths['usage_dup_clean'])
-      _load_output_layer(
+      clean_usage_dup = _load_output_layer(
         output_paths,
         'usage_dup_clean',
+        normalized_fsa)
+
+    with _workflow_step('intersect nrcan with clean usage duplicate',
+                        normalized_fsa):
+      nrcan_fixed.intersection_layer(
+        overlay_layer=clean_usage_dup,
+        output_path=output_paths['inter_nrcan'],
+        overlay_fields=['usagedup_id'])
+      inter_nrcan = _load_output_layer(
+        output_paths,
+        'inter_nrcan',
+        normalized_fsa)
+
+    with _workflow_step('assign inter nrcan area field', normalized_fsa):
+      processor.add_area_field(inter_nrcan, 'inter_area')
+
+    with _workflow_step('assign inter nrcan area ratio field',
+                        normalized_fsa):
+      processor.add_ratio_field(
+        inter_nrcan,
+        target_field='area_ratio',
+        numerator_field='inter_area',
+        denominator_field='nrcan_area')
+
+    with _workflow_step('summarize inter nrcan by nrcan id',
+                        normalized_fsa):
+      processor.aggregate_by_group(
+        source_layer=inter_nrcan,
+        group_field='nrcan_id',
+        aggregates=[
+          {
+            'output_field': 'nrcan_id',
+            'aggregate_function': 'first_value',
+            'input_field': 'nrcan_id',
+            'field_type': 10,
+          },
+          {
+            'output_field': 'number_parts',
+            'aggregate_function': 'count',
+            'input_field': 'nrcan_id',
+            'field_type': 2,
+          },
+          {
+            'output_field': 'min_inter_area',
+            'aggregate_function': 'minimum',
+            'input_field': 'inter_area',
+            'field_type': 6,
+          },
+          {
+            'output_field': 'max_inter_area',
+            'aggregate_function': 'maximum',
+            'input_field': 'inter_area',
+            'field_type': 6,
+          },
+          {
+            'output_field': 'max_area_ratio',
+            'aggregate_function': 'maximum',
+            'input_field': 'area_ratio',
+            'field_type': 6,
+          },
+          {
+            'output_field': 'nrcan_area',
+            'aggregate_function': 'first_value',
+            'input_field': 'nrcan_area',
+            'field_type': 6,
+          },
+          {
+            'output_field': 'sum_inter_area',
+            'aggregate_function': 'sum',
+            'input_field': 'inter_area',
+            'field_type': 6,
+          },
+          {
+            'output_field': 'sum_area_ratio',
+            'aggregate_function': 'sum',
+            'input_field': 'area_ratio',
+            'field_type': 6,
+          },
+        ],
+        output_path=output_paths['inter_summary'],
+        layer_name=f'inter_summary_{normalized_fsa}')
+      inter_summary = _load_output_layer(
+        output_paths,
+        'inter_summary',
+        normalized_fsa)
+
+    with _workflow_step('assign inter summary restore group field',
+                        normalized_fsa):
+      inter_summary.assign_field_expression(
+        target_field='restore_group',
+        expression=(
+          'CASE\n'
+          'WHEN\n'
+          '    "number_parts" > 1\n'
+          '    AND "min_inter_area" < 30\n'
+          '    AND "max_area_ratio" >= 0.70\n'
+          'THEN 1\n'
+          'WHEN\n'
+          '    "number_parts" >= 3\n'
+          '    AND "nrcan_area" <= 75\n'
+          '    AND "max_inter_area" < 30\n'
+          '    AND "sum_area_ratio" >= 0.95\n'
+          'THEN 1\n'
+          'ELSE 0\n'
+          'END'),
+        field_type=2)
+
+    with _workflow_step('assign inter summary restore reason field',
+                        normalized_fsa):
+      inter_summary.assign_field_expression(
+        target_field='restore_reason',
+        expression=(
+          'CASE\n'
+          'WHEN\n'
+          '    "number_parts" > 1\n'
+          '    AND "min_inter_area" < 30\n'
+          '    AND "max_area_ratio" >= 0.70\n'
+          "THEN 'dominant_piece'\n"
+          'WHEN\n'
+          '    "number_parts" >= 3\n'
+          '    AND "nrcan_area" <= 75\n'
+          '    AND "max_inter_area" < 30\n'
+          '    AND "sum_area_ratio" >= 0.95\n'
+          "THEN 'small_building_multi_split'\n"
+          "ELSE 'keep'\n"
+          'END'),
+        field_type=10,
+        field_length=32)
+
+    with _workflow_step('join inter summary with inter nrcan',
+                        normalized_fsa):
+      inter_nrcan.field_join(
+        joining_layer_path=inter_summary.layer_path,
+        joining_layer_name=inter_summary.layer_name,
+        target_field='nrcan_id',
+        join_field='nrcan_id',
+        join_fields=[
+          'restore_group',
+          'restore_reason',
+          'number_parts',
+          'min_inter_area',
+          'max_inter_area',
+          'max_area_ratio',
+        ],
+        prefix='sum_',
+        output_path=output_paths['summary_joined'],
+        selected_features_only=False,
+        joining_selected_features_only=False,
+        join_method='first match',
+        discard_nonmatching=False)
+      summary_joined = _load_output_layer(
+        output_paths,
+        'summary_joined',
+        normalized_fsa)
+
+    with _workflow_step('extract kept summary joined records',
+                        normalized_fsa):
+      processor.extract_where(
+        source_layer=summary_joined,
+        predicate=(
+          lambda feature:
+          feature['sum_restore_group'] == 0
+          or processor.is_null_value(feature['sum_restore_group'])),
+        output_path=output_paths['inter_kept'],
+        layer_name=f'inter_kept_{normalized_fsa}')
+      inter_kept = _load_output_layer(
+        output_paths,
+        'inter_kept',
+        normalized_fsa)
+
+    with _workflow_step('join nrcan with inter summary', normalized_fsa):
+      nrcan_preserved_fixed.field_join(
+        joining_layer_path=inter_summary.layer_path,
+        joining_layer_name=inter_summary.layer_name,
+        target_field='nrcan_id',
+        join_field='nrcan_id',
+        join_fields=[
+          'restore_group',
+          'restore_reason',
+        ],
+        output_path=output_paths['nrcan_joined_summary'])
+      nrcan_joined_summary = _load_output_layer(
+        output_paths,
+        'nrcan_joined_summary',
+        normalized_fsa)
+
+    with _workflow_step('extract nrcan restored records', normalized_fsa):
+      processor.extract_where(
+        source_layer=nrcan_joined_summary,
+        predicate=(
+          lambda feature:
+          feature['restore_group'] == 1),
+        output_path=output_paths['nrcan_restored'],
+        layer_name=f'nrcan_restored_{normalized_fsa}')
+      nrcan_restored = _load_output_layer(
+        output_paths,
+        'nrcan_restored',
+        normalized_fsa)
+
+    with _workflow_step('extract dominant summary joined parts',
+                        normalized_fsa):
+      processor.extract_where(
+        source_layer=summary_joined,
+        predicate=(
+          lambda feature:
+          feature['sum_restore_group'] == 1
+          and feature['inter_area'] == feature['sum_max_inter_area']),
+        output_path=output_paths['dominant_parts'],
+        layer_name=f'dominant_parts_{normalized_fsa}')
+      dominant_parts = _load_output_layer(
+        output_paths,
+        'dominant_parts',
+        normalized_fsa)
+      dominant_parts.keep_only_fields([
+        'nrcan_id',
+        'usagedup_id',
+      ])
+
+    with _workflow_step('join nrcan restored with dominant usage id',
+                        normalized_fsa):
+      nrcan_restored.field_join(
+        joining_layer_path=dominant_parts.layer_path,
+        joining_layer_name=dominant_parts.layer_name,
+        target_field='nrcan_id',
+        join_field='nrcan_id',
+        join_fields=['usagedup_id'],
+        output_path=output_paths['nrcan_restored_with_usage_id'])
+      nrcan_restored_with_usage_id = _load_output_layer(
+        output_paths,
+        'nrcan_restored_with_usage_id',
+        normalized_fsa)
+
+    with _workflow_step('merge kept and restored nrcan intersections',
+                        normalized_fsa):
+      ScrubLayer.merge_layer_paths(
+        layer_paths=[
+          inter_kept.layer_path,
+          nrcan_restored_with_usage_id.layer_path,
+        ],
+        output_path=output_paths['nrcan_intersected'])
+      nrcan_intersected = _load_output_layer(
+        output_paths,
+        'nrcan_intersected',
         normalized_fsa)
 
   except Exception:
@@ -382,10 +625,9 @@ def run_workflow(fsa):
       normalized_fsa)
     raise
 
-  output_path = usage_roll_all.layer_path
+  output_path = nrcan_intersected.layer_path
   logger.info(
-    'Completed Montreal FSA GISOO partial workflow. '
-    'FSA=%s Output=%s Elapsed=%.3fs',
+    'Completed Montreal FSA GISOO workflow. FSA=%s Output=%s Elapsed=%.3fs',
     normalized_fsa,
     output_path,
     perf_counter() - workflow_t0)

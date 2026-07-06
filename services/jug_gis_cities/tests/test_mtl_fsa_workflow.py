@@ -37,6 +37,40 @@ class _FakeGeoPackageFeatureProcessor:
       batch_size))
     return field_name
 
+  def add_ratio_field(
+          self,
+          layer,
+          target_field,
+          numerator_field,
+          denominator_field,
+          overwrite=False,
+          batch_size=10000):
+    self.calls.append((
+      'add_ratio_field',
+      layer.layer_name,
+      target_field,
+      numerator_field,
+      denominator_field,
+      overwrite,
+      batch_size))
+    return target_field
+
+  def aggregate_by_group(
+          self,
+          source_layer,
+          group_field,
+          aggregates,
+          output_path,
+          layer_name=None):
+    self.calls.append((
+      'aggregate_by_group',
+      source_layer.layer_name,
+      group_field,
+      aggregates,
+      output_path,
+      layer_name))
+    return output_path
+
   def extract_by_membership(
           self,
           source_layer,
@@ -172,6 +206,23 @@ class _FakeScrubLayer:
       prefix))
     return joined_layer_path
 
+  def intersection_layer(
+          self,
+          overlay_layer,
+          output_path,
+          input_fields=None,
+          overlay_fields=None,
+          overlay_fields_prefix=''):
+    self.calls.append((
+      'intersection_layer',
+      self.layer_name,
+      overlay_layer.layer_name,
+      output_path,
+      input_fields,
+      overlay_fields,
+      overlay_fields_prefix))
+    return output_path
+
   def duplicate_text_field(
           self,
           source_field,
@@ -188,6 +239,54 @@ class _FakeScrubLayer:
       overwrite,
       batch_size))
     return target_field
+
+  def assign_field_expression(
+          self,
+          target_field,
+          expression,
+          field_type=None,
+          field_length=0,
+          field_precision=0):
+    self.calls.append((
+      'assign_field_expression',
+      self.layer_name,
+      target_field,
+      expression,
+      field_type,
+      field_length,
+      field_precision))
+    return target_field
+
+  def field_join(
+          self,
+          joining_layer_path,
+          joining_layer_name,
+          target_field,
+          join_field,
+          join_fields=None,
+          prefix='',
+          output_path=None,
+          selected_features_only=False,
+          joining_selected_features_only=False,
+          join_method=1,
+          discard_nonmatching=False,
+          unjoinable_output_path=None):
+    self.calls.append((
+      'field_join',
+      self.layer_name,
+      joining_layer_path,
+      joining_layer_name,
+      target_field,
+      join_field,
+      join_fields,
+      prefix,
+      output_path,
+      selected_features_only,
+      joining_selected_features_only,
+      join_method,
+      discard_nonmatching,
+      unjoinable_output_path))
+    return output_path
 
   def add_layer_join(
           self,
@@ -232,6 +331,14 @@ class _FakeScrubLayer:
   def create_spatial_index(self):
     self.calls.append(('create_spatial_index', self.layer_name))
 
+  def keep_only_fields(self, fields_to_keep, strict=True):
+    self.calls.append((
+      'keep_only_fields',
+      self.layer_name,
+      fields_to_keep,
+      strict))
+    return fields_to_keep
+
   def __str__(self):
     return f'The {self.layer_name} has {self.data_count} records.'
 
@@ -270,7 +377,7 @@ class TestMtlFsaWorkflow(unittest.TestCase):
     _FakeScrubLayer.calls = []
     _FakeScrubLayer.instances = []
 
-  def test_run_workflow_stops_after_merge_usage_roll_layers(self):
+  def test_run_workflow_transfers_nrcan_intersection_tail(self):
     with tempfile.TemporaryDirectory() as temp_dir:
       data_dir = os.path.join(temp_dir, 'data')
       output_dir = os.path.join(temp_dir, 'output')
@@ -307,8 +414,18 @@ class TestMtlFsaWorkflow(unittest.TestCase):
     usage_roll_path = _output_path('usage_roll')
     usage_roll_all_path = _output_path('usage_roll_all')
     usage_dup_clean_path = _output_path('usage_dup_clean')
+    inter_nrcan_path = _output_path('inter_nrcan')
+    inter_summary_path = _output_path('inter_summary')
+    summary_joined_path = _output_path('summary_joined')
+    inter_kept_path = _output_path('inter_kept')
+    nrcan_joined_summary_path = _output_path('nrcan_joined_summary')
+    nrcan_restored_path = _output_path('nrcan_restored')
+    dominant_parts_path = _output_path('dominant_parts')
+    nrcan_restored_with_usage_id_path = _output_path(
+      'nrcan_restored_with_usage_id')
+    nrcan_intersected_path = _output_path('nrcan_intersected')
 
-    self.assertEqual(result, usage_roll_all_path)
+    self.assertEqual(result, nrcan_intersected_path)
     self.assertNotIn(
       'add_uuid_field',
       [call[0] for call in _FakeScrubLayer.calls])
@@ -581,6 +698,181 @@ class TestMtlFsaWorkflow(unittest.TestCase):
           usage_roll_only_unique_path,
         ],
         usage_roll_all_path,
+        None,
+      ),
+      _FakeScrubLayer.calls)
+    self.assertIn(
+      (
+        'intersection_layer',
+        'nrcan_fixed_H3H',
+        'usage_dup_clean_H3H',
+        inter_nrcan_path,
+        None,
+        ['usagedup_id'],
+        '',
+      ),
+      _FakeScrubLayer.calls)
+    self.assertIn(
+      (
+        'add_area_field',
+        'inter_nrcan_H3H',
+        'inter_area',
+        False,
+        10000,
+      ),
+      _FakeGeoPackageFeatureProcessor.calls)
+    self.assertIn(
+      (
+        'add_ratio_field',
+        'inter_nrcan_H3H',
+        'area_ratio',
+        'inter_area',
+        'nrcan_area',
+        False,
+        10000,
+      ),
+      _FakeGeoPackageFeatureProcessor.calls)
+    aggregate_calls = [
+      call for call in _FakeGeoPackageFeatureProcessor.calls
+      if call[0] == 'aggregate_by_group'
+    ]
+    self.assertEqual(
+      aggregate_calls[0][1:3],
+      ('inter_nrcan_H3H', 'nrcan_id'))
+    self.assertEqual(aggregate_calls[0][4], inter_summary_path)
+    self.assertEqual(aggregate_calls[0][5], 'inter_summary_H3H')
+    self.assertIn(
+      (
+        'assign_field_expression',
+        'inter_summary_H3H',
+        'restore_group',
+        (
+          'CASE\n'
+          'WHEN\n'
+          '    "number_parts" > 1\n'
+          '    AND "min_inter_area" < 30\n'
+          '    AND "max_area_ratio" >= 0.70\n'
+          'THEN 1\n'
+          'WHEN\n'
+          '    "number_parts" >= 3\n'
+          '    AND "nrcan_area" <= 75\n'
+          '    AND "max_inter_area" < 30\n'
+          '    AND "sum_area_ratio" >= 0.95\n'
+          'THEN 1\n'
+          'ELSE 0\n'
+          'END'),
+        2,
+        0,
+        0,
+      ),
+      _FakeScrubLayer.calls)
+    self.assertIn(
+      (
+        'field_join',
+        'inter_nrcan_H3H',
+        inter_summary_path,
+        'inter_summary_H3H',
+        'nrcan_id',
+        'nrcan_id',
+        [
+          'restore_group',
+          'restore_reason',
+          'number_parts',
+          'min_inter_area',
+          'max_inter_area',
+          'max_area_ratio',
+        ],
+        'sum_',
+        summary_joined_path,
+        False,
+        False,
+        'first match',
+        False,
+        None,
+      ),
+      _FakeScrubLayer.calls)
+    self.assertIn(
+      (
+        'extract_where',
+        'summary_joined_H3H',
+        inter_kept_path,
+        'inter_kept_H3H',
+      ),
+      _FakeGeoPackageFeatureProcessor.calls)
+    self.assertIn(
+      (
+        'field_join',
+        'nrcan_preserved_fixed_H3H',
+        inter_summary_path,
+        'inter_summary_H3H',
+        'nrcan_id',
+        'nrcan_id',
+        [
+          'restore_group',
+          'restore_reason',
+        ],
+        '',
+        nrcan_joined_summary_path,
+        False,
+        False,
+        1,
+        False,
+        None,
+      ),
+      _FakeScrubLayer.calls)
+    self.assertIn(
+      (
+        'extract_where',
+        'nrcan_joined_summary_H3H',
+        nrcan_restored_path,
+        'nrcan_restored_H3H',
+      ),
+      _FakeGeoPackageFeatureProcessor.calls)
+    self.assertIn(
+      (
+        'extract_where',
+        'summary_joined_H3H',
+        dominant_parts_path,
+        'dominant_parts_H3H',
+      ),
+      _FakeGeoPackageFeatureProcessor.calls)
+    self.assertIn(
+      (
+        'keep_only_fields',
+        'dominant_parts_H3H',
+        [
+          'nrcan_id',
+          'usagedup_id',
+        ],
+        True,
+      ),
+      _FakeScrubLayer.calls)
+    self.assertIn(
+      (
+        'field_join',
+        'nrcan_restored_H3H',
+        dominant_parts_path,
+        'dominant_parts_H3H',
+        'nrcan_id',
+        'nrcan_id',
+        ['usagedup_id'],
+        '',
+        nrcan_restored_with_usage_id_path,
+        False,
+        False,
+        1,
+        False,
+        None,
+      ),
+      _FakeScrubLayer.calls)
+    self.assertIn(
+      (
+        'merge_layer_paths',
+        [
+          inter_kept_path,
+          nrcan_restored_with_usage_id_path,
+        ],
+        nrcan_intersected_path,
         None,
       ),
       _FakeScrubLayer.calls)
