@@ -210,6 +210,7 @@ def run_workflow(fsa):
         'usage_dup_fixed',
         normalized_fsa)
 
+    # Procedure: Roll joins Usage Workflow
     with _workflow_step('extract usage records missing from roll',
                         normalized_fsa):
       processor.extract_by_membership(
