@@ -863,6 +863,21 @@ class ScrubLayer:
       self.layer_name,
       singleparts_layer_path)
 
+  def point_on_surface(self, output_path, all_parts=False):
+    """Create point features guaranteed to be on each input surface."""
+    QgsApplication.processingRegistry().addProvider(QgsNativeAlgorithms())
+    params = {
+      'INPUT': self.layer,
+      'ALL_PARTS': all_parts,
+      'OUTPUT': output_path
+    }
+    processing.run('native:pointonsurface', params)
+    logger.info(
+      'Created point-on-surface layer from %s into %s.',
+      self.layer_name,
+      output_path)
+    return output_path
+
   def delete_duplicate_geometries(self, output_path):
     """Delete duplicate geometries using QGIS native processing."""
     QgsApplication.processingRegistry().addProvider(QgsNativeAlgorithms())

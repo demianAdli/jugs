@@ -679,6 +679,33 @@ class TestScrubLayerExtraction(unittest.TestCase):
       })
 
   @patch('src.citygisoo.scrub_layer_class.processing.run')
+  def test_point_on_surface_runs_qgis_algorithm(self, processing_run_mock):
+    scrub_layer = _build_scrub_layer()
+
+    result = scrub_layer.point_on_surface(
+      output_path='output/fsa_surface_points.gpkg')
+
+    self.assertEqual(result, 'output/fsa_surface_points.gpkg')
+    processing_run_mock.assert_called_once_with(
+      'native:pointonsurface',
+      {
+        'INPUT': scrub_layer.layer,
+        'ALL_PARTS': False,
+        'OUTPUT': 'output/fsa_surface_points.gpkg',
+      })
+
+  @patch('src.citygisoo.scrub_layer_class.processing.run')
+  def test_point_on_surface_can_create_point_for_each_part(
+          self, processing_run_mock):
+    scrub_layer = _build_scrub_layer()
+
+    scrub_layer.point_on_surface(
+      output_path='output/fsa_surface_points.gpkg',
+      all_parts=True)
+
+    self.assertTrue(processing_run_mock.call_args.args[1]['ALL_PARTS'])
+
+  @patch('src.citygisoo.scrub_layer_class.processing.run')
   def test_delete_duplicate_geometries_runs_qgis_algorithm(
           self, processing_run_mock):
     scrub_layer = _build_scrub_layer()
