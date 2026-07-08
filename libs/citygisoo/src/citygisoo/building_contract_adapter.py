@@ -41,7 +41,8 @@ class BuildingContractAdapter:
           id_start_value=1,
           source_geojson_path=None,
           source_geojson_layer_name=None,
-          output_layer_name=None):
+          output_layer_name=None,
+          field_order=None):
     self.qgis_path = qgis_path
     self.input_layer_path = input_layer_path
     self.input_layer_name = input_layer_name
@@ -53,6 +54,10 @@ class BuildingContractAdapter:
       self.required_fields = []
     else:
       self.required_fields = list(required_fields)
+    if field_order is None:
+      self.field_order = None
+    else:
+      self.field_order = list(field_order)
     self.id_field_name = id_field_name
     self.id_start_value = id_start_value
 
@@ -109,6 +114,19 @@ class BuildingContractAdapter:
       raise TypeError('required_fields must be a list, tuple, or set.')
     if not self.required_fields:
       raise ValueError('required_fields must not be empty.')
+    if self.field_order is not None:
+      if not self.field_order:
+        raise ValueError('field_order must not be empty when provided.')
+      if len(set(self.field_order)) != len(self.field_order):
+        raise ValueError('field_order must not contain duplicate fields.')
+      unknown_fields = [
+        field_name for field_name in self.field_order
+        if field_name not in self.required_fields
+      ]
+      if unknown_fields:
+        raise ValueError(
+          'field_order contains fields outside required_fields: '
+          f'{unknown_fields}')
     if not isinstance(self.id_start_value, int):
       raise TypeError('id_start_value must be an integer.')
 
@@ -211,6 +229,7 @@ class BuildingContractAdapter:
       standardized_scrub_layer = source_geojson_manager.standardize_fields(
         field_rename_map=self.field_rename_map,
         fields_to_keep=list(self.required_fields),
+        field_order=self.field_order,
         output_path=self.output_geojson_path,
         output_layer_name=self.output_layer_name)
       standardized_manager = FieldSchemaManager(standardized_scrub_layer)

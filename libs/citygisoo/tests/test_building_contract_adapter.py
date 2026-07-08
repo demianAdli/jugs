@@ -94,6 +94,7 @@ class TestBuildingContractAdapter(unittest.TestCase):
     self.assertEqual(adapter.source_required_fields,
                      ['old_name', 'old_height'])
     self.assertEqual(adapter.output_layer_name, 'standardized')
+    self.assertIsNone(adapter.field_order)
 
   def test_rejects_invalid_output_geojson_path(self):
     with self.assertRaises(ValueError):
@@ -173,7 +174,8 @@ class TestBuildingContractAdapter(unittest.TestCase):
         required_fields=['name', 'height'],
         id_field_name='id',
         id_start_value=100,
-        output_layer_name='standardized_buildings')
+        output_layer_name='standardized_buildings',
+        field_order=['height', 'name'])
 
       result = adapter.run()
 
@@ -196,6 +198,7 @@ class TestBuildingContractAdapter(unittest.TestCase):
     source_manager.standardize_fields.assert_called_once_with(
       field_rename_map={'raw_name': 'name', 'raw_height': 'height'},
       fields_to_keep=['name', 'height'],
+      field_order=['height', 'name'],
       output_path=output_geojson_path,
       output_layer_name='standardized_buildings')
     standardized_manager.drop_null_features.assert_called_once_with(
