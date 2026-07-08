@@ -664,17 +664,45 @@ def run_workflow(fsa):
           "geometry(\n"
           "    get_feature(\n"
           "        'c_nrcan_intersected',\n"
-          "        'red_id',\n"
-          "        attribute(@feature, 'red_id')\n"
+          "        'nrcan_in_id',\n"
+          "        attribute(@feature, 'nrcan_in_id')\n"
           "    )\n"
           ")"),
-        output_path=output_paths['nrcan_usage_roll_with_missings'],
+        output_path=output_paths['nrcan_usage_roll_with_missing'],
         output_geometry_type='polygon')
-      nrcan_usage_roll_with_missings = _load_output_layer(
+      nrcan_usage_roll_with_missing = _load_output_layer(
         output_paths,
-        'nrcan_usage_roll_with_missings',
+        'nrcan_usage_roll_with_missing',
         normalized_fsa,
-        layer_name='nrcan_usage_roll_with_missings')
+        layer_name='nrcan_usage_roll_with_missing')
+
+    with _workflow_step('extract usage roll missing nrcan geometry',
+                        normalized_fsa):
+      processor.extract_by_membership(
+        source_layer=usage_roll_all,
+        lookup_layer=nrcan_usage_roll_with_missing,
+        source_field='id_provinc',
+        lookup_field='ur_id_provinc',
+        output_path=output_paths['usage_roll_all_only'],
+        include_matches=False,
+        layer_name=f'usage_roll_all_only_{normalized_fsa}')
+      usage_roll_all_only = _load_output_layer(
+        output_paths,
+        'usage_roll_all_only',
+        normalized_fsa)
+
+    with _workflow_step('merge nrcan usage roll layers',
+                        normalized_fsa):
+      ScrubLayer.merge_layer_paths(
+        layer_paths=[
+          nrcan_usage_roll_with_missing.layer_path,
+          usage_roll_all_only.layer_path,
+        ],
+        output_path=output_paths['nrcan_usage_roll'])
+      nrcan_usage_roll = _load_output_layer(
+        output_paths,
+        'nrcan_usage_roll',
+        normalized_fsa)
 
   except Exception:
     logger.exception(
@@ -682,7 +710,7 @@ def run_workflow(fsa):
       normalized_fsa)
     raise
 
-  output_path = nrcan_usage_roll_with_missings.layer_path
+  output_path = nrcan_usage_roll.layer_path
   logger.info(
     'Completed Montreal FSA GISOO workflow. FSA=%s Output=%s Elapsed=%.3fs',
     normalized_fsa,

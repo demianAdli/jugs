@@ -452,10 +452,12 @@ class TestMtlFsaWorkflow(unittest.TestCase):
     nrcan_intersected_points_path = _output_path('nrcan_intersected_points')
     nrcan_in_usage_roll_points_path = _output_path(
       'nrcan_in_usage_roll_points')
-    nrcan_usage_roll_with_missings_path = _output_path(
-      'nrcan_usage_roll_with_missings')
+    nrcan_usage_roll_with_missing_path = _output_path(
+      'nrcan_usage_roll_with_missing')
+    usage_roll_all_only_path = _output_path('usage_roll_all_only')
+    nrcan_usage_roll_path = _output_path('nrcan_usage_roll')
 
-    self.assertEqual(result, nrcan_usage_roll_with_missings_path)
+    self.assertEqual(result, nrcan_usage_roll_path)
     self.assertNotIn(
       'add_uuid_field',
       [call[0] for call in _FakeScrubLayer.calls])
@@ -944,11 +946,11 @@ class TestMtlFsaWorkflow(unittest.TestCase):
           "geometry(\n"
           "    get_feature(\n"
           "        'c_nrcan_intersected',\n"
-          "        'red_id',\n"
-          "        attribute(@feature, 'red_id')\n"
+          "        'nrcan_in_id',\n"
+          "        attribute(@feature, 'nrcan_in_id')\n"
           "    )\n"
           ")"),
-        nrcan_usage_roll_with_missings_path,
+        nrcan_usage_roll_with_missing_path,
         'polygon',
         False,
         False,
@@ -958,8 +960,47 @@ class TestMtlFsaWorkflow(unittest.TestCase):
       (
         'init',
         'C:/QGIS',
-        nrcan_usage_roll_with_missings_path,
-        'nrcan_usage_roll_with_missings',
+        nrcan_usage_roll_with_missing_path,
+        'nrcan_usage_roll_with_missing',
+      ),
+      _FakeScrubLayer.calls)
+    self.assertIn(
+      (
+        'extract_by_membership',
+        'usage_roll_all_H3H',
+        'nrcan_usage_roll_with_missing',
+        'id_provinc',
+        'ur_id_provinc',
+        usage_roll_all_only_path,
+        False,
+        'usage_roll_all_only_H3H',
+      ),
+      _FakeGeoPackageFeatureProcessor.calls)
+    self.assertIn(
+      (
+        'init',
+        'C:/QGIS',
+        usage_roll_all_only_path,
+        'usage_roll_all_only_H3H',
+      ),
+      _FakeScrubLayer.calls)
+    self.assertIn(
+      (
+        'merge_layer_paths',
+        [
+          nrcan_usage_roll_with_missing_path,
+          usage_roll_all_only_path,
+        ],
+        nrcan_usage_roll_path,
+        None,
+      ),
+      _FakeScrubLayer.calls)
+    self.assertIn(
+      (
+        'init',
+        'C:/QGIS',
+        nrcan_usage_roll_path,
+        'nrcan_usage_roll_H3H',
       ),
       _FakeScrubLayer.calls)
 
