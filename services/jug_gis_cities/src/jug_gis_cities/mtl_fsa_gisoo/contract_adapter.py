@@ -25,8 +25,8 @@ except ImportError:
 
 logger = get_logger(__name__)
 
-workflow_output_layer_name = 'mtl_fsa_gisoo'
-workflow_output_layer_suffix = '.shp'
+workflow_output_layer_name = 'mtl_{fsa}_gisoo'
+workflow_output_layer_suffix = '.gpkg'
 
 output_layer_name = 'mtl_fsa_standardized'
 output_layer_suffix = '.geojson'
@@ -37,22 +37,38 @@ id_field_name = 'id'
 id_start_value = 100000
 
 rename_fields = {
-    'g_id_provi': 'name',
-    'heightmax': 'height',
-    'g_utilisat': 'function',
-    'rl_ad_ad_1': 'address',
-    'rl_uerl0_6': 'year_of_construction'
+    'citygisoo_id': 'citygisoo_id',
+    'processing_tool': 'processing_tool',
+    'processed_by': 'processed_by',
+    'FSA': 'FSA',
+    'citygisoo_area': 'citygisoo_area',
+    '_max': 'height',
+    'CODE UTILISATION PREDO': 'function',
+    'ur_ro_uerl0307a': 'year_of_construction',
+    'ur_g_id_provi': 'usage_provincial_id',
+    'ur_id_provinc': 'roll_provincial_id',
+    'bldgarea': 'nrcan_area',
+    'ur_r_uerl0302a': 'roll_area',
+    'ur_g_sup_tota': 'usage_area',
+    'ur_ro_uerl0308a': 'main_floor_area',
+    'ur_ro_uerl0306a': 'floor_num',
+    'ur_ro_uerl0311a': 'unit_num',
+    'ur_g_utilisat': 'usage_function',
+    '_mean': 'mean_height',
 }
 
 required_fields = list(rename_fields.values())
+field_order = list(required_fields)
 
 
 def _build_adapter_paths(fsa):
     output_paths_dir = paths.get_fsa_output_paths_dir(fsa)
+    resolved_workflow_output_layer_name = workflow_output_layer_name.format(
+        fsa=fsa)
     workflow_output_layer_path = os.path.join(
         output_paths_dir,
-        workflow_output_layer_name,
-        workflow_output_layer_name + workflow_output_layer_suffix)
+        resolved_workflow_output_layer_name,
+        resolved_workflow_output_layer_name + workflow_output_layer_suffix)
     output_layer_path = os.path.join(
         output_paths_dir,
         output_layer_name,
@@ -86,7 +102,8 @@ def run_contract_adapter(fsa):
     adapter = BuildingContractAdapter(
         qgis_path=paths.qgis_path,
         input_layer_path=workflow_output_layer_path,
-        input_layer_name=workflow_output_layer_name,
+        input_layer_name=workflow_output_layer_name.format(
+            fsa=normalized_fsa),
         output_geojson_path=output_layer_path,
         field_rename_map=rename_fields,
         required_fields=required_fields,
@@ -94,7 +111,8 @@ def run_contract_adapter(fsa):
         id_start_value=id_start_value,
         source_geojson_path=contract_source_layer_path,
         source_geojson_layer_name=contract_source_layer_name,
-        output_layer_name='standardized_mtl_fsa')
+        output_layer_name='standardized_mtl_fsa',
+        field_order=field_order)
 
     try:
         standardized_output_path = adapter.run()
