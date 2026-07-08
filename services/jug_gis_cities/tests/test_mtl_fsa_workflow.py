@@ -364,6 +364,14 @@ class _FakeScrubLayer:
       strict))
     return fields_to_keep
 
+  def drop_fields(self, fields_to_drop, strict=True):
+    self.calls.append((
+      'drop_fields',
+      self.layer_name,
+      fields_to_drop,
+      strict))
+    return self
+
   def __str__(self):
     return f'The {self.layer_name} has {self.data_count} records.'
 
@@ -1001,6 +1009,14 @@ class TestMtlFsaWorkflow(unittest.TestCase):
         'C:/QGIS',
         nrcan_usage_roll_path,
         'nrcan_usage_roll_H3H',
+      ),
+      _FakeScrubLayer.calls)
+    self.assertIn(
+      (
+        'drop_fields',
+        'nrcan_usage_roll_H3H',
+        workflow.paths.nrcan_usage_roll_unnecessary_fields,
+        False,
       ),
       _FakeScrubLayer.calls)
 
