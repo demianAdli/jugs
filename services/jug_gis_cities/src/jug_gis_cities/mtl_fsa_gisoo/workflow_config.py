@@ -117,5 +117,6 @@ output_paths = {
   'nrcan_intersected': '',
   'nrcan_intersected_points': '',
   'nrcan_in_usage_roll_points': '',
+  'nrcan_usage_roll_with_missings': '',
   'mtl_fsa_gisoo': '',
 }

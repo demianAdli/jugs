@@ -621,7 +621,8 @@ def run_workflow(fsa):
       nrcan_intersected = _load_output_layer(
         output_paths,
         'nrcan_intersected',
-        normalized_fsa)
+        normalized_fsa,
+        layer_name='c_nrcan_intersected')
 
     # Procedure: Joining usage_roll_all attributes to the
     # nrcan_intersected features
@@ -656,13 +657,32 @@ def run_workflow(fsa):
         'nrcan_in_usage_roll_points',
         normalized_fsa)
 
+    with _workflow_step('restore nrcan geometry on usage roll points',
+                        normalized_fsa):
+      nrcan_in_usage_roll_points.geometry_by_expression(
+        expression=(
+          "geometry(\n"
+          "    get_feature(\n"
+          "        'c_nrcan_intersected',\n"
+          "        'red_id',\n"
+          "        attribute(@feature, 'red_id')\n"
+          "    )\n"
+          ")"),
+        output_path=output_paths['nrcan_usage_roll_with_missings'],
+        output_geometry_type='polygon')
+      nrcan_usage_roll_with_missings = _load_output_layer(
+        output_paths,
+        'nrcan_usage_roll_with_missings',
+        normalized_fsa,
+        layer_name='nrcan_usage_roll_with_missings')
+
   except Exception:
     logger.exception(
       'Montreal FSA GISOO workflow failed. FSA=%s',
       normalized_fsa)
     raise
 
-  output_path = nrcan_intersected.layer_path
+  output_path = nrcan_usage_roll_with_missings.layer_path
   logger.info(
     'Completed Montreal FSA GISOO workflow. FSA=%s Output=%s Elapsed=%.3fs',
     normalized_fsa,

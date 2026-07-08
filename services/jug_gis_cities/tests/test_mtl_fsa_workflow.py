@@ -206,6 +206,31 @@ class _FakeScrubLayer:
       prefix))
     return joined_layer_path
 
+  def point_on_surface(self, output_path, all_parts=False):
+    self.calls.append((
+      'point_on_surface',
+      self.layer_name,
+      output_path,
+      all_parts))
+    return output_path
+
+  def geometry_by_expression(
+          self,
+          expression,
+          output_path,
+          output_geometry_type='polygon',
+          with_z=False,
+          with_m=False):
+    self.calls.append((
+      'geometry_by_expression',
+      self.layer_name,
+      expression,
+      output_path,
+      output_geometry_type,
+      with_z,
+      with_m))
+    return output_path
+
   def intersection_layer(
           self,
           overlay_layer,
@@ -424,8 +449,13 @@ class TestMtlFsaWorkflow(unittest.TestCase):
     nrcan_restored_with_usage_id_path = _output_path(
       'nrcan_restored_with_usage_id')
     nrcan_intersected_path = _output_path('nrcan_intersected')
+    nrcan_intersected_points_path = _output_path('nrcan_intersected_points')
+    nrcan_in_usage_roll_points_path = _output_path(
+      'nrcan_in_usage_roll_points')
+    nrcan_usage_roll_with_missings_path = _output_path(
+      'nrcan_usage_roll_with_missings')
 
-    self.assertEqual(result, nrcan_intersected_path)
+    self.assertEqual(result, nrcan_usage_roll_with_missings_path)
     self.assertNotIn(
       'add_uuid_field',
       [call[0] for call in _FakeScrubLayer.calls])
@@ -879,12 +909,57 @@ class TestMtlFsaWorkflow(unittest.TestCase):
     self.assertIn(
       (
         'assign_field_expression',
-        'nrcan_intersected_H3H',
+        'c_nrcan_intersected',
         'nrcan_in_id',
         "replace(replace(uuid(), '{', ''), '}', '')",
         10,
         36,
         0,
+      ),
+      _FakeScrubLayer.calls)
+    self.assertIn(
+      (
+        'point_on_surface',
+        'c_nrcan_intersected',
+        nrcan_intersected_points_path,
+        False,
+      ),
+      _FakeScrubLayer.calls)
+    self.assertIn(
+      (
+        'spatial_join_with_predicate',
+        'nrcan_intersected_points',
+        usage_roll_all_path,
+        nrcan_in_usage_roll_points_path,
+        'within',
+        'one-to-many',
+        'ur_',
+      ),
+      _FakeScrubLayer.calls)
+    self.assertIn(
+      (
+        'geometry_by_expression',
+        'nrcan_in_usage_roll_points_H3H',
+        (
+          "geometry(\n"
+          "    get_feature(\n"
+          "        'c_nrcan_intersected',\n"
+          "        'red_id',\n"
+          "        attribute(@feature, 'red_id')\n"
+          "    )\n"
+          ")"),
+        nrcan_usage_roll_with_missings_path,
+        'polygon',
+        False,
+        False,
+      ),
+      _FakeScrubLayer.calls)
+    self.assertIn(
+      (
+        'init',
+        'C:/QGIS',
+        nrcan_usage_roll_with_missings_path,
+        'nrcan_usage_roll_with_missings',
       ),
       _FakeScrubLayer.calls)
 
