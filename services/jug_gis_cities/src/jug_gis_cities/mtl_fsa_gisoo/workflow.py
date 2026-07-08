@@ -50,13 +50,21 @@ def _log_layer_summary(layer):
   logger.info('%s', layer)
 
 
-def _create_geopackage_output_paths(output_paths, output_paths_dir):
+def _resolve_output_key(output_key, fsa):
+  return output_key.format(fsa=fsa)
+
+
+def _create_geopackage_output_paths(output_paths, output_paths_dir, fsa):
+  resolved_output_paths = {}
   for output_key in output_paths:
-    output_folder = os.path.join(output_paths_dir, output_key)
+    resolved_key = _resolve_output_key(output_key, fsa)
+    output_folder = os.path.join(output_paths_dir, resolved_key)
     os.makedirs(output_folder, exist_ok=True)
-    output_paths[output_key] = os.path.join(
+    resolved_output_paths[resolved_key] = os.path.join(
       output_folder,
-      f'{output_key}.gpkg')
+      f'{resolved_key}.gpkg')
+  output_paths.clear()
+  output_paths.update(resolved_output_paths)
 
 
 def _load_output_layer(output_paths, output_key, fsa, layer_name=None):
@@ -83,7 +91,10 @@ def run_workflow(fsa):
 
   try:
     with _workflow_step('prepare output folders', normalized_fsa):
-      _create_geopackage_output_paths(output_paths, output_paths_dir)
+      _create_geopackage_output_paths(
+        output_paths,
+        output_paths_dir,
+        normalized_fsa)
 
     with _workflow_step('load input layers', normalized_fsa):
       roll_mtl = ScrubLayer(
@@ -746,13 +757,26 @@ def run_workflow(fsa):
         field_type=10,
         field_length=32)
 
+    final_output_key = f'mtl_{normalized_fsa}_gisoo'
+    with _workflow_step('create finalized GISOO layer', normalized_fsa):
+      processor.extract_where(
+        source_layer=nrcan_usage_roll,
+        predicate=lambda feature: True,
+        output_path=output_paths[final_output_key],
+        layer_name=final_output_key)
+      finalized_layer = _load_output_layer(
+        output_paths,
+        final_output_key,
+        normalized_fsa,
+        layer_name=final_output_key)
+
   except Exception:
     logger.exception(
       'Montreal FSA GISOO workflow failed. FSA=%s',
       normalized_fsa)
     raise
 
-  output_path = nrcan_usage_roll.layer_path
+  output_path = finalized_layer.layer_path
   logger.info(
     'Completed Montreal FSA GISOO workflow. FSA=%s Output=%s Elapsed=%.3fs',
     normalized_fsa,

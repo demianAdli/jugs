@@ -191,5 +191,5 @@ output_paths = {
   'nrcan_usage_roll_with_missing': '',
   'usage_roll_all_only': '',
   'nrcan_usage_roll': '',
-  'mtl_fsa_gisoo': '',
+  'mtl_{fsa}_gisoo': '',
 }

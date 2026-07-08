@@ -464,8 +464,10 @@ class TestMtlFsaWorkflow(unittest.TestCase):
       'nrcan_usage_roll_with_missing')
     usage_roll_all_only_path = _output_path('usage_roll_all_only')
     nrcan_usage_roll_path = _output_path('nrcan_usage_roll')
+    final_output_key = 'mtl_H3H_gisoo'
+    final_output_path = _output_path(final_output_key)
 
-    self.assertEqual(result, nrcan_usage_roll_path)
+    self.assertEqual(result, final_output_path)
     self.assertNotIn(
       'add_uuid_field',
       [call[0] for call in _FakeScrubLayer.calls])
@@ -1070,6 +1072,22 @@ class TestMtlFsaWorkflow(unittest.TestCase):
         10,
         32,
         0,
+      ),
+      _FakeScrubLayer.calls)
+    self.assertIn(
+      (
+        'extract_where',
+        'nrcan_usage_roll_H3H',
+        final_output_path,
+        final_output_key,
+      ),
+      _FakeGeoPackageFeatureProcessor.calls)
+    self.assertIn(
+      (
+        'init',
+        'C:/QGIS',
+        final_output_path,
+        final_output_key,
       ),
       _FakeScrubLayer.calls)
 
