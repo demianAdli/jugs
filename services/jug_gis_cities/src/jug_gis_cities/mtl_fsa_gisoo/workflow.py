@@ -715,12 +715,6 @@ def run_workflow(fsa):
         'nrcan_usage_roll',
         normalized_fsa)
 
-    with _workflow_step('drop unnecessary nrcan usage roll fields',
-                        normalized_fsa):
-      nrcan_usage_roll.drop_fields(
-        paths.nrcan_usage_roll_unnecessary_fields,
-        strict=False)
-
     with _workflow_step('assign nrcan usage roll FSA field',
                         normalized_fsa):
       nrcan_usage_roll.assign_field_expression(
