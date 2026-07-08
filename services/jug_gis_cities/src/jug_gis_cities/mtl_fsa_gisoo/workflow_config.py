@@ -115,5 +115,7 @@ output_paths = {
   'dominant_parts': '',
   'nrcan_restored_with_usage_id': '',
   'nrcan_intersected': '',
-  'mtl_fsa_gisoo': ''
+  'nrcan_intersected_points': '',
+  'nrcan_in_usage_roll_points': '',
+  'mtl_fsa_gisoo': '',
 }

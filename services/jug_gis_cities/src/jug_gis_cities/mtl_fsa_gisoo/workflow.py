@@ -634,6 +634,28 @@ def run_workflow(fsa):
         field_type=10,
         field_length=36)
 
+    with _workflow_step('create nrcan intersected points', normalized_fsa):
+      nrcan_intersected.point_on_surface(
+        output_path=output_paths['nrcan_intersected_points'])
+      nrcan_intersected_points = _load_output_layer(
+        output_paths,
+        'nrcan_intersected_points',
+        normalized_fsa,
+        layer_name='nrcan_intersected_points')
+
+    with _workflow_step('spatial join nrcan intersected points with usage roll',
+                        normalized_fsa):
+      nrcan_intersected_points.spatial_join_with_predicate(
+        joining_layer_path=usage_roll_all.layer_path,
+        joined_layer_path=output_paths['nrcan_in_usage_roll_points'],
+        predicate='within',
+        join_method='one-to-many',
+        prefix='ur_')
+      nrcan_in_usage_roll_points = _load_output_layer(
+        output_paths,
+        'nrcan_in_usage_roll_points',
+        normalized_fsa)
+
   except Exception:
     logger.exception(
       'Montreal FSA GISOO workflow failed. FSA=%s',
