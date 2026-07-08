@@ -1019,6 +1019,28 @@ class TestMtlFsaWorkflow(unittest.TestCase):
         False,
       ),
       _FakeScrubLayer.calls)
+    self.assertIn(
+      (
+        'assign_field_expression',
+        'nrcan_usage_roll_H3H',
+        'FSA',
+        "'H3H'",
+        10,
+        3,
+        0,
+      ),
+      _FakeScrubLayer.calls)
+    self.assertIn(
+      (
+        'assign_field_expression',
+        'nrcan_usage_roll_H3H',
+        'citygisoo_id',
+        "replace(replace(uuid(), '{', ''), '}', '')",
+        10,
+        36,
+        0,
+      ),
+      _FakeScrubLayer.calls)
 
 
 if __name__ == '__main__':

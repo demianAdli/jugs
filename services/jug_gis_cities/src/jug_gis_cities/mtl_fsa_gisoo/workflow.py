@@ -710,6 +710,22 @@ def run_workflow(fsa):
         paths.nrcan_usage_roll_unnecessary_fields,
         strict=False)
 
+    with _workflow_step('assign nrcan usage roll FSA field',
+                        normalized_fsa):
+      nrcan_usage_roll.assign_field_expression(
+        target_field='FSA',
+        expression=f"'{normalized_fsa}'",
+        field_type=10,
+        field_length=3)
+
+    with _workflow_step('assign nrcan usage roll citygisoo id field',
+                        normalized_fsa):
+      nrcan_usage_roll.assign_field_expression(
+        target_field='citygisoo_id',
+        expression="replace(replace(uuid(), '{', ''), '}', '')",
+        field_type=10,
+        field_length=36)
+
   except Exception:
     logger.exception(
       'Montreal FSA GISOO workflow failed. FSA=%s',
