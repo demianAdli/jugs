@@ -368,6 +368,13 @@ def run_workflow(fsa):
         'usage_roll_all',
         normalized_fsa)
 
+    with _workflow_step('assign usage roll uuid field', normalized_fsa):
+      usage_roll_all.assign_field_expression(
+        target_field='usage_roll_id',
+        expression="replace(replace(uuid(), '{', ''), '}', '')",
+        field_type=10,
+        field_length=36)
+
     # Procedure: NRCan Intersection by Usage begins from here.
     with _workflow_step('delete duplicate usage geometries', normalized_fsa):
       usage_dup_fixed.delete_duplicate_geometries(
@@ -615,6 +622,17 @@ def run_workflow(fsa):
         output_paths,
         'nrcan_intersected',
         normalized_fsa)
+
+    # Procedure: Joining usage_roll_all attributes to the
+    # nrcan_intersected features
+
+    with _workflow_step('assign nrcan intersected uuid field',
+                        normalized_fsa):
+      nrcan_intersected.assign_field_expression(
+        target_field='nrcan_in_id',
+        expression="replace(replace(uuid(), '{', ''), '}', '')",
+        field_type=10,
+        field_length=36)
 
   except Exception:
     logger.exception(

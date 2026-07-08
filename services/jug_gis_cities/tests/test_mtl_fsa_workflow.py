@@ -703,6 +703,17 @@ class TestMtlFsaWorkflow(unittest.TestCase):
       _FakeScrubLayer.calls)
     self.assertIn(
       (
+        'assign_field_expression',
+        'usage_roll_all_H3H',
+        'usage_roll_id',
+        "replace(replace(uuid(), '{', ''), '}', '')",
+        10,
+        36,
+        0,
+      ),
+      _FakeScrubLayer.calls)
+    self.assertIn(
+      (
         'intersection_layer',
         'nrcan_fixed_H3H',
         'usage_dup_clean_H3H',
@@ -863,6 +874,17 @@ class TestMtlFsaWorkflow(unittest.TestCase):
         ],
         nrcan_intersected_path,
         None,
+      ),
+      _FakeScrubLayer.calls)
+    self.assertIn(
+      (
+        'assign_field_expression',
+        'nrcan_intersected_H3H',
+        'nrcan_in_id',
+        "replace(replace(uuid(), '{', ''), '}', '')",
+        10,
+        36,
+        0,
       ),
       _FakeScrubLayer.calls)
 
