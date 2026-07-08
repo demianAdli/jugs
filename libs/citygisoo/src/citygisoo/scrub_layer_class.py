@@ -878,6 +878,60 @@ class ScrubLayer:
       output_path)
     return output_path
 
+  @staticmethod
+  def _normalize_output_geometry_type(output_geometry_type):
+    if isinstance(output_geometry_type, int):
+      return output_geometry_type
+
+    normalized_geometry_type = str(output_geometry_type).strip().lower()
+    geometry_type_codes = {
+      'polygon': 0,
+      'polygons': 0,
+      'multipolygon': 0,
+      'multi polygon': 0,
+      'line': 1,
+      'lines': 1,
+      'linestring': 1,
+      'line string': 1,
+      'multiline': 1,
+      'multilinestring': 1,
+      'multi line': 1,
+      'multi line string': 1,
+      'point': 2,
+      'points': 2,
+      'multipoint': 2,
+      'multi point': 2,
+    }
+    if normalized_geometry_type not in geometry_type_codes:
+      raise ValueError(
+        f'Unsupported output geometry type: {output_geometry_type}')
+    return geometry_type_codes[normalized_geometry_type]
+
+  def geometry_by_expression(
+          self,
+          expression,
+          output_path,
+          output_geometry_type='polygon',
+          with_z=False,
+          with_m=False):
+    """Create or replace geometries using a QGIS geometry expression."""
+    QgsApplication.processingRegistry().addProvider(QgsNativeAlgorithms())
+    params = {
+      'INPUT': self.layer,
+      'OUTPUT_GEOMETRY': self._normalize_output_geometry_type(
+        output_geometry_type),
+      'WITH_Z': with_z,
+      'WITH_M': with_m,
+      'EXPRESSION': expression,
+      'OUTPUT': output_path
+    }
+    processing.run('native:geometrybyexpression', params)
+    logger.info(
+      'Created geometry-by-expression layer from %s into %s.',
+      self.layer_name,
+      output_path)
+    return output_path
+
   def delete_duplicate_geometries(self, output_path):
     """Delete duplicate geometries using QGIS native processing."""
     QgsApplication.processingRegistry().addProvider(QgsNativeAlgorithms())

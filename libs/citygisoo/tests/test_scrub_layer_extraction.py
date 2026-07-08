@@ -706,6 +706,55 @@ class TestScrubLayerExtraction(unittest.TestCase):
     self.assertTrue(processing_run_mock.call_args.args[1]['ALL_PARTS'])
 
   @patch('src.citygisoo.scrub_layer_class.processing.run')
+  def test_geometry_by_expression_runs_qgis_algorithm(
+          self, processing_run_mock):
+    scrub_layer = _build_scrub_layer()
+
+    result = scrub_layer.geometry_by_expression(
+      expression='point_on_surface($geometry)',
+      output_path='output/fsa_expression_points.gpkg',
+      output_geometry_type='point')
+
+    self.assertEqual(result, 'output/fsa_expression_points.gpkg')
+    processing_run_mock.assert_called_once_with(
+      'native:geometrybyexpression',
+      {
+        'INPUT': scrub_layer.layer,
+        'OUTPUT_GEOMETRY': 2,
+        'WITH_Z': False,
+        'WITH_M': False,
+        'EXPRESSION': 'point_on_surface($geometry)',
+        'OUTPUT': 'output/fsa_expression_points.gpkg',
+      })
+
+  @patch('src.citygisoo.scrub_layer_class.processing.run')
+  def test_geometry_by_expression_accepts_qgis_geometry_type_code_and_zm(
+          self, processing_run_mock):
+    scrub_layer = _build_scrub_layer()
+
+    scrub_layer.geometry_by_expression(
+      expression='force_rhr($geometry)',
+      output_path='output/fsa_expression_polygons.gpkg',
+      output_geometry_type=0,
+      with_z=True,
+      with_m=True)
+
+    processing_run_mock.assert_called_once_with(
+      'native:geometrybyexpression',
+      {
+        'INPUT': scrub_layer.layer,
+        'OUTPUT_GEOMETRY': 0,
+        'WITH_Z': True,
+        'WITH_M': True,
+        'EXPRESSION': 'force_rhr($geometry)',
+        'OUTPUT': 'output/fsa_expression_polygons.gpkg',
+      })
+
+  def test_geometry_by_expression_rejects_unknown_geometry_type(self):
+    with self.assertRaises(ValueError):
+      ScrubLayer._normalize_output_geometry_type('circle')
+
+  @patch('src.citygisoo.scrub_layer_class.processing.run')
   def test_delete_duplicate_geometries_runs_qgis_algorithm(
           self, processing_run_mock):
     scrub_layer = _build_scrub_layer()
