@@ -726,6 +726,26 @@ def run_workflow(fsa):
         field_type=10,
         field_length=36)
 
+    with _workflow_step('assign nrcan usage roll citygisoo area field',
+                        normalized_fsa):
+      processor.add_area_field(nrcan_usage_roll, 'citygisoo_area')
+
+    with _workflow_step('assign nrcan usage roll processing tool field',
+                        normalized_fsa):
+      nrcan_usage_roll.assign_field_expression(
+        target_field='processing_tool',
+        expression="'citygisoo'",
+        field_type=10,
+        field_length=32)
+
+    with _workflow_step('assign nrcan usage roll processed by field',
+                        normalized_fsa):
+      nrcan_usage_roll.assign_field_expression(
+        target_field='processed_by',
+        expression="'Sabu GIS Cities'",
+        field_type=10,
+        field_length=32)
+
   except Exception:
     logger.exception(
       'Montreal FSA GISOO workflow failed. FSA=%s',

@@ -1041,6 +1041,37 @@ class TestMtlFsaWorkflow(unittest.TestCase):
         0,
       ),
       _FakeScrubLayer.calls)
+    self.assertIn(
+      (
+        'add_area_field',
+        'nrcan_usage_roll_H3H',
+        'citygisoo_area',
+        False,
+        10000,
+      ),
+      _FakeGeoPackageFeatureProcessor.calls)
+    self.assertIn(
+      (
+        'assign_field_expression',
+        'nrcan_usage_roll_H3H',
+        'processing_tool',
+        "'citygisoo'",
+        10,
+        32,
+        0,
+      ),
+      _FakeScrubLayer.calls)
+    self.assertIn(
+      (
+        'assign_field_expression',
+        'nrcan_usage_roll_H3H',
+        'processed_by',
+        "'Sabu GIS Cities'",
+        10,
+        32,
+        0,
+      ),
+      _FakeScrubLayer.calls)
 
 
 if __name__ == '__main__':
