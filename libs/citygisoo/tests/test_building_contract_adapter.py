@@ -192,6 +192,7 @@ class TestBuildingContractAdapter(unittest.TestCase):
                      ['old_name', 'old_height'])
     self.assertEqual(adapter.output_layer_name, 'standardized')
     self.assertIsNone(adapter.field_order)
+    self.assertIsNone(adapter.non_null_required_fields)
 
   def test_rejects_invalid_output_geojson_path(self):
     with self.assertRaises(ValueError):
@@ -286,13 +287,66 @@ class TestBuildingContractAdapter(unittest.TestCase):
       output_path=output_geojson_path,
       output_layer_name='standardized_buildings')
     input_manager.export_to_geojson.assert_not_called()
-    standardized_manager.drop_null_features.assert_called_once_with(
-      ['name', 'height'])
+    standardized_manager.drop_null_features.assert_not_called()
+    standardized_manager.find_null_feature_ids.assert_not_called()
     standardized_manager.add_id_field.assert_called_once()
     id_values = standardized_manager.add_id_field.call_args.kwargs[
       'id_values']
     self.assertEqual(list(id_values), [100, 101, 102])
     standardized_manager.promote_feature_id.assert_called_once_with('id')
+
+  @patch('src.citygisoo.building_contract_adapter.FieldSchemaManager')
+  def test_run_drops_null_features_when_explicitly_configured(
+          self,
+          manager_cls_mock):
+    with tempfile.TemporaryDirectory() as tmp_dir:
+      input_layer_path = os.path.join(tmp_dir, 'input.shp')
+      with open(input_layer_path, 'w', encoding='utf-8') as input_layer_file:
+        input_layer_file.write('')
+
+      output_geojson_path = os.path.join(
+        tmp_dir, 'standardized', 'buildings.geojson')
+      input_manager = Mock()
+      input_manager.layer.isValid.return_value = True
+      input_manager.find_missing_fields.return_value = []
+      standardized_scrub_layer = Mock()
+      input_manager.standardize_fields.return_value = standardized_scrub_layer
+
+      standardized_manager = Mock()
+      standardized_manager.find_missing_fields.return_value = []
+      standardized_manager.find_null_feature_ids.return_value = []
+      standardized_manager.layer.featureCount.return_value = 2
+
+      manager_cls_mock.side_effect = [
+        input_manager,
+        standardized_manager,
+      ]
+
+      adapter = BuildingContractAdapter(
+        qgis_path='C:/QGIS',
+        input_layer_path=input_layer_path,
+        input_layer_name='input_layer',
+        output_geojson_path=output_geojson_path,
+        field_rename_map={'raw_name': 'name', 'raw_height': 'height'},
+        required_fields=['name', 'height'],
+        non_null_required_fields=['name'])
+
+      adapter.run()
+
+    standardized_manager.drop_null_features.assert_called_once_with(['name'])
+    standardized_manager.find_null_feature_ids.assert_called_once_with(
+      ['name'])
+
+  def test_rejects_non_null_fields_outside_required_fields(self):
+    with self.assertRaisesRegex(ValueError, 'outside required_fields'):
+      BuildingContractAdapter(
+        qgis_path='C:/QGIS',
+        input_layer_path='input.shp',
+        input_layer_name='input_layer',
+        output_geojson_path='output/standardized.geojson',
+        field_rename_map={'old_name': 'name'},
+        required_fields=['name'],
+        non_null_required_fields=['height'])
 
 
 if __name__ == '__main__':

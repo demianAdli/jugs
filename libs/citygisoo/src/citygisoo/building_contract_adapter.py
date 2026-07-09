@@ -37,6 +37,7 @@ class BuildingContractAdapter:
           output_geojson_path,
           field_rename_map,
           required_fields=None,
+          non_null_required_fields=None,
           id_field_name='id',
           id_start_value=1,
           output_layer_name=None,
@@ -52,6 +53,13 @@ class BuildingContractAdapter:
       self.required_fields = []
     else:
       self.required_fields = list(required_fields)
+    if non_null_required_fields is None:
+      self.non_null_required_fields = None
+    elif isinstance(non_null_required_fields, (str, bytes)):
+      raise TypeError(
+        'non_null_required_fields must be a list, tuple, set, or None.')
+    else:
+      self.non_null_required_fields = list(non_null_required_fields)
     if field_order is None:
       self.field_order = None
     else:
@@ -89,6 +97,18 @@ class BuildingContractAdapter:
       raise TypeError('required_fields must be a list, tuple, or set.')
     if not self.required_fields:
       raise ValueError('required_fields must not be empty.')
+    if self.non_null_required_fields is not None:
+      if not isinstance(self.non_null_required_fields, (list, tuple, set)):
+        raise TypeError(
+          'non_null_required_fields must be a list, tuple, set, or None.')
+      unknown_non_null_fields = [
+        field_name for field_name in self.non_null_required_fields
+        if field_name not in self.required_fields
+      ]
+      if unknown_non_null_fields:
+        raise ValueError(
+          'non_null_required_fields contains fields outside required_fields: '
+          f'{unknown_non_null_fields}')
     if self.field_order is not None:
       if not self.field_order:
         raise ValueError('field_order must not be empty when provided.')
@@ -126,7 +146,12 @@ class BuildingContractAdapter:
 
     standardized_manager = self._standardize_contract_fields(
       input_manager)
-    self._drop_null_contract_features(standardized_manager)
+    if self.non_null_required_fields:
+      self._drop_null_contract_features(standardized_manager)
+    else:
+      logger.info(
+        'Skipping null-feature deletion because no non-null contract fields '
+        'were configured.')
     self._add_and_promote_feature_ids(standardized_manager)
 
     logger.info(
@@ -203,9 +228,9 @@ class BuildingContractAdapter:
 
   def _drop_null_contract_features(self, schema_manager):
     try:
-      schema_manager.drop_null_features(self.required_fields)
+      schema_manager.drop_null_features(self.non_null_required_fields)
       remaining_null_feature_ids = schema_manager.find_null_feature_ids(
-        self.required_fields)
+        self.non_null_required_fields)
       if remaining_null_feature_ids:
         raise RuntimeError(
           'Null-feature removal left required-field nulls in feature IDs: '
@@ -213,7 +238,7 @@ class BuildingContractAdapter:
     except Exception as exc:
       logger.exception(
         'Failed null-feature removal for contract fields %s.',
-        self.required_fields)
+        self.non_null_required_fields)
       raise RuntimeError('Failed null-feature removal.') from exc
 
   def _add_and_promote_feature_ids(self, schema_manager):
