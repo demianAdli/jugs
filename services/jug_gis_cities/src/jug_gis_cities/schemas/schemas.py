@@ -30,6 +30,11 @@ class GISComponentRunRequestSchema(Schema):
                 'fsa must be a three-character Canadian FSA, '
                 'for example H3H.')),
     )
+    drop_null_fields = fields.List(
+        fields.String(validate=validate.Length(min=1)),
+        allow_none=True,
+        load_default=None,
+    )
 
 
 class GISComponentRunResultSchema(Schema):

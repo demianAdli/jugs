@@ -59,7 +59,26 @@ class TestMtlFsaBatchRunner(unittest.TestCase):
         component_runner.assert_called_once_with(
             component_name=MTL_FSA_COMPONENT_NAME,
             mode='raw',
-            fsa='H3H')
+            fsa='H3H',
+            non_null_required_fields=None)
+
+    def test_run_one_mtl_fsa_passes_non_null_required_fields(self):
+        component_runner = Mock(
+            return_value=_ComponentResult(
+                workflow_output_path='workflow_H3H.gpkg',
+                standardized_output_path='standard_H3H.geojson'))
+
+        run_one_mtl_fsa(
+            fsa='h3h',
+            mode='standardize',
+            non_null_required_fields=['citygisoo_id', 'FSA'],
+            component_runner=component_runner)
+
+        component_runner.assert_called_once_with(
+            component_name=MTL_FSA_COMPONENT_NAME,
+            mode='standardize',
+            fsa='H3H',
+            non_null_required_fields=['citygisoo_id', 'FSA'])
 
     def test_run_mtl_fsa_batch_uses_provider_when_fsas_not_supplied(self):
         component_runner = Mock(
@@ -98,6 +117,21 @@ class TestMtlFsaBatchRunner(unittest.TestCase):
         self.assertEqual(result.mode, 'standard')
         self.assertEqual(result.max_workers, 1)
         self.assertEqual(component_runner.call_count, 2)
+
+    def test_runner_stores_non_null_fields_and_runs_selected_fsas(self):
+        component_runner = Mock(
+            return_value=_ComponentResult('workflow_H3H.gpkg'))
+        runner = MtlFsaBatchRunner(
+            non_null_required_fields=['citygisoo_id'],
+            component_runner=component_runner)
+
+        runner.run_fsas(['h3h'])
+
+        component_runner.assert_called_once_with(
+            component_name=MTL_FSA_COMPONENT_NAME,
+            mode='standardize',
+            fsa='H3H',
+            non_null_required_fields=['citygisoo_id'])
 
     def test_runner_run_all_uses_configured_provider(self):
         component_runner = Mock(

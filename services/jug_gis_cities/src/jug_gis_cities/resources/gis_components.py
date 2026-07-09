@@ -51,12 +51,14 @@ def _result_to_response(result):
 def _run_gis_component(component_name, request_data):
     mode = request_data.get('mode')
     fsa = request_data.get('fsa')
+    drop_null_fields = request_data.get('drop_null_fields')
     logger.info(
         'gis_component_run_received',
         extra={
             'component_name': component_name,
             'mode': mode,
             'fsa': fsa,
+            'drop_null_fields': drop_null_fields,
         },
     )
 
@@ -65,6 +67,7 @@ def _run_gis_component(component_name, request_data):
             component_name=component_name,
             mode=mode,
             fsa=fsa,
+            non_null_required_fields=drop_null_fields,
         )
     except HTTPException:
         raise

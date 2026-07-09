@@ -84,7 +84,8 @@ class TestGISComponentsApi(unittest.TestCase):
         run_component_mock.assert_called_once_with(
             component_name='saint_malachie_gisoo',
             mode='standardize',
-            fsa=None)
+            fsa=None,
+            non_null_required_fields=None)
 
     @patch(
         'src.jug_gis_cities.resources.gis_components.'
@@ -115,7 +116,37 @@ class TestGISComponentsApi(unittest.TestCase):
         run_component_mock.assert_called_once_with(
             component_name='mtl_fsa_gisoo',
             mode='independent',
-            fsa='h3h')
+            fsa='h3h',
+            non_null_required_fields=None)
+
+    @patch(
+        'src.jug_gis_cities.resources.gis_components.'
+        'GISCitiesApplicationService.run_component'
+    )
+    def test_post_component_run_accepts_drop_null_fields(
+            self,
+            run_component_mock):
+        run_component_mock.return_value = GisComponentRunResult(
+            component_name='mtl_fsa_gisoo',
+            mode=GisComponentRunMode.STANDARDIZE,
+            fsa='H3H',
+            workflow_output_path='workflow_output.gpkg',
+            standardized_output_path='standardized.geojson')
+
+        response = self.client.post(
+            '/components/mtl_fsa_gisoo/runs',
+            json={
+                'mode': 'standardize',
+                'fsa': 'h3h',
+                'drop_null_fields': ['citygisoo_id', 'FSA'],
+            })
+
+        self.assertEqual(response.status_code, 201)
+        run_component_mock.assert_called_once_with(
+            component_name='mtl_fsa_gisoo',
+            mode='standardize',
+            fsa='h3h',
+            non_null_required_fields=['citygisoo_id', 'FSA'])
 
     @patch(
         'src.jug_gis_cities.resources.gis_components.'

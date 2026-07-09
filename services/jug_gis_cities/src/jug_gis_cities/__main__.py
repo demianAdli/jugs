@@ -35,6 +35,16 @@ def _build_parser():
         help=(
             'Three-character FSA for components that require district '
             'selection, for example H3H.'))
+    parser.add_argument(
+        '--drop-null-fields',
+        nargs='+',
+        default=None,
+        metavar='FIELD',
+        help=(
+            'Optional standardized field names that must be non-null when '
+            'running standardize mode. Features with null or empty values in '
+            'any listed field are deleted. By default, no features are '
+            'deleted based on null attributes.'))
     return parser
 
 
@@ -46,7 +56,8 @@ def main(argv=None):
         result = GISCitiesApplicationService.run_component(
             component_name=args.component,
             mode=args.mode,
-            fsa=args.fsa)
+            fsa=args.fsa,
+            non_null_required_fields=args.drop_null_fields)
     except Exception as exc:
         logger.error(
             'Direct jug_gis_cities execution failed. Component=%s Mode=%s '

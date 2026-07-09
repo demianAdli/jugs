@@ -131,6 +131,7 @@ def _configure_mtl_fsa_worker_logging(fsa):
 def run_one_mtl_fsa(
         fsa,
         mode=GisComponentRunMode.STANDARDIZE,
+        non_null_required_fields=None,
         configure_worker_logging=False,
         component_runner=None):
     """Run the Montreal FSA component for one FSA and return a result item."""
@@ -146,7 +147,8 @@ def run_one_mtl_fsa(
         result = runner(
             component_name=MTL_FSA_COMPONENT_NAME,
             mode=normalized_mode,
-            fsa=normalized_fsa)
+            fsa=normalized_fsa,
+            non_null_required_fields=non_null_required_fields)
     except Exception as exc:
         logger.exception(
             'Montreal FSA batch item failed. FSA=%s Mode=%s',
@@ -172,18 +174,24 @@ def run_one_mtl_fsa(
 def _run_mtl_fsa_batch_sequential(
         fsas,
         mode,
+        non_null_required_fields,
         configure_worker_logging,
         component_runner):
     return tuple(
         run_one_mtl_fsa(
             fsa=fsa,
             mode=mode,
+            non_null_required_fields=non_null_required_fields,
             configure_worker_logging=configure_worker_logging,
             component_runner=component_runner)
         for fsa in fsas)
 
 
-def _run_mtl_fsa_batch_parallel(fsas, mode, max_workers):
+def _run_mtl_fsa_batch_parallel(
+        fsas,
+        mode,
+        non_null_required_fields,
+        max_workers):
     results_by_fsa = {}
     with ProcessPoolExecutor(max_workers=max_workers) as executor:
         futures = {
@@ -191,6 +199,7 @@ def _run_mtl_fsa_batch_parallel(fsas, mode, max_workers):
                 run_one_mtl_fsa,
                 fsa,
                 mode,
+                non_null_required_fields,
                 True): fsa
             for fsa in fsas
         }
@@ -218,6 +227,7 @@ class MtlFsaBatchRunner:
 
     mode: str | GisComponentRunMode = GisComponentRunMode.STANDARDIZE
     max_workers: int = 1
+    non_null_required_fields: Iterable[str] | None = None
     fsa_provider: Callable[[], Iterable[str]] | None = None
     component_runner: Callable | None = None
     configure_worker_logging: bool = False
@@ -247,6 +257,7 @@ class MtlFsaBatchRunner:
         return run_one_mtl_fsa(
             fsa=fsa,
             mode=self.mode,
+            non_null_required_fields=self.non_null_required_fields,
             configure_worker_logging=self.configure_worker_logging,
             component_runner=self.component_runner)
 
@@ -269,12 +280,14 @@ class MtlFsaBatchRunner:
             results = _run_mtl_fsa_batch_sequential(
                 selected_fsas,
                 self.mode,
+                self.non_null_required_fields,
                 self.configure_worker_logging,
                 self.component_runner)
         else:
             results = _run_mtl_fsa_batch_parallel(
                 selected_fsas,
                 self.mode,
+                self.non_null_required_fields,
                 self.max_workers)
 
         batch_result = MtlFsaBatchRunResult(
@@ -298,6 +311,7 @@ def run_mtl_fsa_batch(
         fsas=None,
         mode=GisComponentRunMode.STANDARDIZE,
         max_workers=1,
+        non_null_required_fields=None,
         fsa_provider: Callable[[], Iterable[str]] | None = None,
         component_runner=None,
         configure_worker_logging=False):
@@ -310,6 +324,7 @@ def run_mtl_fsa_batch(
     runner = MtlFsaBatchRunner(
         mode=mode,
         max_workers=max_workers,
+        non_null_required_fields=non_null_required_fields,
         fsa_provider=fsa_provider,
         component_runner=component_runner,
         configure_worker_logging=configure_worker_logging)

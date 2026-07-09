@@ -153,6 +153,78 @@ class TestGISCitiesApplicationService(unittest.TestCase):
     @patch.object(GISCitiesApplicationService, '_import_component_callable')
     @patch.object(GISCitiesApplicationService, '_ensure_component_callable')
     @patch.object(GISCitiesApplicationService, '_normalize_component_name')
+    def test_run_component_passes_optional_non_null_fields_to_adapter(
+            self,
+            normalize_component_name_mock,
+            ensure_component_callable_mock,
+            import_component_callable_mock):
+        normalize_component_name_mock.return_value = 'mtl_fsa_gisoo'
+        calls = []
+
+        def workflow_runner(*, fsa):
+            calls.append(('workflow', fsa))
+            return f'workflow_{fsa}.gpkg'
+
+        def contract_adapter_runner(*, fsa, non_null_required_fields=None):
+            calls.append(
+                ('contract_adapter', fsa, non_null_required_fields))
+            return f'standardized_{fsa}.geojson'
+
+        import_component_callable_mock.side_effect = [
+            workflow_runner,
+            contract_adapter_runner,
+        ]
+
+        result = GISCitiesApplicationService.run_component(
+            'mtl_fsa_gisoo',
+            mode='standardize',
+            fsa='h3h',
+            non_null_required_fields=['citygisoo_id', 'FSA'])
+
+        self.assertEqual(
+            result.standardized_output_path,
+            'standardized_H3H.geojson')
+        self.assertEqual(
+            calls,
+            [
+                ('workflow', 'H3H'),
+                ('contract_adapter', 'H3H', ['citygisoo_id', 'FSA']),
+            ])
+
+    @patch.object(GISCitiesApplicationService, '_import_component_callable')
+    @patch.object(GISCitiesApplicationService, '_ensure_component_callable')
+    @patch.object(GISCitiesApplicationService, '_normalize_component_name')
+    def test_run_component_omits_non_null_fields_for_unsupported_adapter(
+            self,
+            normalize_component_name_mock,
+            ensure_component_callable_mock,
+            import_component_callable_mock):
+        normalize_component_name_mock.return_value = 'mtl_fsa_gisoo'
+        calls = []
+
+        def workflow_runner(*, fsa):
+            return f'workflow_{fsa}.gpkg'
+
+        def contract_adapter_runner(*, fsa):
+            calls.append(('contract_adapter', fsa))
+            return f'standardized_{fsa}.geojson'
+
+        import_component_callable_mock.side_effect = [
+            workflow_runner,
+            contract_adapter_runner,
+        ]
+
+        GISCitiesApplicationService.run_component(
+            'mtl_fsa_gisoo',
+            mode='standardize',
+            fsa='h3h',
+            non_null_required_fields=['citygisoo_id'])
+
+        self.assertEqual(calls, [('contract_adapter', 'H3H')])
+
+    @patch.object(GISCitiesApplicationService, '_import_component_callable')
+    @patch.object(GISCitiesApplicationService, '_ensure_component_callable')
+    @patch.object(GISCitiesApplicationService, '_normalize_component_name')
     def test_run_component_requires_fsa_when_workflow_requires_it(
             self,
             normalize_component_name_mock,

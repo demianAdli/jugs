@@ -67,7 +67,8 @@ class GISCitiesApplicationService:
             cls,
             component_name,
             mode=GisComponentRunMode.STANDARDIZE,
-            fsa=None):
+            fsa=None,
+            non_null_required_fields=None):
         """Run a component workflow in independent or standardized mode.
 
         independent:
@@ -81,6 +82,8 @@ class GISCitiesApplicationService:
             component_name)
         normalized_mode = cls._normalize_mode(mode)
         normalized_fsa = cls._normalize_fsa(fsa)
+        normalized_non_null_required_fields = (
+            cls._normalize_non_null_required_fields(non_null_required_fields))
 
         run_t0 = perf_counter()
         logger.info(
@@ -120,7 +123,11 @@ class GISCitiesApplicationService:
                     runner=contract_adapter_runner,
                     component_name=normalized_component_name,
                     callable_label='contract_adapter.run_contract_adapter',
-                    fsa=normalized_fsa)
+                    fsa=normalized_fsa,
+                    optional_kwargs={
+                        'non_null_required_fields':
+                            normalized_non_null_required_fields,
+                    })
 
         except GisComponentError:
             logger.exception(
@@ -220,17 +227,60 @@ class GISCitiesApplicationService:
             )
         return normalized_fsa
 
+    @staticmethod
+    def _normalize_non_null_required_fields(non_null_required_fields):
+        if non_null_required_fields is None:
+            return None
+        if isinstance(non_null_required_fields, (str, bytes)):
+            raise TypeError(
+                'non_null_required_fields must be a list, tuple, set, '
+                'or None.')
+
+        try:
+            raw_fields = list(non_null_required_fields)
+        except TypeError as exc:
+            raise TypeError(
+                'non_null_required_fields must be a list, tuple, set, '
+                'or None.') from exc
+
+        if any(not isinstance(field_name, str) for field_name in raw_fields):
+            raise TypeError(
+                'non_null_required_fields must contain only strings.')
+
+        normalized_fields = [
+            field_name.strip()
+            for field_name in raw_fields
+        ]
+
+        normalized_fields = [
+            field_name for field_name in normalized_fields if field_name
+        ]
+        return normalized_fields or None
+
     @classmethod
-    def _run_component_callable(cls, runner, component_name, callable_label, fsa):
+    def _run_component_callable(
+            cls,
+            runner,
+            component_name,
+            callable_label,
+            fsa,
+            optional_kwargs=None):
         supports_fsa = cls._callable_accepts_parameter(runner, 'fsa')
         requires_fsa = cls._callable_requires_parameter(runner, 'fsa')
+        optional_kwargs = optional_kwargs or {}
+        supported_optional_kwargs = {
+            name: value
+            for name, value in optional_kwargs.items()
+            if value is not None
+            and cls._callable_accepts_parameter(runner, name)
+        }
 
         if fsa is None:
             if requires_fsa:
                 raise ValueError(
                     f'fsa is required for GIS city component: '
                     f'{component_name}.')
-            return runner()
+            return runner(**supported_optional_kwargs)
 
         if not supports_fsa:
             raise ValueError(
@@ -242,7 +292,7 @@ class GISCitiesApplicationService:
             component_name,
             callable_label,
             fsa)
-        return runner(fsa=fsa)
+        return runner(fsa=fsa, **supported_optional_kwargs)
 
     @staticmethod
     def _callable_accepts_parameter(runner, parameter_name):
