@@ -31,8 +31,6 @@ workflow_output_layer_suffix = '.gpkg'
 output_layer_name = 'mtl_fsa_standardized'
 output_layer_suffix = '.geojson'
 
-contract_source_layer_name = 'mtl_fsa_contract_source'
-
 id_field_name = 'id'
 id_start_value = 100000
 
@@ -43,11 +41,11 @@ rename_fields = {
     'FSA': 'FSA',
     'citygisoo_area': 'citygisoo_area',
     '_max': 'height',
-    'CODE UTILISATION PREDO': 'function',
+    'r_uerl0105a': 'function',
     'ur_ro_uerl0307a': 'year_of_construction',
     'ur_g_id_provi': 'usage_provincial_id',
     'ur_id_provinc': 'roll_provincial_id',
-    'bldgarea': 'nrcan_area',
+    'bldgarea': 'nrcan_building_area',
     'ur_r_uerl0302a': 'roll_area',
     'ur_g_sup_tota': 'usage_area',
     'ur_ro_uerl0308a': 'main_floor_area',
@@ -73,14 +71,9 @@ def _build_adapter_paths(fsa):
         output_paths_dir,
         output_layer_name,
         output_layer_name + output_layer_suffix)
-    contract_source_layer_path = os.path.join(
-        output_paths_dir,
-        output_layer_name,
-        contract_source_layer_name + '.geojson')
     return (
         workflow_output_layer_path,
         output_layer_path,
-        contract_source_layer_path,
     )
 
 
@@ -90,7 +83,6 @@ def run_contract_adapter(fsa):
     (
         workflow_output_layer_path,
         output_layer_path,
-        contract_source_layer_path,
     ) = _build_adapter_paths(normalized_fsa)
     adapter_t0 = perf_counter()
     logger.info(
@@ -109,8 +101,6 @@ def run_contract_adapter(fsa):
         required_fields=required_fields,
         id_field_name=id_field_name,
         id_start_value=id_start_value,
-        source_geojson_path=contract_source_layer_path,
-        source_geojson_layer_name=contract_source_layer_name,
         output_layer_name='standardized_mtl_fsa',
         field_order=field_order)
 

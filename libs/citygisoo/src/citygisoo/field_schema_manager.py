@@ -16,6 +16,7 @@ import shutil
 import tempfile
 from pathlib import Path
 
+import processing
 from sabu_chassis.logging import get_logger
 from qgis.analysis import QgsNativeAlgorithms
 from qgis.core import (
@@ -959,15 +960,19 @@ class FieldSchemaManager:
         'output_path must differ from the current layer path. '
         'Use in_place=True to standardize the current layer.')
 
+    if output_path:
+      return self._export_refactored_fields(
+        field_rename_map=field_rename_map,
+        fields_to_drop=fields_to_drop,
+        fields_to_keep=fields_to_keep,
+        field_order=field_order,
+        output_path=output_path,
+        strict=strict,
+        append_unlisted=append_unlisted,
+        output_layer_name=output_layer_name)
+
     target_manager = self
     target_scrub_layer = self.scrub_layer
-
-    if output_path:
-      self._write_layer(output_path)
-      target_scrub_layer = self._new_scrub_layer(
-        output_path, layer_name=output_layer_name)
-      target_manager = FieldSchemaManager(target_scrub_layer)
-
     if field_rename_map:
       target_manager.rename_fields(field_rename_map, strict=strict)
 
@@ -982,6 +987,151 @@ class FieldSchemaManager:
         append_unlisted=append_unlisted,
         strict=strict)
 
+    logger.info(
+      'Standardized fields for layer %s.', target_scrub_layer.layer_name)
+    return target_scrub_layer
+
+  def _export_refactored_fields(
+          self,
+          field_rename_map,
+          fields_to_drop,
+          fields_to_keep,
+          field_order,
+          output_path,
+          strict,
+          append_unlisted,
+          output_layer_name):
+    """Refactor a schema and write it once without editing the output file."""
+    field_rename_map = field_rename_map or {}
+    source_field_names = self._field_names()
+
+    missing_sources = [
+      field_name for field_name in field_rename_map
+      if field_name not in source_field_names
+    ]
+    if missing_sources and strict:
+      raise KeyError(
+        f'Cannot rename missing fields on layer '
+        f'{self.scrub_layer.layer_name}: {missing_sources}')
+
+    effective_renames = {
+      source: target
+      for source, target in field_rename_map.items()
+      if source in source_field_names
+    }
+    target_names = list(effective_renames.values())
+    duplicate_targets = {
+      target for target in target_names if target_names.count(target) > 1
+    }
+    if duplicate_targets:
+      raise ValueError(
+        'Cannot rename fields to duplicate target names: '
+        f'{sorted(duplicate_targets)}')
+    target_conflicts = [
+      target
+      for source, target in effective_renames.items()
+      if target in source_field_names and target != source
+    ]
+    if target_conflicts:
+      raise ValueError(
+        'Cannot rename fields because target fields already exist: '
+        f'{target_conflicts}')
+
+    renamed_field_names = [
+      effective_renames.get(field_name, field_name)
+      for field_name in source_field_names
+    ]
+    source_by_target = {
+      effective_renames.get(field_name, field_name): field_name
+      for field_name in source_field_names
+    }
+
+    if fields_to_keep is not None:
+      selected_fields = self._validate_field_collection(
+        fields_to_keep, 'fields_to_keep')
+    elif fields_to_drop is not None:
+      fields_to_drop = self._validate_field_collection(
+        fields_to_drop, 'fields_to_drop')
+      selected_fields = [
+        field_name for field_name in renamed_field_names
+        if field_name not in set(fields_to_drop)
+      ]
+    else:
+      selected_fields = list(renamed_field_names)
+
+    missing_selected = [
+      field_name for field_name in selected_fields
+      if field_name not in source_by_target
+    ]
+    if missing_selected and strict:
+      raise KeyError(
+        f'Cannot select missing fields on layer '
+        f'{self.scrub_layer.layer_name}: {missing_selected}')
+    selected_fields = [
+      field_name for field_name in selected_fields
+      if field_name in source_by_target
+    ]
+
+    if field_order is not None:
+      ordered_fields = self._validate_field_collection(
+        field_order, 'field_order')
+      missing_ordered = [
+        field_name for field_name in ordered_fields
+        if field_name not in selected_fields
+      ]
+      if missing_ordered and strict:
+        raise KeyError(
+          f'Cannot order missing fields on layer '
+          f'{self.scrub_layer.layer_name}: {missing_ordered}')
+      ordered_fields = [
+        field_name for field_name in ordered_fields
+        if field_name in selected_fields
+      ]
+      if append_unlisted:
+        ordered_fields.extend(
+          field_name for field_name in selected_fields
+          if field_name not in ordered_fields)
+    else:
+      ordered_fields = selected_fields
+
+    fields_mapping = []
+    for target_name in ordered_fields:
+      source_name = source_by_target[target_name]
+      source_field = self.layer.fields().field(source_name)
+      escaped_source_name = source_name.replace('"', '""')
+      fields_mapping.append({
+        'expression': f'"{escaped_source_name}"',
+        'length': source_field.length(),
+        'name': target_name,
+        'precision': source_field.precision(),
+        'type': source_field.type(),
+      })
+
+    output_dir = os.path.dirname(str(output_path))
+    if output_dir:
+      os.makedirs(output_dir, exist_ok=True)
+    QgsApplication.processingRegistry().addProvider(QgsNativeAlgorithms())
+    logger.info(
+      'Refactoring %s fields from layer %s into %s in one operation.',
+      len(fields_mapping),
+      self._layer_name(),
+      output_path)
+    result = processing.run(
+      'native:refactorfields',
+      {
+        'INPUT': self.layer,
+        'FIELDS_MAPPING': fields_mapping,
+        'OUTPUT': str(output_path),
+      })
+    resolved_output_path = result.get('OUTPUT', str(output_path))
+    if not isinstance(resolved_output_path, (str, os.PathLike)):
+      resolved_output_path = str(output_path)
+    if not os.path.exists(str(resolved_output_path)):
+      raise RuntimeError(
+        f'Refactored output was not created: {resolved_output_path}')
+
+    target_scrub_layer = self._new_scrub_layer(
+      str(resolved_output_path), layer_name=output_layer_name)
     logger.info(
       'Standardized fields for layer %s.', target_scrub_layer.layer_name)
     return target_scrub_layer

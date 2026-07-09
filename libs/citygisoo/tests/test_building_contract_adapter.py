@@ -45,10 +45,12 @@ def _install_qgis_stubs():
   qgis_core_names = [
     'QgsApplication',
     'QgsCoordinateReferenceSystem',
+    'QgsDistanceArea',
     'QgsExpression',
     'QgsExpressionContext',
     'QgsExpressionContextUtils',
     'QgsFeatureRequest',
+    'QgsFeature',
     'QgsField',
     'QgsProcessingFeedback',
     'QgsProcessingFeatureSourceDefinition',
@@ -57,15 +59,20 @@ def _install_qgis_stubs():
     'QgsVectorFileWriter',
     'QgsVectorLayer',
     'QgsVectorLayerJoinInfo',
+    'QgsWkbTypes',
     'edit',
   ]
   for name in qgis_core_names:
     setattr(qgis_core_module, name, _Dummy)
+  qgis_core_module.NULL = None
 
   qgis_analysis_module.QgsNativeAlgorithms = _Dummy
   qgis_qtcore_module.QVariant = _Dummy
 
-  sys.modules.setdefault('processing', types.ModuleType('processing'))
+  processing_module = sys.modules.setdefault(
+    'processing', types.ModuleType('processing'))
+  if not hasattr(processing_module, 'run'):
+    processing_module.run = Mock()
   sys.modules.setdefault('qgis', qgis_module)
   sys.modules.setdefault('qgis.core', qgis_core_module)
   sys.modules.setdefault('qgis.analysis', qgis_analysis_module)
@@ -76,10 +83,103 @@ def _install_qgis_stubs():
 _install_qgis_stubs()
 
 from src.citygisoo.building_contract_adapter import BuildingContractAdapter
+from src.citygisoo.field_schema_manager import FieldSchemaManager
+
+
+class _FakeField:
+  def __init__(self, field_type=10, length=80, precision=0):
+    self._type = field_type
+    self._length = length
+    self._precision = precision
+
+  def type(self):
+    return self._type
+
+  def length(self):
+    return self._length
+
+  def precision(self):
+    return self._precision
+
+
+class _FakeFields:
+  def __init__(self, names):
+    self._fields = {name: _FakeField() for name in names}
+
+  def field(self, name):
+    return self._fields[name]
+
+
+class _FakeLayer:
+  def __init__(self, names):
+    self._fields = _FakeFields(names)
+
+  def fields(self):
+    return self._fields
+
+
+class TestFieldSchemaManagerRefactor(unittest.TestCase):
+  @patch(
+    'src.citygisoo.field_schema_manager.QgsApplication'
+    '.processingRegistry',
+    create=True)
+  @patch('src.citygisoo.field_schema_manager.os.path.exists',
+         return_value=True)
+  @patch('src.citygisoo.field_schema_manager.processing.run', create=True)
+  def test_output_standardization_refactors_and_exports_once(
+      self, processing_run_mock, _exists_mock, registry_mock):
+    manager = object.__new__(FieldSchemaManager)
+    manager.scrub_layer = Mock(
+      layer_name='source',
+      layer_path='input/source.gpkg',
+      layer=_FakeLayer(['raw_name', 'raw_height', 'unused']))
+    manager._field_names = Mock(
+      return_value=['raw_name', 'raw_height', 'unused'])
+    manager._layer_name = Mock(return_value='source')
+    standardized_layer = Mock(layer_name='standardized')
+    manager._new_scrub_layer = Mock(return_value=standardized_layer)
+    processing_run_mock.return_value = {
+      'OUTPUT': 'standardized.geojson'}
+
+    result = manager.standardize_fields(
+      field_rename_map={
+        'raw_name': 'name',
+        'raw_height': 'height',
+      },
+      fields_to_keep=['name', 'height'],
+      field_order=['height', 'name'],
+      output_path='standardized.geojson',
+      output_layer_name='standardized')
+
+    self.assertIs(result, standardized_layer)
+    processing_run_mock.assert_called_once()
+    algorithm, params = processing_run_mock.call_args.args
+    self.assertEqual(algorithm, 'native:refactorfields')
+    self.assertIs(params['INPUT'], manager.layer)
+    self.assertEqual(params['OUTPUT'], 'standardized.geojson')
+    self.assertEqual(
+      [(item['name'], item['expression'])
+       for item in params['FIELDS_MAPPING']],
+      [('height', '"raw_height"'), ('name', '"raw_name"')])
+    registry_mock.return_value.addProvider.assert_called_once()
+
+  def test_output_standardization_rejects_duplicate_targets(self):
+    manager = object.__new__(FieldSchemaManager)
+    manager.scrub_layer = Mock(
+      layer_name='source',
+      layer_path='input/source.gpkg',
+      layer=_FakeLayer(['first', 'second']))
+    manager._field_names = Mock(return_value=['first', 'second'])
+
+    with self.assertRaisesRegex(ValueError, 'duplicate target'):
+      manager.standardize_fields(
+        field_rename_map={'first': 'name', 'second': 'name'},
+        fields_to_keep=['name'],
+        output_path='standardized.geojson')
 
 
 class TestBuildingContractAdapter(unittest.TestCase):
-  def test_default_required_fields_and_source_path(self):
+  def test_default_required_fields_and_output_layer_name(self):
     adapter = BuildingContractAdapter(
       qgis_path='C:/QGIS',
       input_layer_path='input.shp',
@@ -88,9 +188,6 @@ class TestBuildingContractAdapter(unittest.TestCase):
       field_rename_map={'old_name': 'name', 'old_height': 'height'})
 
     self.assertEqual(adapter.required_fields, ['name', 'height'])
-    self.assertEqual(
-      adapter.source_geojson_path,
-      os.path.join('output', 'standardized_source.geojson'))
     self.assertEqual(adapter.source_required_fields,
                      ['old_name', 'old_height'])
     self.assertEqual(adapter.output_layer_name, 'standardized')
@@ -140,19 +237,11 @@ class TestBuildingContractAdapter(unittest.TestCase):
 
       output_geojson_path = os.path.join(
         tmp_dir, 'standardized', 'buildings.geojson')
-      source_geojson_path = os.path.join(
-        tmp_dir, 'standardized', 'buildings_source.geojson')
-
       input_manager = Mock()
       input_manager.layer.isValid.return_value = True
       input_manager.find_missing_fields.return_value = []
-      input_manager.export_to_geojson.return_value = source_geojson_path
-
-      source_manager = Mock()
-      source_manager.layer.isValid.return_value = True
-      source_manager.find_missing_fields.return_value = []
       standardized_scrub_layer = Mock()
-      source_manager.standardize_fields.return_value = standardized_scrub_layer
+      input_manager.standardize_fields.return_value = standardized_scrub_layer
 
       standardized_manager = Mock()
       standardized_manager.find_missing_fields.return_value = []
@@ -161,7 +250,6 @@ class TestBuildingContractAdapter(unittest.TestCase):
 
       manager_cls_mock.side_effect = [
         input_manager,
-        source_manager,
         standardized_manager,
       ]
 
@@ -185,22 +273,19 @@ class TestBuildingContractAdapter(unittest.TestCase):
         qgis_path='C:/QGIS',
         layer_path=input_layer_path,
         layer_name='input_layer'),
-      call(
-        qgis_path='C:/QGIS',
-        layer_path=source_geojson_path,
-        layer_name='buildings_source'),
       call(standardized_scrub_layer),
     ])
-    input_manager.find_missing_fields.assert_called_once_with(
-      ['raw_name', 'raw_height'])
-    input_manager.export_to_geojson.assert_called_once_with(
-      source_geojson_path)
-    source_manager.standardize_fields.assert_called_once_with(
+    self.assertEqual(
+      input_manager.find_missing_fields.call_args_list,
+      [call(['raw_name', 'raw_height']),
+       call(['raw_name', 'raw_height'])])
+    input_manager.standardize_fields.assert_called_once_with(
       field_rename_map={'raw_name': 'name', 'raw_height': 'height'},
       fields_to_keep=['name', 'height'],
       field_order=['height', 'name'],
       output_path=output_geojson_path,
       output_layer_name='standardized_buildings')
+    input_manager.export_to_geojson.assert_not_called()
     standardized_manager.drop_null_features.assert_called_once_with(
       ['name', 'height'])
     standardized_manager.add_id_field.assert_called_once()

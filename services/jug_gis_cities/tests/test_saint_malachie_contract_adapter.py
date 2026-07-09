@@ -64,11 +64,6 @@ class TestSaintMalachieContractAdapter(unittest.TestCase):
             tmp_dir,
             'saint_malachie_standardized',
             'saint_malachie_standardized.geojson')
-        expected_source_path = os.path.join(
-            tmp_dir,
-            'saint_malachie_standardized',
-            'saint_malachie_contract_source.geojson')
-
         adapter_cls_mock.assert_called_once_with(
             qgis_path='C:/QGIS',
             input_layer_path=expected_workflow_output_path,
@@ -90,8 +85,6 @@ class TestSaintMalachieContractAdapter(unittest.TestCase):
             ],
             id_field_name='id',
             id_start_value=100000,
-            source_geojson_path=expected_source_path,
-            source_geojson_layer_name='saint_malachie_contract_source',
             output_layer_name='standardized_saint_malachie')
         adapter_cls_mock.return_value.run.assert_called_once_with()
 

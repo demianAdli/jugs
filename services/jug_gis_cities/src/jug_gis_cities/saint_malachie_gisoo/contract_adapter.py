@@ -39,12 +39,6 @@ output_layer_path = os.path.join(
     output_layer_name,
     output_layer_name + output_layer_suffix)
 
-contract_source_layer_name = 'saint_malachie_contract_source'
-contract_source_layer_path = os.path.join(
-    paths.output_paths_dir,
-    output_layer_name,
-    contract_source_layer_name + '.geojson')
-
 id_field_name = 'id'
 id_start_value = 100000
 
@@ -76,8 +70,6 @@ def run_contract_adapter():
         required_fields=required_fields,
         id_field_name=id_field_name,
         id_start_value=id_start_value,
-        source_geojson_path=contract_source_layer_path,
-        source_geojson_layer_name=contract_source_layer_name,
         output_layer_name='standardized_saint_malachie')
 
     try:

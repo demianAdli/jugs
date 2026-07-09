@@ -39,8 +39,6 @@ class BuildingContractAdapter:
           required_fields=None,
           id_field_name='id',
           id_start_value=1,
-          source_geojson_path=None,
-          source_geojson_layer_name=None,
           output_layer_name=None,
           field_order=None):
     self.qgis_path = qgis_path
@@ -61,20 +59,6 @@ class BuildingContractAdapter:
     self.id_field_name = id_field_name
     self.id_start_value = id_start_value
 
-    if source_geojson_path is not None:
-      self.source_geojson_path = source_geojson_path
-    elif output_geojson_path:
-      self.source_geojson_path = self._default_source_geojson_path(
-        output_geojson_path)
-    else:
-      self.source_geojson_path = None
-
-    self.source_geojson_layer_name = (
-      source_geojson_layer_name
-      or (
-        Path(self.source_geojson_path).stem
-        if self.source_geojson_path
-        else None))
     self.output_layer_name = (
       output_layer_name
       or (
@@ -83,11 +67,6 @@ class BuildingContractAdapter:
         else None))
 
     self._validate_config()
-
-  @staticmethod
-  def _default_source_geojson_path(output_geojson_path):
-    output_path = Path(output_geojson_path)
-    return str(output_path.with_name(f'{output_path.stem}_source.geojson'))
 
   @staticmethod
   def _is_geojson_path(path):
@@ -103,10 +82,6 @@ class BuildingContractAdapter:
     if not self._is_geojson_path(self.output_geojson_path):
       raise ValueError(
         'BuildingContractAdapter output_geojson_path must end with '
-        '.geojson or .json.')
-    if not self._is_geojson_path(self.source_geojson_path):
-      raise ValueError(
-        'BuildingContractAdapter source_geojson_path must end with '
         '.geojson or .json.')
     if not isinstance(self.field_rename_map, dict) or not self.field_rename_map:
       raise ValueError('field_rename_map must be a non-empty dictionary.')
@@ -149,13 +124,8 @@ class BuildingContractAdapter:
       self.input_layer_name)
     self._ensure_source_fields(input_manager)
 
-    source_geojson_path = self._export_input_to_geojson(input_manager)
-    source_geojson_manager = self._load_layer(
-      source_geojson_path,
-      self.source_geojson_layer_name)
-
     standardized_manager = self._standardize_contract_fields(
-      source_geojson_manager)
+      input_manager)
     self._drop_null_contract_features(standardized_manager)
     self._add_and_promote_feature_ids(standardized_manager)
 
@@ -165,10 +135,9 @@ class BuildingContractAdapter:
     return self.output_geojson_path
 
   def _prepare_output_directories(self):
-    for output_path in (self.output_geojson_path, self.source_geojson_path):
-      output_dir = os.path.dirname(output_path)
-      if output_dir:
-        os.makedirs(output_dir, exist_ok=True)
+    output_dir = os.path.dirname(self.output_geojson_path)
+    if output_dir:
+      os.makedirs(output_dir, exist_ok=True)
 
   def _require_existing_input_layer(self):
     if not self.input_layer_path:
@@ -208,25 +177,10 @@ class BuildingContractAdapter:
       logger.error(message)
       raise KeyError(message)
 
-  def _export_input_to_geojson(self, schema_manager):
+  def _standardize_contract_fields(self, input_manager):
     try:
-      exported_path = schema_manager.export_to_geojson(
-        self.source_geojson_path)
-    except Exception as exc:
-      logger.exception(
-        'Failed to export input layer %s to GeoJSON at %s.',
-        self.input_layer_path,
-        self.source_geojson_path)
-      raise RuntimeError(
-        f'Failed GeoJSON export: {self.source_geojson_path}') from exc
-
-    logger.info('Input layer exported to GeoJSON: %s', exported_path)
-    return exported_path
-
-  def _standardize_contract_fields(self, source_geojson_manager):
-    try:
-      self._ensure_source_fields(source_geojson_manager)
-      standardized_scrub_layer = source_geojson_manager.standardize_fields(
+      self._ensure_source_fields(input_manager)
+      standardized_scrub_layer = input_manager.standardize_fields(
         field_rename_map=self.field_rename_map,
         fields_to_keep=list(self.required_fields),
         field_order=self.field_order,
