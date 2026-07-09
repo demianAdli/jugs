@@ -57,6 +57,14 @@ class TestMtlFsaContractAdapter(unittest.TestCase):
                 'mtl_H3H_gisoo.gpkg'))
         self.assertEqual(kwargs['input_layer_name'], 'mtl_H3H_gisoo')
         self.assertEqual(
+            kwargs['output_geojson_path'],
+            os.path.join(
+                tmp_dir, 'H3H', 'mtl_H3H_gisoo_standardized',
+                'mtl_H3H_gisoo_standardized.geojson'))
+        self.assertEqual(
+            kwargs['output_layer_name'],
+            'mtl_H3H_gisoo_standardized')
+        self.assertEqual(
             kwargs['field_order'],
             list(contract_adapter.rename_fields.values()))
         self.assertIsNone(kwargs['non_null_required_fields'])

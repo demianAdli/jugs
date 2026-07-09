@@ -28,7 +28,7 @@ logger = get_logger(__name__)
 workflow_output_layer_name = 'mtl_{fsa}_gisoo'
 workflow_output_layer_suffix = '.gpkg'
 
-output_layer_name = 'mtl_fsa_standardized'
+output_layer_name = 'mtl_{fsa}_gisoo_standardized'
 output_layer_suffix = '.geojson'
 
 id_field_name = 'id'
@@ -70,13 +70,15 @@ def _build_adapter_paths(fsa):
         output_paths_dir,
         resolved_workflow_output_layer_name,
         resolved_workflow_output_layer_name + workflow_output_layer_suffix)
+    resolved_output_layer_name = output_layer_name.format(fsa=fsa)
     output_layer_path = os.path.join(
         output_paths_dir,
-        output_layer_name,
-        output_layer_name + output_layer_suffix)
+        resolved_output_layer_name,
+        resolved_output_layer_name + output_layer_suffix)
     return (
         workflow_output_layer_path,
         output_layer_path,
+        resolved_output_layer_name,
     )
 
 
@@ -86,6 +88,7 @@ def run_contract_adapter(fsa, non_null_required_fields=None):
     (
         workflow_output_layer_path,
         output_layer_path,
+        resolved_output_layer_name,
     ) = _build_adapter_paths(normalized_fsa)
     adapter_t0 = perf_counter()
     logger.info(
@@ -105,7 +108,7 @@ def run_contract_adapter(fsa, non_null_required_fields=None):
         non_null_required_fields=non_null_required_fields,
         id_field_name=id_field_name,
         id_start_value=id_start_value,
-        output_layer_name='standardized_mtl_fsa',
+        output_layer_name=resolved_output_layer_name,
         field_order=field_order)
 
     try:
