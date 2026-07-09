@@ -83,6 +83,13 @@ class TestSaintMalachieContractAdapter(unittest.TestCase):
                 'address',
                 'year_of_construction',
             ],
+            non_null_required_fields=[
+                'name',
+                'height',
+                'function',
+                'address',
+                'year_of_construction',
+            ],
             id_field_name='id',
             id_start_value=100000,
             output_layer_name='standardized_saint_malachie')

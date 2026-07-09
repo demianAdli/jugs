@@ -59,6 +59,7 @@ class TestMtlFsaContractAdapter(unittest.TestCase):
         self.assertEqual(
             kwargs['field_order'],
             list(contract_adapter.rename_fields.values()))
+        self.assertIsNone(kwargs['non_null_required_fields'])
         self.assertEqual(
             kwargs['field_order'][:5],
             [
@@ -68,6 +69,22 @@ class TestMtlFsaContractAdapter(unittest.TestCase):
                 'FSA',
                 'citygisoo_area',
             ])
+
+    def test_passes_optional_non_null_fields_to_adapter(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            adapter_cls_mock = Mock()
+            adapter_cls_mock.return_value.run.return_value = 'output.geojson'
+            contract_adapter = _import_contract_adapter(
+                adapter_cls_mock, tmp_dir)
+
+            contract_adapter.run_contract_adapter(
+                'h3h',
+                non_null_required_fields=['citygisoo_id', 'FSA'])
+
+        kwargs = adapter_cls_mock.call_args.kwargs
+        self.assertEqual(
+            kwargs['non_null_required_fields'],
+            ['citygisoo_id', 'FSA'])
 
 
 if __name__ == '__main__':

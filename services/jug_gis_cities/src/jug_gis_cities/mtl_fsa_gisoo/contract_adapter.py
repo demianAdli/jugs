@@ -77,7 +77,7 @@ def _build_adapter_paths(fsa):
     )
 
 
-def run_contract_adapter(fsa):
+def run_contract_adapter(fsa, non_null_required_fields=None):
     """Run the Montreal FSA building contract adaptation workflow."""
     normalized_fsa = paths.normalize_fsa(fsa)
     (
@@ -99,6 +99,7 @@ def run_contract_adapter(fsa):
         output_geojson_path=output_layer_path,
         field_rename_map=rename_fields,
         required_fields=required_fields,
+        non_null_required_fields=non_null_required_fields,
         id_field_name=id_field_name,
         id_start_value=id_start_value,
         output_layer_name='standardized_mtl_fsa',
@@ -129,5 +130,17 @@ if __name__ == '__main__':
         '--fsa',
         required=True,
         help='Three-character Montreal FSA, for example H3H.')
+    parser.add_argument(
+        '--drop-null-fields',
+        nargs='+',
+        default=None,
+        metavar='FIELD',
+        help=(
+            'Optional standardized field names that must be non-null. '
+            'Features with null or empty values in any listed field are '
+            'deleted. By default, no features are deleted based on null '
+            'attributes.'))
     args = parser.parse_args()
-    run_contract_adapter(args.fsa)
+    run_contract_adapter(
+        args.fsa,
+        non_null_required_fields=args.drop_null_fields)

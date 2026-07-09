@@ -68,6 +68,7 @@ def run_contract_adapter():
         output_geojson_path=output_layer_path,
         field_rename_map=rename_fields,
         required_fields=required_fields,
+        non_null_required_fields=required_fields,
         id_field_name=id_field_name,
         id_start_value=id_start_value,
         output_layer_name='standardized_saint_malachie')
