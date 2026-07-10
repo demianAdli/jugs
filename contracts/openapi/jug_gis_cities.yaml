@@ -10,8 +10,9 @@ info:
 
     `standardize` mode runs the component workflow and then the contract
     adapter. The standardized output is a strict building GeoJSON contract with
-    standardized attribute names, unnecessary fields removed, null-required-field
-    features removed, and generated ids promoted as GeoJSON feature ids.
+    standardized attribute names, unnecessary fields removed, and generated ids
+    promoted as GeoJSON feature ids. Null-attribute feature deletion is opt-in
+    through `drop_null_fields`.
 
     `independent` mode runs only the component workflow. Its output is flexible
     and component-native, so it is not guaranteed to match the standardized
@@ -62,6 +63,15 @@ paths:
                 value:
                   mode: independent
                   fsa: H3H
+              montrealFsaStandardizeDropNull:
+                summary: Run Montreal FSA standardization with explicit null deletion
+                value:
+                  mode: standardize
+                  fsa: H3H
+                  drop_null_fields:
+                    - citygisoo_id
+                    - FSA
+                    - citygisoo_area
       responses:
         '201':
           description: Component run completed and output metadata returned.
@@ -153,7 +163,8 @@ components:
         Request body currently accepted by POST /components/{component_name}/runs.
         If omitted by the application layer, mode defaults to `standardize`.
         The `fsa` field is required only for components whose workflow requires
-        FSA district selection.
+        FSA district selection. `drop_null_fields` is optional; when omitted,
+        standardized runs do not delete features based on null attributes.
       additionalProperties: false
       properties:
         mode:
@@ -171,6 +182,18 @@ components:
             Optional three-character Canadian Forward Sortation Area. Required
             by `mtl_fsa_gisoo`; normalized to uppercase by the service.
           example: H3H
+        drop_null_fields:
+          type: array
+          nullable: true
+          items:
+            type: string
+            minLength: 1
+          description: |
+            Optional standardized field names that must be non-null in
+            `standardize` mode. Features with null or empty values in any
+            listed field are deleted. Omit this field, or set it to null, to
+            keep features regardless of sparse optional attributes.
+          example: [citygisoo_id, FSA, citygisoo_area]
     GISComponentRunResponse:
       type: object
       required:

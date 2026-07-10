@@ -921,7 +921,7 @@ class TestMtlFsaWorkflow(unittest.TestCase):
     self.assertIn(
       (
         'assign_field_expression',
-        'c_nrcan_intersected',
+        'c_nrcan_intersected_H3H',
         'nrcan_in_id',
         "replace(replace(uuid(), '{', ''), '}', '')",
         10,
@@ -932,7 +932,7 @@ class TestMtlFsaWorkflow(unittest.TestCase):
     self.assertIn(
       (
         'point_on_surface',
-        'c_nrcan_intersected',
+        'c_nrcan_intersected_H3H',
         nrcan_intersected_points_path,
         False,
       ),
@@ -955,7 +955,7 @@ class TestMtlFsaWorkflow(unittest.TestCase):
         (
           "geometry(\n"
           "    get_feature(\n"
-          "        'c_nrcan_intersected',\n"
+          "        'c_nrcan_intersected_H3H',\n"
           "        'nrcan_in_id',\n"
           "        attribute(@feature, 'nrcan_in_id')\n"
           "    )\n"

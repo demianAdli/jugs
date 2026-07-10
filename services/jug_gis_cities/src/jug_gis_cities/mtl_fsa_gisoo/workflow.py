@@ -623,6 +623,8 @@ def run_workflow(fsa):
 
     with _workflow_step('merge kept and restored nrcan intersections',
                         normalized_fsa):
+      nrcan_intersected_layer_name = (
+        f'c_nrcan_intersected_{normalized_fsa}')
       ScrubLayer.merge_layer_paths(
         layer_paths=[
           inter_kept.layer_path,
@@ -633,7 +635,7 @@ def run_workflow(fsa):
         output_paths,
         'nrcan_intersected',
         normalized_fsa,
-        layer_name='c_nrcan_intersected')
+        layer_name=nrcan_intersected_layer_name)
 
     # Procedure: Joining usage_roll_all attributes to the
     # nrcan_intersected features
@@ -674,7 +676,7 @@ def run_workflow(fsa):
         expression=(
           "geometry(\n"
           "    get_feature(\n"
-          "        'c_nrcan_intersected',\n"
+          f"        '{nrcan_intersected_layer_name}',\n"
           "        'nrcan_in_id',\n"
           "        attribute(@feature, 'nrcan_in_id')\n"
           "    )\n"

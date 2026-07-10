@@ -1,0 +1,9 @@
+{
+  "mode": "standardize",
+  "fsa": "H3H",
+  "drop_null_fields": [
+    "citygisoo_id",
+    "FSA",
+    "citygisoo_area"
+  ]
+}
