@@ -3,6 +3,7 @@ Application-layer orchestration for jug_gis_cities.
 """
 
 from .jug_gis_cities import (
+    GisComponentCleanupError,
     GisComponentContractError,
     GisComponentError,
     GisComponentNotFoundError,
@@ -22,6 +23,7 @@ from .mtl_fsa_batch_runner import (
 )
 
 __all__ = [
+    'GisComponentCleanupError',
     'GisComponentContractError',
     'GisComponentError',
     'GisComponentNotFoundError',

@@ -130,6 +130,12 @@ python -m jug_gis_cities `
 Leaving out `--cleanup-outputs` is equivalent to `cleanup_outputs=False` and
 preserves all generated datasets.
 
+Cleanup-enabled runs execute the PyQGIS workflow in a disposable spawned
+worker. The worker inherits the active Python environment (for example
+`pyqgis44`), shuts down after producing the raw and standardized outputs, and
+the coordinating process deletes intermediates only after all QGIS/GDAL file
+handles have been released. No interpreter path is hardcoded.
+
 ## REST API Run
 
 Start the API:

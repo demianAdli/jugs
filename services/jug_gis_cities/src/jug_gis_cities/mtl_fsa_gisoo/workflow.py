@@ -813,15 +813,19 @@ if __name__ == '__main__':
     parser.error('--keep-output requires --cleanup-outputs.')
   if args.cleanup_outputs:
     try:
-      from .output_cleanup import cleanup_outputs as cleanup_generated_outputs
+      from ..application import GISCitiesApplicationService
     except ImportError:
-      from output_cleanup import cleanup_outputs as cleanup_generated_outputs
-    cleanup_generated_outputs(
-      args.fsa,
-      keep_outputs=args.keep_output,
-      validate_only=True)
-  run_workflow(args.fsa)
-  if args.cleanup_outputs:
-    cleanup_generated_outputs(
-      args.fsa,
+      try:
+        from jug_gis_cities.application import GISCitiesApplicationService
+      except ImportError as exc:
+        raise RuntimeError(
+          'Cleanup-enabled direct workflow execution requires the '
+          'jug_gis_cities package to be installed.') from exc
+    GISCitiesApplicationService.run_component(
+      component_name='mtl_fsa_gisoo',
+      mode='independent',
+      fsa=args.fsa,
+      cleanup_outputs=True,
       keep_outputs=args.keep_output)
+  else:
+    run_workflow(args.fsa)

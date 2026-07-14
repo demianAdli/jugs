@@ -71,6 +71,18 @@ class TestMtlFsaOutputCleanup(unittest.TestCase):
                         'H3H',
                         keep_outputs=['not_a_workflow_output'])
 
+    def test_cleanup_can_skip_qgis_import_for_isolated_parent(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with patch.object(output_cleanup.paths, 'output_paths_dir', temp_dir):
+                with patch.object(
+                        output_cleanup,
+                        '_release_qgis_output_layers') as release_mock:
+                    output_cleanup.cleanup_outputs(
+                        'H3H',
+                        release_qgis_layers=False)
+
+        release_mock.assert_not_called()
+
     def test_cleanup_refuses_configured_path_outside_fsa_root(self):
         configured_outputs = dict(output_cleanup.paths.output_paths)
         configured_outputs['../outside'] = ''

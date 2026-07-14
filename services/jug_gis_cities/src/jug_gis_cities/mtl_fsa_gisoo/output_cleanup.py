@@ -128,7 +128,11 @@ def _remove_output_directory(output_directory):
       time.sleep(delay)
 
 
-def cleanup_outputs(fsa, keep_outputs=None, validate_only=False):
+def cleanup_outputs(
+        fsa,
+        keep_outputs=None,
+        validate_only=False,
+        release_qgis_layers=True):
   """Delete unretained known outputs for one successfully completed FSA.
 
   ``validate_only`` validates caller input without touching the filesystem.
@@ -144,7 +148,8 @@ def cleanup_outputs(fsa, keep_outputs=None, validate_only=False):
     paths.get_fsa_output_paths_dir(normalized_fsa)).resolve()
   deleted_output_paths = []
 
-  _release_qgis_output_layers(output_root)
+  if release_qgis_layers:
+    _release_qgis_output_layers(output_root)
 
   for output_key in cleanup_candidates:
     resolved_key = _resolved_output_key(output_key, normalized_fsa)

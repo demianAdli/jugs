@@ -10,10 +10,14 @@ www.demianadli.com
 from __future__ import annotations
 
 import ast
+import gc
 import inspect
 import importlib
 import importlib.util
+import multiprocessing
+import os
 import re
+from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass
 from enum import Enum
 from time import perf_counter
@@ -25,6 +29,92 @@ logger = get_logger(__name__)
 
 _COMPONENT_NAME_PATTERN = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')
 _FSA_PATTERN = re.compile(r'^[A-Z][0-9][A-Z]$')
+
+
+def _initialize_worker_qgis():
+    """Create a headless QGIS application when the worker does not have one."""
+    try:
+        from qgis.core import QgsApplication
+    except ImportError:
+        return None
+
+    qgis_application = QgsApplication.instance()
+    if qgis_application is not None:
+        return qgis_application
+
+    qgis_prefix_path = (
+        os.getenv('JUG_GIS_CITIES_QGIS_PATH')
+        or os.getenv('QGIS_PREFIX_PATH'))
+    if qgis_prefix_path:
+        QgsApplication.setPrefixPath(qgis_prefix_path, True)
+    os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
+    qgis_application = QgsApplication([], False)
+    qgis_application.initQgis()
+    logger.info(
+        'Initialized QGIS in disposable GIS component worker. Prefix=%s',
+        QgsApplication.prefixPath())
+    return qgis_application
+
+
+def _shutdown_worker_qgis(qgis_application=None):
+    """Release QGIS resources before a disposable worker terminates."""
+    try:
+        from qgis.core import QgsApplication, QgsProject
+    except ImportError:
+        return
+
+    try:
+        QgsProject.instance().removeAllMapLayers()
+        gc.collect()
+        active_application = qgis_application or QgsApplication.instance()
+        if active_application is not None:
+            active_application.exitQgis()
+        logger.info('Disposable GIS component worker shut down QGIS.')
+    except Exception:
+        # Process termination still releases operating-system file handles.
+        logger.exception('Failed to shut down QGIS cleanly in worker.')
+
+
+def _execute_component_worker(
+        component_name,
+        mode,
+        fsa,
+        non_null_required_fields):
+    """Execute one component inside a disposable spawned process."""
+    qgis_application = None
+    try:
+        from ..logging_setup import configure_service_logging
+
+        configure_service_logging('gis_cities-worker')
+        qgis_application = _initialize_worker_qgis()
+        return GISCitiesApplicationService.run_component(
+            component_name=component_name,
+            mode=mode,
+            fsa=fsa,
+            non_null_required_fields=non_null_required_fields,
+            cleanup_outputs=False,
+            keep_outputs=None)
+    finally:
+        _shutdown_worker_qgis(qgis_application)
+
+
+def _run_component_in_fresh_process(
+        component_name,
+        mode,
+        fsa,
+        non_null_required_fields):
+    """Run one component and wait until its QGIS process fully terminates."""
+    spawn_context = multiprocessing.get_context('spawn')
+    with ProcessPoolExecutor(
+            max_workers=1,
+            mp_context=spawn_context) as executor:
+        future = executor.submit(
+            _execute_component_worker,
+            component_name,
+            mode,
+            fsa,
+            non_null_required_fields)
+        return future.result()
 
 
 class GisComponentRunMode(str, Enum):
@@ -56,6 +146,10 @@ class GisComponentNotFoundError(GisComponentError):
 
 class GisComponentContractError(GisComponentError):
     """Raised when a component does not implement the expected interface."""
+
+
+class GisComponentCleanupError(GisComponentError):
+    """Raised when outputs were produced but post-process cleanup failed."""
 
 
 class GISCitiesApplicationService:
@@ -94,6 +188,15 @@ class GISCitiesApplicationService:
             raise ValueError(
                 'keep_outputs requires cleanup_outputs=True.')
 
+        if normalized_cleanup_outputs:
+            return cls._run_component_with_isolated_cleanup(
+                component_name=normalized_component_name,
+                mode=normalized_mode,
+                fsa=normalized_fsa,
+                non_null_required_fields=(
+                    normalized_non_null_required_fields),
+                keep_outputs=normalized_keep_outputs)
+
         run_t0 = perf_counter()
         logger.info(
             'Starting GIS city component. Component=%s Mode=%s FSA=%s',
@@ -111,26 +214,6 @@ class GISCitiesApplicationService:
                     component_name=normalized_component_name,
                     module_name='contract_adapter',
                     callable_name='run_contract_adapter')
-
-            output_cleanup_runner = None
-            if normalized_cleanup_outputs:
-                cls._ensure_component_callable(
-                    component_name=normalized_component_name,
-                    module_name='output_cleanup',
-                    callable_name='cleanup_outputs')
-                output_cleanup_runner = cls._import_component_callable(
-                    component_name=normalized_component_name,
-                    module_name='output_cleanup',
-                    callable_name='cleanup_outputs')
-                cls._run_component_callable(
-                    runner=output_cleanup_runner,
-                    component_name=normalized_component_name,
-                    callable_label='output_cleanup.cleanup_outputs',
-                    fsa=normalized_fsa,
-                    optional_kwargs={
-                        'keep_outputs': normalized_keep_outputs,
-                        'validate_only': True,
-                    })
 
             workflow_runner = cls._import_component_callable(
                 component_name=normalized_component_name,
@@ -159,17 +242,6 @@ class GISCitiesApplicationService:
                     })
 
             cleaned_output_paths = ()
-            if output_cleanup_runner is not None:
-                cleaned_output_paths = cls._run_component_callable(
-                    runner=output_cleanup_runner,
-                    component_name=normalized_component_name,
-                    callable_label='output_cleanup.cleanup_outputs',
-                    fsa=normalized_fsa,
-                    optional_kwargs={
-                        'keep_outputs': normalized_keep_outputs,
-                        'validate_only': False,
-                    })
-                cleaned_output_paths = tuple(cleaned_output_paths or ())
 
         except GisComponentError:
             logger.exception(
@@ -216,6 +288,109 @@ class GISCitiesApplicationService:
             result.fsa,
             result.workflow_output_path,
             result.standardized_output_path,
+            len(result.cleaned_output_paths),
+            perf_counter() - run_t0)
+        return result
+
+    @classmethod
+    def _run_component_with_isolated_cleanup(
+            cls,
+            component_name,
+            mode,
+            fsa,
+            non_null_required_fields,
+            keep_outputs):
+        """Run QGIS in a disposable process, then clean from the parent."""
+        run_t0 = perf_counter()
+        logger.info(
+            'Starting isolated GIS city component. Component=%s Mode=%s '
+            'FSA=%s',
+            component_name,
+            mode.value,
+            fsa)
+
+        cls._ensure_component_callable(
+            component_name=component_name,
+            module_name='output_cleanup',
+            callable_name='cleanup_outputs')
+        output_cleanup_runner = cls._import_component_callable(
+            component_name=component_name,
+            module_name='output_cleanup',
+            callable_name='cleanup_outputs')
+        cls._run_component_callable(
+            runner=output_cleanup_runner,
+            component_name=component_name,
+            callable_label='output_cleanup.cleanup_outputs',
+            fsa=fsa,
+            optional_kwargs={
+                'keep_outputs': keep_outputs,
+                'validate_only': True,
+                'release_qgis_layers': False,
+            })
+
+        try:
+            worker_result = _run_component_in_fresh_process(
+                component_name=component_name,
+                mode=mode.value,
+                fsa=fsa,
+                non_null_required_fields=non_null_required_fields)
+        except (GisComponentError, TypeError, ValueError):
+            logger.exception(
+                'Isolated GIS city component failed. Component=%s Mode=%s '
+                'FSA=%s',
+                component_name,
+                mode.value,
+                fsa)
+            raise
+        except Exception as exc:
+            logger.exception(
+                'Disposable GIS city component worker failed. Component=%s '
+                'Mode=%s FSA=%s',
+                component_name,
+                mode.value,
+                fsa)
+            raise GisComponentError(
+                'Disposable GIS component worker failed: '
+                f'{component_name} ({mode.value})') from exc
+
+        try:
+            cleaned_output_paths = cls._run_component_callable(
+                runner=output_cleanup_runner,
+                component_name=component_name,
+                callable_label='output_cleanup.cleanup_outputs',
+                fsa=fsa,
+                optional_kwargs={
+                    'keep_outputs': keep_outputs,
+                    'validate_only': False,
+                    'release_qgis_layers': False,
+                })
+        except Exception as exc:
+            logger.exception(
+                'GIS city component completed but output cleanup failed. '
+                'Component=%s Mode=%s FSA=%s WorkflowOutput=%s '
+                'StandardizedOutput=%s',
+                component_name,
+                mode.value,
+                fsa,
+                worker_result.workflow_output_path,
+                worker_result.standardized_output_path)
+            raise GisComponentCleanupError(
+                'GIS component outputs were created, but cleanup failed: '
+                f'{component_name} ({mode.value}) FSA={fsa}') from exc
+
+        result = GisComponentRunResult(
+            component_name=worker_result.component_name,
+            mode=worker_result.mode,
+            workflow_output_path=worker_result.workflow_output_path,
+            standardized_output_path=worker_result.standardized_output_path,
+            fsa=worker_result.fsa,
+            cleaned_output_paths=tuple(cleaned_output_paths or ()))
+        logger.info(
+            'Completed isolated GIS city component. Component=%s Mode=%s '
+            'FSA=%s Cleaned=%s Elapsed=%.3fs',
+            result.component_name,
+            result.mode.value,
+            result.fsa,
             len(result.cleaned_output_paths),
             perf_counter() - run_t0)
         return result

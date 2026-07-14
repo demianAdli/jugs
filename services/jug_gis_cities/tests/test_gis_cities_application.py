@@ -10,6 +10,7 @@ www.demianadli.com
 import unittest
 import os
 import sys
+import types
 from unittest.mock import Mock, call, patch
 
 
@@ -20,14 +21,114 @@ if _SABU_CHASSIS_SRC not in sys.path:
     sys.path.insert(0, _SABU_CHASSIS_SRC)
 
 from src.jug_gis_cities.application.jug_gis_cities import (
+    _execute_component_worker,
+    _initialize_worker_qgis,
+    _run_component_in_fresh_process,
+    _shutdown_worker_qgis,
+    GisComponentCleanupError,
     GisComponentContractError,
     GisComponentError,
     GisComponentRunMode,
+    GisComponentRunResult,
     GISCitiesApplicationService,
 )
 
 
 class TestGISCitiesApplicationService(unittest.TestCase):
+    def test_worker_shutdown_releases_project_layers_and_exits_qgis(self):
+        qgis_application = Mock()
+        project = Mock()
+        fake_qgis = types.ModuleType('qgis')
+        fake_qgis_core = types.ModuleType('qgis.core')
+        fake_qgis_core.QgsApplication = Mock()
+        fake_qgis_core.QgsProject = Mock()
+        fake_qgis_core.QgsProject.instance.return_value = project
+
+        with patch.dict(
+                sys.modules,
+                {'qgis': fake_qgis, 'qgis.core': fake_qgis_core}):
+            _shutdown_worker_qgis(qgis_application)
+
+        project.removeAllMapLayers.assert_called_once_with()
+        qgis_application.exitQgis.assert_called_once_with()
+
+    def test_worker_qgis_initialization_uses_configured_environment_prefix(self):
+        class _FakeQgsApplication:
+            configured_prefix = None
+            initialized = False
+
+            @classmethod
+            def instance(cls):
+                return None
+
+            @classmethod
+            def setPrefixPath(cls, prefix, use_default_paths):
+                cls.configured_prefix = (prefix, use_default_paths)
+
+            @classmethod
+            def prefixPath(cls):
+                return cls.configured_prefix[0]
+
+            def __init__(self, argv, gui_enabled):
+                self.argv = argv
+                self.gui_enabled = gui_enabled
+
+            def initQgis(self):
+                type(self).initialized = True
+
+        fake_qgis = types.ModuleType('qgis')
+        fake_qgis_core = types.ModuleType('qgis.core')
+        fake_qgis_core.QgsApplication = _FakeQgsApplication
+        with patch.dict(
+                sys.modules,
+                {'qgis': fake_qgis, 'qgis.core': fake_qgis_core}):
+            with patch.dict(
+                    os.environ,
+                    {'JUG_GIS_CITIES_QGIS_PATH': 'C:/QGIS44'}):
+                qgis_application = _initialize_worker_qgis()
+
+        self.assertEqual(
+            _FakeQgsApplication.configured_prefix,
+            ('C:/QGIS44', True))
+        self.assertTrue(_FakeQgsApplication.initialized)
+        self.assertEqual(qgis_application.argv, [])
+        self.assertFalse(qgis_application.gui_enabled)
+
+    @patch(
+        'src.jug_gis_cities.application.jug_gis_cities.'
+        'ProcessPoolExecutor'
+    )
+    @patch(
+        'src.jug_gis_cities.application.jug_gis_cities.'
+        'multiprocessing.get_context'
+    )
+    def test_fresh_process_runner_uses_spawn_and_waits_for_result(
+            self,
+            get_context_mock,
+            executor_class_mock):
+        spawn_context = object()
+        get_context_mock.return_value = spawn_context
+        executor = executor_class_mock.return_value.__enter__.return_value
+        executor.submit.return_value.result.return_value = 'worker-result'
+
+        result = _run_component_in_fresh_process(
+            component_name='mtl_fsa_gisoo',
+            mode='standardize',
+            fsa='H3H',
+            non_null_required_fields=['FSA'])
+
+        self.assertEqual(result, 'worker-result')
+        get_context_mock.assert_called_once_with('spawn')
+        executor_class_mock.assert_called_once_with(
+            max_workers=1,
+            mp_context=spawn_context)
+        executor.submit.assert_called_once_with(
+            _execute_component_worker,
+            'mtl_fsa_gisoo',
+            'standardize',
+            'H3H',
+            ['FSA'])
+
     def test_normalize_mode_accepts_strings_and_enum(self):
         self.assertEqual(
             GISCitiesApplicationService._normalize_mode(' STANDARDIZE '),
@@ -294,8 +395,13 @@ class TestGISCitiesApplicationService(unittest.TestCase):
     @patch.object(GISCitiesApplicationService, '_import_component_callable')
     @patch.object(GISCitiesApplicationService, '_ensure_component_callable')
     @patch.object(GISCitiesApplicationService, '_normalize_component_name')
+    @patch(
+        'src.jug_gis_cities.application.jug_gis_cities.'
+        '_run_component_in_fresh_process'
+    )
     def test_run_component_cleans_only_after_standardization(
             self,
+            fresh_process_mock,
             normalize_component_name_mock,
             ensure_component_callable_mock,
             import_component_callable_mock):
@@ -310,19 +416,14 @@ class TestGISCitiesApplicationService(unittest.TestCase):
                 return ()
             return ('deleted_output',)
 
-        def workflow_runner(*, fsa):
-            calls.append(('workflow', fsa))
-            return f'workflow_{fsa}.gpkg'
-
-        def contract_adapter_runner(*, fsa):
-            calls.append(('contract_adapter', fsa))
-            return f'standardized_{fsa}.geojson'
-
-        import_component_callable_mock.side_effect = [
-            cleanup_runner,
-            workflow_runner,
-            contract_adapter_runner,
-        ]
+        import_component_callable_mock.return_value = cleanup_runner
+        fresh_process_mock.side_effect = lambda **kwargs: (
+            calls.append(('worker', kwargs)) or GisComponentRunResult(
+                component_name='mtl_fsa_gisoo',
+                mode=GisComponentRunMode.STANDARDIZE,
+                fsa='H3H',
+                workflow_output_path='workflow_H3H.gpkg',
+                standardized_output_path='standardized_H3H.geojson'))
 
         result = GISCitiesApplicationService.run_component(
             'mtl_fsa_gisoo',
@@ -334,24 +435,55 @@ class TestGISCitiesApplicationService(unittest.TestCase):
         self.assertEqual(result.cleaned_output_paths, ('deleted_output',))
         self.assertEqual(calls, [
             ('cleanup', 'H3H', ['usage_clean'], True),
-            ('workflow', 'H3H'),
-            ('contract_adapter', 'H3H'),
+            ('worker', {
+                'component_name': 'mtl_fsa_gisoo',
+                'mode': 'standardize',
+                'fsa': 'H3H',
+                'non_null_required_fields': None,
+            }),
             ('cleanup', 'H3H', ['usage_clean'], False),
         ])
-        ensure_component_callable_mock.assert_has_calls([
-            call(
-                component_name='mtl_fsa_gisoo',
-                module_name='workflow',
-                callable_name='run_workflow'),
-            call(
-                component_name='mtl_fsa_gisoo',
-                module_name='contract_adapter',
-                callable_name='run_contract_adapter'),
-            call(
-                component_name='mtl_fsa_gisoo',
-                module_name='output_cleanup',
-                callable_name='cleanup_outputs'),
-        ])
+        ensure_component_callable_mock.assert_called_once_with(
+            component_name='mtl_fsa_gisoo',
+            module_name='output_cleanup',
+            callable_name='cleanup_outputs')
+
+    @patch.object(GISCitiesApplicationService, '_import_component_callable')
+    @patch.object(GISCitiesApplicationService, '_ensure_component_callable')
+    @patch.object(GISCitiesApplicationService, '_normalize_component_name')
+    @patch(
+        'src.jug_gis_cities.application.jug_gis_cities.'
+        '_run_component_in_fresh_process'
+    )
+    def test_isolated_cleanup_failure_preserves_successful_output_context(
+            self,
+            fresh_process_mock,
+            normalize_component_name_mock,
+            ensure_component_callable_mock,
+            import_component_callable_mock):
+        normalize_component_name_mock.return_value = 'mtl_fsa_gisoo'
+
+        def cleanup_runner(*, fsa, keep_outputs=None, validate_only=False):
+            if validate_only:
+                return ()
+            raise PermissionError('locked')
+
+        import_component_callable_mock.return_value = cleanup_runner
+        fresh_process_mock.return_value = GisComponentRunResult(
+            component_name='mtl_fsa_gisoo',
+            mode=GisComponentRunMode.STANDARDIZE,
+            fsa='H3H',
+            workflow_output_path='workflow_H3H.gpkg',
+            standardized_output_path='standardized_H3H.geojson')
+
+        with self.assertRaisesRegex(
+                GisComponentCleanupError,
+                'outputs were created'):
+            GISCitiesApplicationService.run_component(
+                'mtl_fsa_gisoo',
+                mode='standardize',
+                fsa='H3H',
+                cleanup_outputs=True)
 
     def test_keep_outputs_requires_cleanup(self):
         with patch.object(
