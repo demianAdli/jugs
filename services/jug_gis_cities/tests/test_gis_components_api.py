@@ -80,12 +80,15 @@ class TestGISComponentsApi(unittest.TestCase):
                 'fsa': None,
                 'workflow_output_path': 'workflow_output.shp',
                 'standardized_output_path': 'standardized.geojson',
+                'cleaned_output_paths': [],
             })
         run_component_mock.assert_called_once_with(
             component_name='saint_malachie_gisoo',
             mode='standardize',
             fsa=None,
-            non_null_required_fields=None)
+            non_null_required_fields=None,
+            cleanup_outputs=False,
+            keep_outputs=None)
 
     @patch(
         'src.jug_gis_cities.resources.gis_components.'
@@ -112,12 +115,15 @@ class TestGISComponentsApi(unittest.TestCase):
                 'fsa': 'H3H',
                 'workflow_output_path': 'workflow_output.shp',
                 'standardized_output_path': None,
+                'cleaned_output_paths': [],
             })
         run_component_mock.assert_called_once_with(
             component_name='mtl_fsa_gisoo',
             mode='independent',
             fsa='h3h',
-            non_null_required_fields=None)
+            non_null_required_fields=None,
+            cleanup_outputs=False,
+            keep_outputs=None)
 
     @patch(
         'src.jug_gis_cities.resources.gis_components.'
@@ -146,7 +152,44 @@ class TestGISComponentsApi(unittest.TestCase):
             component_name='mtl_fsa_gisoo',
             mode='standardize',
             fsa='h3h',
-            non_null_required_fields=['citygisoo_id', 'FSA'])
+            non_null_required_fields=['citygisoo_id', 'FSA'],
+            cleanup_outputs=False,
+            keep_outputs=None)
+
+    @patch(
+        'src.jug_gis_cities.resources.gis_components.'
+        'GISCitiesApplicationService.run_component'
+    )
+    def test_post_component_run_accepts_cleanup_options(
+            self,
+            run_component_mock):
+        run_component_mock.return_value = GisComponentRunResult(
+            component_name='mtl_fsa_gisoo',
+            mode=GisComponentRunMode.INDEPENDENT,
+            fsa='H3H',
+            workflow_output_path='workflow_output.gpkg',
+            cleaned_output_paths=('usage_clean',))
+
+        response = self.client.post(
+            '/components/mtl_fsa_gisoo/runs',
+            json={
+                'mode': 'independent',
+                'fsa': 'h3h',
+                'cleanup_outputs': True,
+                'keep_outputs': ['inter_summary'],
+            })
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(
+            response.get_json()['cleaned_output_paths'],
+            ['usage_clean'])
+        run_component_mock.assert_called_once_with(
+            component_name='mtl_fsa_gisoo',
+            mode='independent',
+            fsa='h3h',
+            non_null_required_fields=None,
+            cleanup_outputs=True,
+            keep_outputs=['inter_summary'])
 
     @patch(
         'src.jug_gis_cities.resources.gis_components.'

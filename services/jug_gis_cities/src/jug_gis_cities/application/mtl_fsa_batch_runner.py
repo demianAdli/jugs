@@ -34,6 +34,7 @@ class MtlFsaBatchItemResult:
     standardized_output_path: str | None = None
     error: str | None = None
     elapsed_seconds: float = 0.0
+    cleaned_output_paths: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -133,7 +134,9 @@ def run_one_mtl_fsa(
         mode=GisComponentRunMode.STANDARDIZE,
         non_null_required_fields=None,
         configure_worker_logging=False,
-        component_runner=None):
+        component_runner=None,
+        cleanup_outputs=False,
+        keep_outputs=None):
     """Run the Montreal FSA component for one FSA and return a result item."""
     normalized_fsa = mtl_fsa_paths.normalize_fsa(fsa)
     normalized_mode = _mode_value(mode)
@@ -144,11 +147,16 @@ def run_one_mtl_fsa(
 
     runner = component_runner or GISCitiesApplicationService.run_component
     try:
-        result = runner(
+        runner_kwargs = dict(
             component_name=MTL_FSA_COMPONENT_NAME,
             mode=normalized_mode,
             fsa=normalized_fsa,
             non_null_required_fields=non_null_required_fields)
+        if cleanup_outputs or keep_outputs is not None:
+            runner_kwargs.update(
+                cleanup_outputs=cleanup_outputs,
+                keep_outputs=keep_outputs)
+        result = runner(**runner_kwargs)
     except Exception as exc:
         logger.exception(
             'Montreal FSA batch item failed. FSA=%s Mode=%s',
@@ -168,6 +176,10 @@ def run_one_mtl_fsa(
             result,
             'standardized_output_path',
             None),
+        cleaned_output_paths=tuple(getattr(
+            result,
+            'cleaned_output_paths',
+            ()) or ()),
         elapsed_seconds=perf_counter() - run_t0)
 
 
@@ -175,6 +187,8 @@ def _run_mtl_fsa_batch_sequential(
         fsas,
         mode,
         non_null_required_fields,
+        cleanup_outputs,
+        keep_outputs,
         configure_worker_logging,
         component_runner):
     return tuple(
@@ -182,6 +196,8 @@ def _run_mtl_fsa_batch_sequential(
             fsa=fsa,
             mode=mode,
             non_null_required_fields=non_null_required_fields,
+            cleanup_outputs=cleanup_outputs,
+            keep_outputs=keep_outputs,
             configure_worker_logging=configure_worker_logging,
             component_runner=component_runner)
         for fsa in fsas)
@@ -191,16 +207,20 @@ def _run_mtl_fsa_batch_parallel(
         fsas,
         mode,
         non_null_required_fields,
+        cleanup_outputs,
+        keep_outputs,
         max_workers):
     results_by_fsa = {}
     with ProcessPoolExecutor(max_workers=max_workers) as executor:
         futures = {
             executor.submit(
                 run_one_mtl_fsa,
-                fsa,
-                mode,
-                non_null_required_fields,
-                True): fsa
+                fsa=fsa,
+                mode=mode,
+                non_null_required_fields=non_null_required_fields,
+                configure_worker_logging=True,
+                cleanup_outputs=cleanup_outputs,
+                keep_outputs=keep_outputs): fsa
             for fsa in fsas
         }
 
@@ -231,6 +251,8 @@ class MtlFsaBatchRunner:
     fsa_provider: Callable[[], Iterable[str]] | None = None
     component_runner: Callable | None = None
     configure_worker_logging: bool = False
+    cleanup_outputs: bool = False
+    keep_outputs: Iterable[str] | None = None
 
     def __post_init__(self):
         normalized_mode = _mode_value(self.mode)
@@ -238,11 +260,26 @@ class MtlFsaBatchRunner:
             raise TypeError('max_workers must be an integer.')
         if self.max_workers < 1:
             raise ValueError('max_workers must be at least 1.')
+        if not isinstance(self.cleanup_outputs, bool):
+            raise TypeError('cleanup_outputs must be a boolean.')
+        normalized_keep_outputs = self.keep_outputs
+        if normalized_keep_outputs is not None:
+            if isinstance(normalized_keep_outputs, (str, bytes)):
+                raise TypeError(
+                    'keep_outputs must be an iterable of output keys.')
+            normalized_keep_outputs = tuple(normalized_keep_outputs)
+            if any(not isinstance(output_key, str)
+                   for output_key in normalized_keep_outputs):
+                raise TypeError('keep_outputs must contain only strings.')
+            normalized_keep_outputs = normalized_keep_outputs or None
+        if normalized_keep_outputs and not self.cleanup_outputs:
+            raise ValueError('keep_outputs requires cleanup_outputs=True.')
         if self.max_workers > 1 and self.component_runner is not None:
             raise ValueError(
                 'component_runner injection is only supported for '
                 'sequential runs.')
         object.__setattr__(self, 'mode', normalized_mode)
+        object.__setattr__(self, 'keep_outputs', normalized_keep_outputs)
 
     def discover_fsas(self):
         provider = self.fsa_provider or discover_mtl_fsas
@@ -258,6 +295,8 @@ class MtlFsaBatchRunner:
             fsa=fsa,
             mode=self.mode,
             non_null_required_fields=self.non_null_required_fields,
+            cleanup_outputs=self.cleanup_outputs,
+            keep_outputs=self.keep_outputs,
             configure_worker_logging=self.configure_worker_logging,
             component_runner=self.component_runner)
 
@@ -281,6 +320,8 @@ class MtlFsaBatchRunner:
                 selected_fsas,
                 self.mode,
                 self.non_null_required_fields,
+                self.cleanup_outputs,
+                self.keep_outputs,
                 self.configure_worker_logging,
                 self.component_runner)
         else:
@@ -288,6 +329,8 @@ class MtlFsaBatchRunner:
                 selected_fsas,
                 self.mode,
                 self.non_null_required_fields,
+                self.cleanup_outputs,
+                self.keep_outputs,
                 self.max_workers)
 
         batch_result = MtlFsaBatchRunResult(
@@ -314,7 +357,9 @@ def run_mtl_fsa_batch(
         non_null_required_fields=None,
         fsa_provider: Callable[[], Iterable[str]] | None = None,
         component_runner=None,
-        configure_worker_logging=False):
+        configure_worker_logging=False,
+        cleanup_outputs=False,
+        keep_outputs=None):
     """Run the Montreal FSA GISOO component for many FSAs.
 
     ``max_workers=1`` runs sequentially in the current process. Values greater
@@ -325,6 +370,8 @@ def run_mtl_fsa_batch(
         mode=mode,
         max_workers=max_workers,
         non_null_required_fields=non_null_required_fields,
+        cleanup_outputs=cleanup_outputs,
+        keep_outputs=keep_outputs,
         fsa_provider=fsa_provider,
         component_runner=component_runner,
         configure_worker_logging=configure_worker_logging)

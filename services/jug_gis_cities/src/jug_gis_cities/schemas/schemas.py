@@ -35,6 +35,12 @@ class GISComponentRunRequestSchema(Schema):
         allow_none=True,
         load_default=None,
     )
+    cleanup_outputs = fields.Boolean(load_default=False)
+    keep_outputs = fields.List(
+        fields.String(validate=validate.Length(min=1)),
+        allow_none=True,
+        load_default=None,
+    )
 
 
 class GISComponentRunResultSchema(Schema):
@@ -45,3 +51,4 @@ class GISComponentRunResultSchema(Schema):
     fsa = fields.String(allow_none=True)
     workflow_output_path = fields.String(required=True)
     standardized_output_path = fields.String(allow_none=True)
+    cleaned_output_paths = fields.List(fields.String(), required=True)

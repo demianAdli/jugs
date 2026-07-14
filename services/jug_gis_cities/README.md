@@ -102,6 +102,34 @@ FSA. Lowercase input is accepted and normalized to uppercase.
 python -m jug_gis_cities --component mtl_fsa_gisoo --mode independent --fsa H3H
 ```
 
+By default, every workflow output is retained. Opt in to removing intermediate
+Montreal FSA datasets after a successful run with `--cleanup-outputs`:
+
+```powershell
+python -m jug_gis_cities `
+  --component mtl_fsa_gisoo `
+  --mode standardize `
+  --fsa H3H `
+  --cleanup-outputs
+```
+
+Cleanup always retains `fsa_boundary`, `nrcan_fixed`, `roll`, `usage_fixed`,
+`mtl_H3H_gisoo`, and the standardized output when one is produced. Use the
+repeatable `--keep-output` option to retain additional workflow output keys:
+
+```powershell
+python -m jug_gis_cities `
+  --component mtl_fsa_gisoo `
+  --mode standardize `
+  --fsa H3H `
+  --cleanup-outputs `
+  --keep-output usage_clean `
+  --keep-output inter_summary
+```
+
+Leaving out `--cleanup-outputs` is equivalent to `cleanup_outputs=False` and
+preserves all generated datasets.
+
 ## REST API Run
 
 Start the API:
@@ -139,6 +167,30 @@ Invoke-RestMethod `
   -Uri http://127.0.0.1:5000/components/mtl_fsa_gisoo/runs `
   -ContentType "application/json" `
   -Body '{"mode":"independent","fsa":"H3H"}'
+```
+
+Enable cleanup and retain extra output keys through the API with:
+
+```powershell
+Invoke-RestMethod `
+  -Method Post `
+  -Uri http://127.0.0.1:5000/components/mtl_fsa_gisoo/runs `
+  -ContentType "application/json" `
+  -Body '{"mode":"standardize","fsa":"H3H","cleanup_outputs":true,"keep_outputs":["usage_clean","inter_summary"]}'
+```
+
+The same JSON fields apply to the Docker API. Docker direct execution accepts
+the same CLI options as the local direct Python run.
+
+Programmatic Montreal FSA batch runs accept the equivalent options and clean
+each successful FSA before moving on:
+
+```python
+run_mtl_fsa_batch(
+    mode="standardize",
+    cleanup_outputs=True,
+    keep_outputs=["usage_clean", "inter_summary"],
+)
 ```
 
 ## Docker API Run

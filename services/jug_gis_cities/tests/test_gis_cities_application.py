@@ -291,6 +291,80 @@ class TestGISCitiesApplicationService(unittest.TestCase):
                 'saint_malachie_gisoo',
                 mode='independent')
 
+    @patch.object(GISCitiesApplicationService, '_import_component_callable')
+    @patch.object(GISCitiesApplicationService, '_ensure_component_callable')
+    @patch.object(GISCitiesApplicationService, '_normalize_component_name')
+    def test_run_component_cleans_only_after_standardization(
+            self,
+            normalize_component_name_mock,
+            ensure_component_callable_mock,
+            import_component_callable_mock):
+        normalize_component_name_mock.return_value = 'mtl_fsa_gisoo'
+        calls = []
+
+        def cleanup_runner(
+                *, fsa, keep_outputs=None, validate_only=False):
+            calls.append(
+                ('cleanup', fsa, keep_outputs, validate_only))
+            if validate_only:
+                return ()
+            return ('deleted_output',)
+
+        def workflow_runner(*, fsa):
+            calls.append(('workflow', fsa))
+            return f'workflow_{fsa}.gpkg'
+
+        def contract_adapter_runner(*, fsa):
+            calls.append(('contract_adapter', fsa))
+            return f'standardized_{fsa}.geojson'
+
+        import_component_callable_mock.side_effect = [
+            cleanup_runner,
+            workflow_runner,
+            contract_adapter_runner,
+        ]
+
+        result = GISCitiesApplicationService.run_component(
+            'mtl_fsa_gisoo',
+            mode='standardize',
+            fsa='h3h',
+            cleanup_outputs=True,
+            keep_outputs=['usage_clean'])
+
+        self.assertEqual(result.cleaned_output_paths, ('deleted_output',))
+        self.assertEqual(calls, [
+            ('cleanup', 'H3H', ['usage_clean'], True),
+            ('workflow', 'H3H'),
+            ('contract_adapter', 'H3H'),
+            ('cleanup', 'H3H', ['usage_clean'], False),
+        ])
+        ensure_component_callable_mock.assert_has_calls([
+            call(
+                component_name='mtl_fsa_gisoo',
+                module_name='workflow',
+                callable_name='run_workflow'),
+            call(
+                component_name='mtl_fsa_gisoo',
+                module_name='contract_adapter',
+                callable_name='run_contract_adapter'),
+            call(
+                component_name='mtl_fsa_gisoo',
+                module_name='output_cleanup',
+                callable_name='cleanup_outputs'),
+        ])
+
+    def test_keep_outputs_requires_cleanup(self):
+        with patch.object(
+                GISCitiesApplicationService,
+                '_normalize_component_name',
+                return_value='mtl_fsa_gisoo'):
+            with self.assertRaises(ValueError):
+                GISCitiesApplicationService.run_component(
+                    'mtl_fsa_gisoo',
+                    mode='independent',
+                    fsa='H3H',
+                    keep_outputs=['usage_clean'])
+
 
 if __name__ == '__main__':
     unittest.main()

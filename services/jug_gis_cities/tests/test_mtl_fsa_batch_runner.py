@@ -171,6 +171,24 @@ class TestMtlFsaBatchRunner(unittest.TestCase):
                 max_workers=2,
                 component_runner=Mock())
 
+    def test_runner_passes_cleanup_options_to_each_fsa(self):
+        component_runner = Mock(
+            return_value=_ComponentResult('workflow_H3H.gpkg'))
+        runner = MtlFsaBatchRunner(
+            cleanup_outputs=True,
+            keep_outputs=['usage_clean'],
+            component_runner=component_runner)
+
+        runner.run_fsas(['h3h'])
+
+        component_runner.assert_called_once_with(
+            component_name=MTL_FSA_COMPONENT_NAME,
+            mode='standardize',
+            fsa='H3H',
+            non_null_required_fields=None,
+            cleanup_outputs=True,
+            keep_outputs=('usage_clean',))
+
 
 if __name__ == '__main__':
     unittest.main()

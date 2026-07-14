@@ -45,6 +45,20 @@ def _build_parser():
             'running standardize mode. Features with null or empty values in '
             'any listed field are deleted. By default, no features are '
             'deleted based on null attributes.'))
+    parser.add_argument(
+        '--cleanup-outputs',
+        action='store_true',
+        help=(
+            'Delete unretained intermediate datasets after a successful '
+            'component run. By default, every generated output is kept.'))
+    parser.add_argument(
+        '--keep-output',
+        action='append',
+        default=None,
+        metavar='OUTPUT_KEY',
+        help=(
+            'Additional workflow output key to retain when cleanup is '
+            'enabled. Repeat this option to retain multiple outputs.'))
     return parser
 
 
@@ -57,7 +71,9 @@ def main(argv=None):
             component_name=args.component,
             mode=args.mode,
             fsa=args.fsa,
-            non_null_required_fields=args.drop_null_fields)
+            non_null_required_fields=args.drop_null_fields,
+            cleanup_outputs=args.cleanup_outputs,
+            keep_outputs=args.keep_output)
     except Exception as exc:
         logger.error(
             'Direct jug_gis_cities execution failed. Component=%s Mode=%s '
@@ -75,6 +91,8 @@ def main(argv=None):
     print(f'Workflow output: {result.workflow_output_path}')
     if result.standardized_output_path is not None:
         print(f'Standardized output: {result.standardized_output_path}')
+    if result.cleaned_output_paths:
+        print(f'Cleaned outputs: {len(result.cleaned_output_paths)}')
     return 0
 
 

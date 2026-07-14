@@ -788,10 +788,40 @@ def _build_parser():
     '--fsa',
     required=True,
     help='Three-character Montreal FSA, for example H3H.')
+  parser.add_argument(
+    '--cleanup-outputs',
+    action='store_true',
+    help=(
+      'Delete unretained intermediate datasets after a successful run. '
+      'By default, every generated output is kept.'))
+  parser.add_argument(
+    '--keep-output',
+    action='append',
+    default=None,
+    metavar='OUTPUT_KEY',
+    help=(
+      'Additional workflow output key to retain when cleanup is enabled. '
+      'Repeat this option to retain multiple outputs.'))
   return parser
 
 
 if __name__ == '__main__':
   configure_logging()
-  args = _build_parser().parse_args()
+  parser = _build_parser()
+  args = parser.parse_args()
+  if args.keep_output and not args.cleanup_outputs:
+    parser.error('--keep-output requires --cleanup-outputs.')
+  if args.cleanup_outputs:
+    try:
+      from .output_cleanup import cleanup_outputs as cleanup_generated_outputs
+    except ImportError:
+      from output_cleanup import cleanup_outputs as cleanup_generated_outputs
+    cleanup_generated_outputs(
+      args.fsa,
+      keep_outputs=args.keep_output,
+      validate_only=True)
   run_workflow(args.fsa)
+  if args.cleanup_outputs:
+    cleanup_generated_outputs(
+      args.fsa,
+      keep_outputs=args.keep_output)

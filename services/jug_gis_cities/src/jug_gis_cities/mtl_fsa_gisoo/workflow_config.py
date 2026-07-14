@@ -124,3 +124,14 @@ output_paths = {
   'nrcan_usage_roll': '',
   'mtl_{fsa}_gisoo': '',
 }
+
+# Outputs retained when opt-in cleanup is enabled. The standardized GeoJSON is
+# produced outside this GeoPackage output catalog and is therefore never a
+# cleanup candidate.
+default_retained_output_keys = frozenset({
+  'fsa_boundary',
+  'nrcan_fixed',
+  'roll',
+  'usage_fixed',
+  'mtl_{fsa}_gisoo',
+})

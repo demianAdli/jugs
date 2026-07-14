@@ -45,6 +45,7 @@ def _result_to_response(result):
         'fsa': result.fsa,
         'workflow_output_path': result.workflow_output_path,
         'standardized_output_path': result.standardized_output_path,
+        'cleaned_output_paths': list(result.cleaned_output_paths),
     }
 
 
@@ -52,6 +53,8 @@ def _run_gis_component(component_name, request_data):
     mode = request_data.get('mode')
     fsa = request_data.get('fsa')
     drop_null_fields = request_data.get('drop_null_fields')
+    cleanup_outputs = request_data.get('cleanup_outputs', False)
+    keep_outputs = request_data.get('keep_outputs')
     logger.info(
         'gis_component_run_received',
         extra={
@@ -59,6 +62,8 @@ def _run_gis_component(component_name, request_data):
             'mode': mode,
             'fsa': fsa,
             'drop_null_fields': drop_null_fields,
+            'cleanup_outputs': cleanup_outputs,
+            'keep_outputs': keep_outputs,
         },
     )
 
@@ -68,6 +73,8 @@ def _run_gis_component(component_name, request_data):
             mode=mode,
             fsa=fsa,
             non_null_required_fields=drop_null_fields,
+            cleanup_outputs=cleanup_outputs,
+            keep_outputs=keep_outputs,
         )
     except HTTPException:
         raise
@@ -142,6 +149,7 @@ def _run_gis_component(component_name, request_data):
             'fsa': result.fsa,
             'workflow_output_path': result.workflow_output_path,
             'standardized_output_path': result.standardized_output_path,
+            'cleaned_output_paths': list(result.cleaned_output_paths),
         },
     )
     return response_data

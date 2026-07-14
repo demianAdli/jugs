@@ -43,6 +43,7 @@ class GisComponentRunResult:
     workflow_output_path: str
     standardized_output_path: str | None = None
     fsa: str | None = None
+    cleaned_output_paths: tuple[str, ...] = ()
 
 
 class GisComponentError(RuntimeError):
@@ -68,7 +69,9 @@ class GISCitiesApplicationService:
             component_name,
             mode=GisComponentRunMode.STANDARDIZE,
             fsa=None,
-            non_null_required_fields=None):
+            non_null_required_fields=None,
+            cleanup_outputs=False,
+            keep_outputs=None):
         """Run a component workflow in independent or standardized mode.
 
         independent:
@@ -84,6 +87,12 @@ class GISCitiesApplicationService:
         normalized_fsa = cls._normalize_fsa(fsa)
         normalized_non_null_required_fields = (
             cls._normalize_non_null_required_fields(non_null_required_fields))
+        normalized_cleanup_outputs = cls._normalize_cleanup_outputs(
+            cleanup_outputs)
+        normalized_keep_outputs = cls._normalize_keep_outputs(keep_outputs)
+        if normalized_keep_outputs and not normalized_cleanup_outputs:
+            raise ValueError(
+                'keep_outputs requires cleanup_outputs=True.')
 
         run_t0 = perf_counter()
         logger.info(
@@ -102,6 +111,26 @@ class GISCitiesApplicationService:
                     component_name=normalized_component_name,
                     module_name='contract_adapter',
                     callable_name='run_contract_adapter')
+
+            output_cleanup_runner = None
+            if normalized_cleanup_outputs:
+                cls._ensure_component_callable(
+                    component_name=normalized_component_name,
+                    module_name='output_cleanup',
+                    callable_name='cleanup_outputs')
+                output_cleanup_runner = cls._import_component_callable(
+                    component_name=normalized_component_name,
+                    module_name='output_cleanup',
+                    callable_name='cleanup_outputs')
+                cls._run_component_callable(
+                    runner=output_cleanup_runner,
+                    component_name=normalized_component_name,
+                    callable_label='output_cleanup.cleanup_outputs',
+                    fsa=normalized_fsa,
+                    optional_kwargs={
+                        'keep_outputs': normalized_keep_outputs,
+                        'validate_only': True,
+                    })
 
             workflow_runner = cls._import_component_callable(
                 component_name=normalized_component_name,
@@ -128,6 +157,19 @@ class GISCitiesApplicationService:
                         'non_null_required_fields':
                             normalized_non_null_required_fields,
                     })
+
+            cleaned_output_paths = ()
+            if output_cleanup_runner is not None:
+                cleaned_output_paths = cls._run_component_callable(
+                    runner=output_cleanup_runner,
+                    component_name=normalized_component_name,
+                    callable_label='output_cleanup.cleanup_outputs',
+                    fsa=normalized_fsa,
+                    optional_kwargs={
+                        'keep_outputs': normalized_keep_outputs,
+                        'validate_only': False,
+                    })
+                cleaned_output_paths = tuple(cleaned_output_paths or ())
 
         except GisComponentError:
             logger.exception(
@@ -162,16 +204,19 @@ class GISCitiesApplicationService:
             mode=normalized_mode,
             workflow_output_path=workflow_output_path,
             fsa=normalized_fsa,
-            standardized_output_path=standardized_output_path)
+            standardized_output_path=standardized_output_path,
+            cleaned_output_paths=cleaned_output_paths)
 
         logger.info(
             'Completed GIS city component. Component=%s Mode=%s '
-            'FSA=%s WorkflowOutput=%s StandardizedOutput=%s Elapsed=%.3fs',
+            'FSA=%s WorkflowOutput=%s StandardizedOutput=%s Cleaned=%s '
+            'Elapsed=%.3fs',
             result.component_name,
             result.mode.value,
             result.fsa,
             result.workflow_output_path,
             result.standardized_output_path,
+            len(result.cleaned_output_paths),
             perf_counter() - run_t0)
         return result
 
@@ -256,6 +301,42 @@ class GISCitiesApplicationService:
             field_name for field_name in normalized_fields if field_name
         ]
         return normalized_fields or None
+
+    @staticmethod
+    def _normalize_cleanup_outputs(cleanup_outputs):
+        if not isinstance(cleanup_outputs, bool):
+            raise TypeError('cleanup_outputs must be a boolean.')
+        return cleanup_outputs
+
+    @staticmethod
+    def _normalize_keep_outputs(keep_outputs):
+        if keep_outputs is None:
+            return None
+        if isinstance(keep_outputs, (str, bytes)):
+            raise TypeError(
+                'keep_outputs must be a list, tuple, set, or None.')
+
+        try:
+            raw_output_keys = list(keep_outputs)
+        except TypeError as exc:
+            raise TypeError(
+                'keep_outputs must be a list, tuple, set, or None.') from exc
+
+        if any(not isinstance(output_key, str)
+               for output_key in raw_output_keys):
+            raise TypeError('keep_outputs must contain only strings.')
+
+        normalized_output_keys = []
+        seen = set()
+        for output_key in raw_output_keys:
+            normalized_output_key = output_key.strip()
+            if not normalized_output_key:
+                raise ValueError(
+                    'keep_outputs cannot contain empty output keys.')
+            if normalized_output_key not in seen:
+                normalized_output_keys.append(normalized_output_key)
+                seen.add(normalized_output_key)
+        return normalized_output_keys or None
 
     @classmethod
     def _run_component_callable(
