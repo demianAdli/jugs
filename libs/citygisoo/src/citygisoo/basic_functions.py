@@ -12,6 +12,9 @@ www.demianadli.com
 
 import os
 import glob
+import shutil
+from pathlib import Path
+
 import processing
 
 from sabu_chassis.logging import get_logger
@@ -20,6 +23,100 @@ from qgis.analysis import QgsNativeAlgorithms
 
 
 logger = get_logger(__name__)
+
+
+def gather_district_geojson_files(
+        input_path: str | os.PathLike,
+        district_name: str,
+        output_path: str | os.PathLike) -> None:
+  """Gather standardized subdistrict GeoJSON files into one directory.
+
+  Each immediate child directory of ``input_path`` is treated as a
+  subdistrict. For a child named ``<name>``, the expected source file is::
+
+    <district_name>_<name>_gisoo_standardized/
+      <district_name>_<name>_gisoo_standardized.geojson
+
+  The source layout is validated in full before any files are copied.
+
+  Args:
+    input_path: Directory containing the subdistrict result directories.
+    district_name: District prefix used in standardized folder and file names.
+    output_path: Directory into which the GeoJSON files will be copied.
+
+  Raises:
+    TypeError: If ``district_name`` is not a string.
+    ValueError: If ``district_name`` is empty or contains a path separator, or
+      if the input and output directories are the same.
+    FileNotFoundError: If the input directory or any expected GeoJSON file is
+      missing.
+    NotADirectoryError: If an input or existing output path is not a directory.
+  """
+  if not isinstance(district_name, str):
+    raise TypeError('district_name must be a string')
+  if not district_name.strip():
+    raise ValueError('district_name must not be empty')
+  if '/' in district_name or '\\' in district_name:
+    raise ValueError('district_name must not contain a path separator')
+
+  input_directory = Path(input_path).expanduser()
+  output_directory = Path(output_path).expanduser()
+
+  if not input_directory.exists():
+    raise FileNotFoundError(
+      f'Input directory does not exist: {input_directory}')
+  if not input_directory.is_dir():
+    raise NotADirectoryError(
+      f'Input path is not a directory: {input_directory}')
+  if output_directory.exists() and not output_directory.is_dir():
+    raise NotADirectoryError(
+      f'Output path is not a directory: {output_directory}')
+
+  resolved_input = input_directory.resolve()
+  resolved_output = output_directory.resolve()
+  if resolved_input == resolved_output:
+    raise ValueError('input_path and output_path must be different directories')
+
+  subdistrict_directories = sorted(
+    (
+      directory for directory in input_directory.iterdir()
+      if directory.is_dir() and directory.resolve() != resolved_output
+    ),
+    key=lambda directory: directory.name)
+
+  if not subdistrict_directories:
+    raise FileNotFoundError(
+      f'No subdistrict directories found in: {input_directory}')
+
+  source_files = []
+  missing_files = []
+  for subdistrict_directory in subdistrict_directories:
+    standardized_name = (
+      f'{district_name}_{subdistrict_directory.name}_gisoo_standardized')
+    source_file = (
+      subdistrict_directory
+      / standardized_name
+      / f'{standardized_name}.geojson')
+    if source_file.is_file():
+      source_files.append(source_file)
+    else:
+      missing_files.append(source_file)
+
+  if missing_files:
+    missing_list = '\n'.join(f'- {path}' for path in missing_files)
+    raise FileNotFoundError(
+      'Expected standardized GeoJSON files are missing:\n'
+      f'{missing_list}')
+
+  output_directory.mkdir(parents=True, exist_ok=True)
+  for source_file in source_files:
+    shutil.copy2(source_file, output_directory / source_file.name)
+
+  logger.info(
+    'Copied %d standardized GeoJSON files for district %s to %s',
+    len(source_files),
+    district_name,
+    output_directory)
 
 
 def find_shp_files(root_folder):

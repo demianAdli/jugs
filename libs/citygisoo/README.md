@@ -13,6 +13,7 @@ Project Developer: Alireza Adli
 - [citygisoo in Sabu](#citygisoo-in-sabu)
 - [Testing and Publication Context](#testing-and-publication-context)
 - [Logging](#logging)
+- [Gathering standardized district GeoJSON files](#gathering-standardized-district-geojson-files)
 - [ScrubLayer](#scrublayer)
 - [FieldSchemaManager](#fieldschemamanager)
 - [BuildingContractAdapter](#buildingcontractadapter)
@@ -52,6 +53,40 @@ It is now being published so that it can be applied to other cities simply by in
 `citygisoo` uses the `sabu-chassis` logging system to provide consistent operational messages across its workflows. Layer loading, exports, schema changes, cleaning operations, and adapter runs report progress and failures through package loggers instead of ad hoc console output.
 
 This makes `citygisoo` easier to use inside larger Sabu workflows while still keeping the package useful in standalone PyQGIS scripts.
+
+## Gathering standardized district GeoJSON files
+
+`gather_district_geojson_files()` collects standardized GeoJSON results from
+the subdistrict directories belonging to a district. It discovers each
+subdistrict name from the immediate child directories of the input path and
+expects this structure:
+
+```text
+<input_path>/
+  <subdistrict_name>/
+    <district_name>_<subdistrict_name>_gisoo_standardized/
+      <district_name>_<subdistrict_name>_gisoo_standardized.geojson
+```
+
+Provide the district name separately so the same function can be used for
+different districts:
+
+```python
+from citygisoo.basic_functions import gather_district_geojson_files
+
+gather_district_geojson_files(
+    input_path=r"C:\path\to\processing_results",
+    district_name="mtl",
+    output_path=r"C:\path\to\gathered_geojson",
+)
+```
+
+The function validates every expected source file before copying anything. If
+a subdistrict result is missing, it raises `FileNotFoundError` with the missing
+path or paths. The output directory is created when necessary, and an existing
+file with the same standardized name is updated on subsequent runs. If the
+output directory is an immediate child of the input directory, it is excluded
+from subdistrict discovery.
 
 ## ScrubLayer
 
