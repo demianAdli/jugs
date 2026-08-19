@@ -1,13 +1,13 @@
 """
-JUGS project
-jug_gis project
-jug_gis package
+Sabu project
+jug_gis_validation project
+jug_gis_validation package
 validate_gisoo module
 ValidateGISOO class supports an interactove workflow
 to validate cleaned geospatial data.
 Project Designer and Developer: Alireza Adli
 alireza.adli@mail.concordia.ca
-
+https://demianadli.com/
 Update considerations:
 - Python>=3.8 need to be added to the requirements.
 """

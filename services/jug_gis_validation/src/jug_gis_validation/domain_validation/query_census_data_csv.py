@@ -1,3 +1,12 @@
+"""
+Sabu project
+jug_gis_validation project
+jug_gis_validation package
+Project Designer and Developer: Alireza Adli
+alireza.adli@mail.concordia.ca
+https://demianadli.com/
+"""
+
 from __future__ import annotations
 
 from typing import Mapping, Optional, Dict

@@ -1,4 +1,14 @@
-"""Marshmallow schemas for GISOO validation API requests and responses."""
+"""
+Sabu project
+jug_gis_validation project
+jug_gis_validation package
+Project Designer and Developer: Alireza Adli
+alireza.adli@mail.concordia.ca
+https://demianadli.com/
+
+Marshmallow schemas for GISOO validation API requests and responses.
+
+"""
 from __future__ import annotations
 
 from marshmallow import EXCLUDE, Schema, fields, validates_schema, ValidationError

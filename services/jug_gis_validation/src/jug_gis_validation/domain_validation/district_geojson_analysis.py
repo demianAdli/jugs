@@ -1,4 +1,11 @@
 """
+Sabu project
+jug_gis_validation project
+jug_gis_validation package
+Project Designer and Developer: Alireza Adli
+alireza.adli@mail.concordia.ca
+https://demianadli.com/
+
 In this module, I refer to the FSA code as code.
 """
 from __future__ import annotations
