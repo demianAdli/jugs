@@ -1,4 +1,11 @@
 """
+Sabu project
+jug_gis_validation project
+jug_gis_validation package
+Project Designer and Developer: Alireza Adli
+alireza.adli@mail.concordia.ca
+https://demianadli.com/
+
 Application-layer orchestration for GISOO validation.
 
 This module follows the interactive validation notebook workflow and exposes
@@ -217,7 +224,7 @@ class GISValidationApplicationService:
     def _resolve_csv_path(csv_path, output_dir, district_name) -> Path:
         if csv_path is not None:
             return Path(csv_path)
-        return Path(output_dir) / f'validate_{district_name}_gi.csv'
+        return Path(output_dir) / f'validate_{district_name}_gisoo.csv'
 
     @staticmethod
     def _resolve_plot_path(plot_path, output_dir, district_name) -> Path:
