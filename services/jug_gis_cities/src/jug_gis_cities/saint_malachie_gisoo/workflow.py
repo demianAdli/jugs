@@ -6,6 +6,8 @@ Project Developer: Alireza Adli
 alireza.adli@mail.concordia.ca
 alireza.adli4@gmail.com
 www.demianadli.com
+
+Next: check the source of height's attribute in the final dataset.
 """
 
 from contextlib import contextmanager
