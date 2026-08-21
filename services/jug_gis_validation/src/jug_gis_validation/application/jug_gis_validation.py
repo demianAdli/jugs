@@ -161,12 +161,12 @@ class GISValidationApplicationService:
                 resolved_plot_path.parent.mkdir(parents=True, exist_ok=True)
                 fig, _ = validator.plot_area_comparison(
                     codes_info=comparison_dataframe['FSA'],
-                    areas=comparison_dataframe['Cleaned Total Area (with proxy)'],
+                    areas=comparison_dataframe['Processed Total Area (with proxy)'],
                     census_areas=(
                         comparison_dataframe['Census Total Area (by type)']),
                     title=plot_title or f'Area comparison - {district_name}',
                     y_label='Area (m^2)',
-                    x_label='Cleaned')
+                    x_label='Processed')
                 fig.savefig(resolved_plot_path, dpi=150)
                 logger.info('GISOO comparison plot written: %s',
                             resolved_plot_path)
