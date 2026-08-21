@@ -188,16 +188,25 @@ Invoke-RestMethod `
 The same JSON fields apply to the Docker API. Docker direct execution accepts
 the same CLI options as the local direct Python run.
 
-Programmatic Montreal FSA batch runs accept the equivalent options and clean
-each successful FSA before moving on:
+Programmatic FSA batch runs accept a component name, use that component's
+standard `workflow_config.py` FSA settings when discovering all districts, and
+clean each successful FSA before moving on:
 
 ```python
-run_mtl_fsa_batch(
+run_fsa_batch(
+    component_name="mtl_fsa_gisoo",
     mode="standardize",
+    max_workers=3,
     cleanup_outputs=True,
     keep_outputs=["usage_clean", "inter_summary"],
 )
 ```
+
+FSA-capable components expose `run_workflow(fsa)` and define `qgis_path`,
+`input_paths["fsa"]`, and `fsa_field_name` in `workflow_config.py`. Passing an
+explicit `fsas` iterable skips boundary-layer discovery. The legacy
+`run_mtl_fsa_batch()` interface remains available as a Montreal compatibility
+wrapper.
 
 ## Docker API Run
 

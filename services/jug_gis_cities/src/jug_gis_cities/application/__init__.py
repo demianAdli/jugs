@@ -11,6 +11,15 @@ from .jug_gis_cities import (
     GisComponentRunMode,
     GISCitiesApplicationService,
 )
+from .fsa_batch_runner import (
+    FsaBatchItemResult,
+    FsaBatchRunner,
+    FsaBatchRunResult,
+    discover_component_fsas,
+    normalize_fsas,
+    run_fsa_batch,
+    run_one_fsa,
+)
 from .mtl_fsa_batch_runner import (
     MTL_FSA_COMPONENT_NAME,
     MtlFsaBatchItemResult,
@@ -30,6 +39,13 @@ __all__ = [
     'GisComponentRunResult',
     'GisComponentRunMode',
     'GISCitiesApplicationService',
+    'FsaBatchItemResult',
+    'FsaBatchRunner',
+    'FsaBatchRunResult',
+    'discover_component_fsas',
+    'normalize_fsas',
+    'run_fsa_batch',
+    'run_one_fsa',
     'MTL_FSA_COMPONENT_NAME',
     'MtlFsaBatchItemResult',
     'MtlFsaBatchRunner',
