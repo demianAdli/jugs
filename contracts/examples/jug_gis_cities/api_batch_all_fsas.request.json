@@ -1,0 +1,7 @@
+{
+  "mode": "standardize",
+  "all_fsas": true,
+  "max_workers": 3,
+  "cleanup_outputs": true,
+  "keep_outputs": ["usage_clean", "inter_summary"]
+}

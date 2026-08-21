@@ -1,0 +1,21 @@
+{
+  "batch_id": "97be0ab1f86f47a8bd7d0b7d2bc3d2d4",
+  "component_name": "mtl_fsa_gisoo",
+  "mode": "standardize",
+  "status": "queued",
+  "all_fsas": true,
+  "fsas": null,
+  "max_workers": 3,
+  "cleanup_outputs": true,
+  "keep_outputs": ["usage_clean", "inter_summary"],
+  "total_count": 0,
+  "completed_count": 0,
+  "succeeded_count": 0,
+  "failed_count": 0,
+  "results": [],
+  "error": null,
+  "created_at": "2026-08-21T14:30:00+00:00",
+  "updated_at": "2026-08-21T14:30:00+00:00",
+  "started_at": null,
+  "finished_at": null
+}

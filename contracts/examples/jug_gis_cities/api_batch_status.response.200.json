@@ -1,0 +1,40 @@
+{
+  "batch_id": "97be0ab1f86f47a8bd7d0b7d2bc3d2d4",
+  "component_name": "mtl_fsa_gisoo",
+  "mode": "standardize",
+  "status": "failed",
+  "all_fsas": true,
+  "fsas": ["H2X", "H3H"],
+  "max_workers": 3,
+  "cleanup_outputs": true,
+  "keep_outputs": ["usage_clean", "inter_summary"],
+  "total_count": 2,
+  "completed_count": 2,
+  "succeeded_count": 1,
+  "failed_count": 1,
+  "results": [
+    {
+      "fsa": "H2X",
+      "succeeded": true,
+      "workflow_output_path": "/data/mtl_gisoo_fsa_data/output/H2X/mtl_fsa_gisoo.gpkg",
+      "standardized_output_path": "/data/mtl_gisoo_fsa_data/output/H2X/standardized.geojson",
+      "cleaned_output_paths": ["/data/mtl_gisoo_fsa_data/output/H2X/intermediate.gpkg"],
+      "error": null,
+      "elapsed_seconds": 71.25
+    },
+    {
+      "fsa": "H3H",
+      "succeeded": false,
+      "workflow_output_path": null,
+      "standardized_output_path": null,
+      "cleaned_output_paths": [],
+      "error": "GisComponentError: GIS city component execution failed",
+      "elapsed_seconds": 12.4
+    }
+  ],
+  "error": "One or more FSA runs failed.",
+  "created_at": "2026-08-21T14:30:00+00:00",
+  "updated_at": "2026-08-21T14:32:00+00:00",
+  "started_at": "2026-08-21T14:30:01+00:00",
+  "finished_at": "2026-08-21T14:32:00+00:00"
+}

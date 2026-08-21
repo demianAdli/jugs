@@ -9,7 +9,8 @@
     "mode",
     "fsa",
     "workflow_output_path",
-    "standardized_output_path"
+    "standardized_output_path",
+    "cleaned_output_paths"
   ],
   "additionalProperties": false,
   "properties": {
@@ -32,6 +33,11 @@
     },
     "standardized_output_path": {
       "type": "null"
+    },
+    "cleaned_output_paths": {
+      "type": "array",
+      "items": {"type": "string"},
+      "examples": [[]]
     }
   }
 }
