@@ -234,7 +234,8 @@ class TestFsaBatchRunner(unittest.TestCase):
                         non_null_required_fields=None,
                         cleanup_outputs=True,
                         keep_outputs=('usage_clean',),
-                        max_workers=3)
+                        max_workers=3,
+                        result_callback=None)
 
         self.assertEqual(
             tuple(result.fsa for result in results),
