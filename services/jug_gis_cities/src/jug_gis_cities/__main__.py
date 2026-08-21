@@ -8,7 +8,11 @@ import sys
 
 from sabu_chassis.logging import get_logger
 
-from .application import GISCitiesApplicationService, GisComponentRunMode
+from .application import (
+    GISCitiesApplicationService,
+    GisComponentRunMode,
+    run_fsa_batch,
+)
 from .logging_setup import configure_service_logging
 
 
@@ -30,11 +34,29 @@ def _build_parser():
         help=(
             'Execution mode. independent runs only workflow.py; '
             'standardize runs workflow.py and contract_adapter.py.'))
-    parser.add_argument(
+    fsa_selection = parser.add_mutually_exclusive_group()
+    fsa_selection.add_argument(
         '--fsa',
         help=(
             'Three-character FSA for components that require district '
             'selection, for example H3H.'))
+    fsa_selection.add_argument(
+        '--fsas',
+        nargs='+',
+        metavar='FSA',
+        help='Selected FSAs to run as a batch.')
+    fsa_selection.add_argument(
+        '--all-fsas',
+        action='store_true',
+        help=(
+            'Discover and run every FSA configured by the selected '
+            'component.'))
+    parser.add_argument(
+        '--max-workers',
+        type=int,
+        default=1,
+        metavar='COUNT',
+        help='Maximum parallel FSA workers for batch execution.')
     parser.add_argument(
         '--drop-null-fields',
         nargs='+',
@@ -64,16 +86,30 @@ def _build_parser():
 
 def main(argv=None):
     configure_service_logging('gis_cities-direct')
-    args = _build_parser().parse_args(argv)
+    parser = _build_parser()
+    args = parser.parse_args(argv)
+    is_batch = args.all_fsas or args.fsas is not None
+    if not is_batch and args.max_workers != 1:
+        parser.error('--max-workers requires --fsas or --all-fsas.')
 
     try:
-        result = GISCitiesApplicationService.run_component(
-            component_name=args.component,
-            mode=args.mode,
-            fsa=args.fsa,
-            non_null_required_fields=args.drop_null_fields,
-            cleanup_outputs=args.cleanup_outputs,
-            keep_outputs=args.keep_output)
+        if is_batch:
+            result = run_fsa_batch(
+                component_name=args.component,
+                fsas=None if args.all_fsas else args.fsas,
+                mode=args.mode,
+                max_workers=args.max_workers,
+                non_null_required_fields=args.drop_null_fields,
+                cleanup_outputs=args.cleanup_outputs,
+                keep_outputs=args.keep_output)
+        else:
+            result = GISCitiesApplicationService.run_component(
+                component_name=args.component,
+                mode=args.mode,
+                fsa=args.fsa,
+                non_null_required_fields=args.drop_null_fields,
+                cleanup_outputs=args.cleanup_outputs,
+                keep_outputs=args.keep_output)
     except Exception as exc:
         logger.error(
             'Direct jug_gis_cities execution failed. Component=%s Mode=%s '
@@ -85,7 +121,15 @@ def main(argv=None):
         return 1
 
     print(f'Component: {result.component_name}')
-    print(f'Mode: {result.mode.value}')
+    print(f'Mode: {result.mode if is_batch else result.mode.value}')
+    if is_batch:
+        print(f'FSAs: {len(result.results)}')
+        print(f'Succeeded: {result.succeeded_count}')
+        print(f'Failed: {result.failed_count}')
+        for item in result.results:
+            if not item.succeeded:
+                print(f'{item.fsa}: {item.error}')
+        return 0 if result.succeeded else 1
     if result.fsa is not None:
         print(f'FSA: {result.fsa}')
     print(f'Workflow output: {result.workflow_output_path}')

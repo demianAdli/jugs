@@ -294,9 +294,11 @@ def _run_fsa_batch_sequential(
         cleanup_outputs,
         keep_outputs,
         configure_worker_logging,
-        component_runner):
-    return tuple(
-        run_one_fsa(
+        component_runner,
+        result_callback):
+    results = []
+    for fsa in fsas:
+        result = run_one_fsa(
             component_name=component_name,
             fsa=fsa,
             mode=mode,
@@ -305,7 +307,10 @@ def _run_fsa_batch_sequential(
             keep_outputs=keep_outputs,
             configure_worker_logging=configure_worker_logging,
             component_runner=component_runner)
-        for fsa in fsas)
+        results.append(result)
+        if result_callback is not None:
+            result_callback(result)
+    return tuple(results)
 
 
 def _run_fsa_batch_parallel(
@@ -315,7 +320,8 @@ def _run_fsa_batch_parallel(
         non_null_required_fields,
         cleanup_outputs,
         keep_outputs,
-        max_workers):
+        max_workers,
+        result_callback):
     results_by_fsa = {}
     spawn_context = multiprocessing.get_context('spawn')
     with ProcessPoolExecutor(
@@ -348,6 +354,8 @@ def _run_fsa_batch_parallel(
                     fsa=fsa,
                     succeeded=False,
                     error=f'{type(exc).__name__}: {exc}')
+            if result_callback is not None:
+                result_callback(results_by_fsa[fsa])
 
     return tuple(results_by_fsa[fsa] for fsa in fsas)
 
@@ -365,6 +373,7 @@ class FsaBatchRunner:
     configure_worker_logging: bool = False
     cleanup_outputs: bool = False
     keep_outputs: Iterable[str] | None = None
+    result_callback: Callable[[FsaBatchItemResult], None] | None = None
 
     def __post_init__(self):
         normalized_component_name = _normalize_component_name(
@@ -392,6 +401,9 @@ class FsaBatchRunner:
             raise ValueError(
                 'component_runner injection is only supported for '
                 'sequential runs.')
+        if self.result_callback is not None \
+                and not callable(self.result_callback):
+            raise TypeError('result_callback must be callable or None.')
         object.__setattr__(self, 'component_name', normalized_component_name)
         object.__setattr__(self, 'mode', normalized_mode)
         object.__setattr__(self, 'keep_outputs', normalized_keep_outputs)
@@ -400,6 +412,10 @@ class FsaBatchRunner:
         if self.fsa_provider is not None:
             return normalize_fsas(self.fsa_provider())
         return discover_component_fsas(self.component_name)
+
+    def validate_component(self):
+        """Validate the selected component's FSA workflow capability."""
+        _ensure_fsa_component(self.component_name)
 
     def resolve_fsas(self, fsas=None):
         if fsas is None:
@@ -425,7 +441,7 @@ class FsaBatchRunner:
 
     def run(self, fsas=None):
         if self.component_runner is None:
-            _ensure_fsa_component(self.component_name)
+            self.validate_component()
         selected_fsas = self.resolve_fsas(fsas)
         logger.info(
             'Starting FSA batch. Component=%s Count=%s Mode=%s MaxWorkers=%s',
@@ -444,7 +460,8 @@ class FsaBatchRunner:
                 self.cleanup_outputs,
                 self.keep_outputs,
                 self.configure_worker_logging,
-                self.component_runner)
+                self.component_runner,
+                self.result_callback)
         else:
             results = _run_fsa_batch_parallel(
                 self.component_name,
@@ -453,7 +470,8 @@ class FsaBatchRunner:
                 self.non_null_required_fields,
                 self.cleanup_outputs,
                 self.keep_outputs,
-                self.max_workers)
+                self.max_workers,
+                self.result_callback)
 
         batch_result = FsaBatchRunResult(
             component_name=self.component_name,
@@ -483,7 +501,8 @@ def run_fsa_batch(
         component_runner=None,
         configure_worker_logging=False,
         cleanup_outputs=False,
-        keep_outputs=None):
+        keep_outputs=None,
+        result_callback=None):
     """Run an FSA-capable GIS city component for selected or all FSAs."""
     runner = FsaBatchRunner(
         component_name=component_name,
@@ -494,7 +513,8 @@ def run_fsa_batch(
         keep_outputs=keep_outputs,
         fsa_provider=fsa_provider,
         component_runner=component_runner,
-        configure_worker_logging=configure_worker_logging)
+        configure_worker_logging=configure_worker_logging,
+        result_callback=result_callback)
     return runner.run(fsas=fsas)
 
 

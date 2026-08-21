@@ -1,6 +1,7 @@
 """Backward-compatible Montreal facade for the generic FSA batch runner."""
 from __future__ import annotations
 
+import warnings
 from typing import Callable, Iterable
 
 from .fsa_batch_runner import (
@@ -23,11 +24,20 @@ MtlFsaBatchItemResult = FsaBatchItemResult
 MtlFsaBatchRunResult = FsaBatchRunResult
 
 
+def _warn_deprecated(name):
+    warnings.warn(
+        f'{name} is deprecated; use the generic FSA batch interfaces.',
+        DeprecationWarning,
+        stacklevel=2)
+
+
 def normalize_mtl_fsas(fsas):
+    _warn_deprecated('normalize_mtl_fsas')
     return normalize_fsas(fsas)
 
 
 def discover_mtl_fsas():
+    _warn_deprecated('discover_mtl_fsas')
     return discover_component_fsas(MTL_FSA_COMPONENT_NAME)
 
 
@@ -39,6 +49,7 @@ def run_one_mtl_fsa(
         component_runner=None,
         cleanup_outputs=False,
         keep_outputs=None):
+    _warn_deprecated('run_one_mtl_fsa')
     return run_one_fsa(
         component_name=MTL_FSA_COMPONENT_NAME,
         fsa=fsa,
@@ -63,6 +74,7 @@ class MtlFsaBatchRunner(FsaBatchRunner):
             configure_worker_logging=False,
             cleanup_outputs=False,
             keep_outputs=None):
+        _warn_deprecated('MtlFsaBatchRunner')
         super().__init__(
             component_name=MTL_FSA_COMPONENT_NAME,
             mode=mode,
@@ -86,6 +98,7 @@ def run_mtl_fsa_batch(
         cleanup_outputs=False,
         keep_outputs=None):
     """Run the Montreal component through the generic FSA batch runner."""
+    _warn_deprecated('run_mtl_fsa_batch')
     return run_fsa_batch(
         component_name=MTL_FSA_COMPONENT_NAME,
         fsas=fsas,
