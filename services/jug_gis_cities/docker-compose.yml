@@ -17,10 +17,36 @@ services:
       LOG_FILE_NAME: logs/jug_gis_cities.log
       LOG_SERVICE: gis_cities-api
       JUG_GIS_CITIES_QGIS_PATH: /usr
+      JUG_GIS_CITIES_JOB_STORE_PATH: /data/job_store/jobs.sqlite3
       JUG_GIS_CITIES_SAINT_MALACHIE_DATA_DIR: /data/saint_malachie_gisoo_data
       JUG_GIS_CITIES_MTL_FSA_DATA_DIR: /data/mtl_gisoo_fsa_data
     volumes:
       - ./logs:/app/logs
+      - jug_gis_cities_job_store:/data/job_store
       - "D:/GIS/saint_malachie_gisoo_data:/data/saint_malachie_gisoo_data"
       - "D:/GIS/mtl_gisoo_fsa_data:/data/mtl_gisoo_fsa_data"
     restart: unless-stopped
+
+  jug_gis_cities_worker:
+    image: demianadli/jug_gis_cities:0.1.0
+    container_name: jug_gis_cities_worker
+    command: python3 -m jug_gis_cities.batch_worker
+    environment:
+      LOG_DIR_BASE: /app
+      LOG_FILE_NAME: logs/jug_gis_cities_worker.log
+      LOG_SERVICE: gis_cities-batch-worker
+      JUG_GIS_CITIES_QGIS_PATH: /usr
+      JUG_GIS_CITIES_JOB_STORE_PATH: /data/job_store/jobs.sqlite3
+      JUG_GIS_CITIES_SAINT_MALACHIE_DATA_DIR: /data/saint_malachie_gisoo_data
+      JUG_GIS_CITIES_MTL_FSA_DATA_DIR: /data/mtl_gisoo_fsa_data
+    volumes:
+      - ./logs:/app/logs
+      - jug_gis_cities_job_store:/data/job_store
+      - "D:/GIS/saint_malachie_gisoo_data:/data/saint_malachie_gisoo_data"
+      - "D:/GIS/mtl_gisoo_fsa_data:/data/mtl_gisoo_fsa_data"
+    depends_on:
+      - jug_gis_cities
+    restart: unless-stopped
+
+volumes:
+  jug_gis_cities_job_store:

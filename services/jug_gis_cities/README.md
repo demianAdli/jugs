@@ -136,13 +136,49 @@ worker. The worker inherits the active Python environment (for example
 the coordinating process deletes intermediates only after all QGIS/GDAL file
 handles have been released. No interpreter path is hardcoded.
 
+Run selected FSAs with three workers:
+
+```powershell
+python -m jug_gis_cities `
+  --component mtl_fsa_gisoo `
+  --mode standardize `
+  --fsas H3H H2X `
+  --max-workers 3 `
+  --cleanup-outputs `
+  --keep-output usage_clean `
+  --keep-output inter_summary
+```
+
+Run every FSA discovered from the component's `workflow_config.py` with the
+same settings:
+
+```powershell
+python -m jug_gis_cities `
+  --component mtl_fsa_gisoo `
+  --mode standardize `
+  --all-fsas `
+  --max-workers 3 `
+  --cleanup-outputs `
+  --keep-output usage_clean `
+  --keep-output inter_summary
+```
+
 ## REST API Run
 
 Start the API:
 
 ```powershell
 cd <sabu-root>\services\jug_gis_cities
+$env:JUG_GIS_CITIES_JOB_STORE_PATH = ".\data\job_store\jobs.sqlite3"
 python -m flask --app app run --host 127.0.0.1 --port 5000
+```
+
+Start the persistent batch worker in a second PowerShell session. The API and
+worker must use the same `JUG_GIS_CITIES_JOB_STORE_PATH`:
+
+```powershell
+$env:JUG_GIS_CITIES_JOB_STORE_PATH = ".\data\job_store\jobs.sqlite3"
+python -m jug_gis_cities.batch_worker
 ```
 
 Run the Saint-Malachie standardized workflow through the API:
@@ -185,6 +221,29 @@ Invoke-RestMethod `
   -Body '{"mode":"standardize","fsa":"H3H","cleanup_outputs":true,"keep_outputs":["usage_clean","inter_summary"]}'
 ```
 
+Submit all configured FSAs asynchronously with three local worker processes:
+
+```powershell
+$batch = Invoke-RestMethod `
+  -Method Post `
+  -Uri http://127.0.0.1:5000/components/mtl_fsa_gisoo/batch-runs `
+  -ContentType "application/json" `
+  -Body '{"mode":"standardize","all_fsas":true,"max_workers":3,"cleanup_outputs":true,"keep_outputs":["usage_clean","inter_summary"]}'
+```
+
+Poll its persistent status and ordered per-FSA results:
+
+```powershell
+Invoke-RestMethod `
+  -Method Get `
+  -Uri "http://127.0.0.1:5000/components/mtl_fsa_gisoo/batch-runs/$($batch.batch_id)"
+```
+
+Use `"fsas":["H3H","H2X"]` instead of `"all_fsas":true` to submit a
+selected batch. The API returns `202 Accepted`; status is one of `queued`,
+`running`, `succeeded`, or `failed`. A failed batch still includes successful
+and failed per-FSA results.
+
 The same JSON fields apply to the Docker API. Docker direct execution accepts
 the same CLI options as the local direct Python run.
 
@@ -205,14 +264,16 @@ run_fsa_batch(
 FSA-capable components expose `run_workflow(fsa)` and define `qgis_path`,
 `input_paths["fsa"]`, and `fsa_field_name` in `workflow_config.py`. Passing an
 explicit `fsas` iterable skips boundary-layer discovery. The legacy
-`run_mtl_fsa_batch()` interface remains available as a Montreal compatibility
-wrapper.
+`run_mtl_fsa_batch()` interface remains available as a deprecated Montreal
+compatibility wrapper for this release. CLI, API, worker, Docker, and new code
+use the generic runner so the facade can be removed in the following version.
 
 ## Docker API Run
 
 The Docker image includes PyQGIS and defaults to the REST API.
 
-Build and run with Compose:
+Build and run with Compose. This starts both the existing API container and a
+batch worker from the same image:
 
 ```powershell
 cd <sabu-root>
@@ -239,10 +300,26 @@ Invoke-RestMethod `
   -Body '{"mode":"independent","fsa":"H3H"}'
 ```
 
+Submit the whole-island batch through the Docker API:
+
+```powershell
+$batch = Invoke-RestMethod `
+  -Method Post `
+  -Uri http://127.0.0.1:8081/components/mtl_fsa_gisoo/batch-runs `
+  -ContentType "application/json" `
+  -Body '{"mode":"standardize","all_fsas":true,"max_workers":3,"cleanup_outputs":true,"keep_outputs":["usage_clean","inter_summary"]}'
+```
+
+The API and worker share the `jug_gis_cities_job_store` volume. Queued and
+completed statuses survive container restarts; interrupted running jobs are
+returned to the queue. A persistent component/FSA lock prevents asynchronous
+batches and single-FSA API runs from writing the same output concurrently.
+
 Compose mounts:
 
 ```text
 services/jug_gis_cities/logs -> /app/logs
+jug_gis_cities_job_store -> /data/job_store
 D:/GIS/saint_malachie_gisoo_data -> /data/saint_malachie_gisoo_data
 D:/GIS/mtl_gisoo_fsa_data -> /data/mtl_gisoo_fsa_data
 ```
@@ -289,6 +366,13 @@ docker run --rm `
   -v D:\GIS\mtl_gisoo_fsa_data:/data/mtl_gisoo_fsa_data `
   demianadli/jug_gis_cities:0.1.0 `
   python3 -m jug_gis_cities --component mtl_fsa_gisoo --mode independent --fsa H3H
+```
+
+The same image also supports direct generic batches by replacing the final
+command with:
+
+```powershell
+python3 -m jug_gis_cities --component mtl_fsa_gisoo --mode standardize --all-fsas --max-workers 3 --cleanup-outputs --keep-output usage_clean --keep-output inter_summary
 ```
 
 ## Published Package Docker Build
