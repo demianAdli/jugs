@@ -17,6 +17,7 @@ class FeatureUniquificationStats:
 
     applied: bool
     unique_attribute_key: str | None
+    ranking_area_key: str | None
     input_features: int
     retained_features: int
     removed_features: int
@@ -27,6 +28,7 @@ class FeatureUniquificationStats:
         return {
             'applied': self.applied,
             'unique_attribute_key': self.unique_attribute_key,
+            'ranking_area_key': self.ranking_area_key,
             'input_features': self.input_features,
             'retained_features': self.retained_features,
             'removed_features': self.removed_features,
@@ -39,6 +41,7 @@ class FeatureUniquificationStats:
         return cls(
             applied=False,
             unique_attribute_key=None,
+            ranking_area_key=None,
             input_features=input_features,
             retained_features=input_features,
             removed_features=0,
@@ -162,6 +165,7 @@ def uniquify_features(
     stats = FeatureUniquificationStats(
         applied=True,
         unique_attribute_key=unique_attribute_key,
+        ranking_area_key=area_key,
         input_features=input_features,
         retained_features=retained_features,
         removed_features=input_features - retained_features,

@@ -1,6 +1,7 @@
 """Application services for jug_gis_validation."""
 
 from .jug_gis_validation import (
+    AreaCalculationMode,
     GISValidationApplicationService,
     GISValidationOutputMode,
     GISValidationPlotMetric,
@@ -8,6 +9,7 @@ from .jug_gis_validation import (
 )
 
 __all__ = [
+    "AreaCalculationMode",
     "GISValidationApplicationService",
     "GISValidationOutputMode",
     "GISValidationPlotMetric",

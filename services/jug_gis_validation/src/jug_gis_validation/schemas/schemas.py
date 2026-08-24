@@ -11,9 +11,17 @@ Marshmallow schemas for GISOO validation API requests and responses.
 """
 from __future__ import annotations
 
-from marshmallow import EXCLUDE, Schema, fields, validates_schema, ValidationError
+from marshmallow import (
+    EXCLUDE,
+    Schema,
+    fields,
+    validate,
+    validates_schema,
+    ValidationError,
+)
 
 from ..application.jug_gis_validation import (
+    AreaCalculationMode,
     DEFAULT_AREA_KEY,
     DEFAULT_CENSUS_CODE_FIELD_TITLE,
     DEFAULT_CENSUS_UNITS_NUM_TITLE,
@@ -43,8 +51,21 @@ class GISValidationRequestSchema(Schema):
     function_value = fields.Raw(load_default=DEFAULT_FUNCTION_VALUE)
     area_key = fields.String(load_default=DEFAULT_AREA_KEY)
     floor_num_key = fields.String(load_default=DEFAULT_FLOOR_NUM_KEY)
+    area_calculation_mode = fields.String(
+        load_default=AreaCalculationMode.AREA_TIMES_FLOOR.value,
+        validate=validate.OneOf([mode.value for mode in AreaCalculationMode]))
     height_key = fields.String(load_default=DEFAULT_HEIGHT_KEY)
+    include_height_proxy = fields.Boolean(load_default=False)
+    height_proxy_area_key = fields.String(load_default=None, allow_none=True)
+    height_proxy_area_fallback_key = fields.String(
+        load_default=None,
+        allow_none=True)
+    height_proxy_area_fallback_value = fields.Float(
+        load_default=None,
+        allow_none=True,
+        validate=validate.Range(min=0, min_inclusive=False))
     unique_attribute_key = fields.String(load_default=None, allow_none=True)
+    uniquification_area_key = fields.String(load_default=None, allow_none=True)
     census_avg_area_by_type = fields.Dict(
         keys=fields.String(),
         values=fields.Float(),
@@ -62,6 +83,12 @@ class GISValidationRequestSchema(Schema):
         if has_content and has_path:
             raise ValidationError(
                 'Provide only one of buildings_set or buildings_set_path.')
+        if (
+                data.get('height_proxy_area_fallback_key') is not None
+                and data.get('height_proxy_area_fallback_value') is not None):
+            raise ValidationError(
+                'Provide only one of height_proxy_area_fallback_key or '
+                'height_proxy_area_fallback_value.')
 
 
 class GeoJSONUploadSchema(Schema):
@@ -79,3 +106,7 @@ class GISValidationResultSchema(Schema):
     rows_count = fields.Integer(required=True)
     comparison_table = fields.List(fields.Dict(), required=True)
     uniquification = fields.Dict(required=True)
+    area_calculation_mode = fields.String(required=True)
+    height_proxy_included = fields.Boolean(required=True)
+    height_proxy_area_key = fields.String(required=True, allow_none=True)
+    height_proxy_area_resolution = fields.Dict(required=True, allow_none=True)

@@ -9,6 +9,7 @@ from pathlib import Path
 from sabu_chassis.logging import get_logger
 
 from .application import (
+    AreaCalculationMode,
     GISValidationApplicationService,
     GISValidationOutputMode,
     GISValidationPlotMetric,
@@ -72,14 +73,50 @@ def _build_parser():
         default=DEFAULT_FLOOR_NUM_KEY,
         help='buildings_set field containing floor-number values.')
     parser.add_argument(
+        '--area-calculation-mode',
+        default=AreaCalculationMode.AREA_TIMES_FLOOR.value,
+        choices=[mode.value for mode in AreaCalculationMode],
+        help=(
+            'How to calculate feature area: use area directly or multiply '
+            'it by floor number (default: area-times-floor).'))
+    parser.add_argument(
         '--height-key',
         default=DEFAULT_HEIGHT_KEY,
         help='buildings_set field containing height values for proxy output.')
     parser.add_argument(
+        '--include-height-proxy',
+        action='store_true',
+        help='Include a separate height-derived area diagnostic.')
+    parser.add_argument(
+        '--height-proxy-area-key',
+        help=(
+            'Optional base-area field used only by the height proxy. '
+            'Defaults to --area-key.'))
+    height_proxy_fallback = parser.add_mutually_exclusive_group()
+    height_proxy_fallback.add_argument(
+        '--height-proxy-area-fallback-key',
+        help='Optional field used when the height-proxy area is unusable.')
+    height_proxy_fallback.add_argument(
+        '--height-proxy-area-fallback-value',
+        type=float,
+        help=(
+            'Positive constant used when the height-proxy area is unusable. '
+            'Defaults to 80 when neither fallback option is supplied.'))
+    parser.add_argument(
         '--unique-attribute-key',
         help=(
             'Optional buildings_set field to uniquify for validation. The '
-            'feature with the greatest --area-key value is retained.'))
+            'feature with the greatest ranking-area value is retained.'))
+    parser.add_argument(
+        '--uniquification-area-key',
+        help=(
+            'Optional area field used only to rank duplicate features. '
+            'Defaults to --area-key.'))
+    parser.add_argument(
+        '--uniquified-output-path',
+        help=(
+            'Optional .geojson/.json path for the feature snapshot retained '
+            'by uniquification. Requires --unique-attribute-key.'))
     parser.add_argument(
         '--census-avg-area-json',
         help=(
@@ -155,7 +192,16 @@ def main(argv=None):
             area_key=args.area_key,
             floor_num_key=args.floor_num_key,
             height_key=args.height_key,
+            area_calculation_mode=args.area_calculation_mode,
+            include_height_proxy=args.include_height_proxy,
+            height_proxy_area_key=args.height_proxy_area_key,
+            height_proxy_area_fallback_key=(
+                args.height_proxy_area_fallback_key),
+            height_proxy_area_fallback_value=(
+                args.height_proxy_area_fallback_value),
             unique_attribute_key=args.unique_attribute_key,
+            uniquification_area_key=args.uniquification_area_key,
+            uniquified_output_path=args.uniquified_output_path,
             census_avg_area_by_type=_load_census_avg_area(
                 args.census_avg_area_json),
             output_mode=args.output_mode,
@@ -172,10 +218,25 @@ def main(argv=None):
         return 1
 
     print(f'District codes: {len(result.codes)}')
+    print(
+        f'Area calculation mode: {result.area_calculation_mode.value}; '
+        f'height proxy included={result.height_proxy_included}; '
+        f'height proxy area={result.height_proxy_area_key}')
+    height_proxy_stats = result.height_proxy_area_resolution_stats
+    if height_proxy_stats is not None:
+        print(
+            'Height proxy area resolution: '
+            f'primary={height_proxy_stats.primary_features}, '
+            f'fallback={height_proxy_stats.fallback_features}, '
+            f'fallback_pct={height_proxy_stats.fallback_percentage:.2f}, '
+            f'fallback_type={height_proxy_stats.fallback_type}, '
+            f'fallback_key={height_proxy_stats.fallback_key}, '
+            f'fallback_value={height_proxy_stats.fallback_value}')
     stats = result.uniquification_stats
     print(
         'Feature uniquification: '
         f'applied={stats.applied}, input={stats.input_features}, '
+        f'ranking_area={stats.ranking_area_key}, '
         f'retained={stats.retained_features}, '
         f'removed={stats.removed_features}, '
         f'duplicate_groups={stats.duplicate_groups}')
@@ -183,6 +244,8 @@ def main(argv=None):
         print(f'CSV output: {result.csv_path}')
     if result.plot_path is not None:
         print(f'Plot output: {result.plot_path}')
+    if result.uniquified_output_path is not None:
+        print(f'Uniquified GeoJSON: {result.uniquified_output_path}')
     return 0
 
 

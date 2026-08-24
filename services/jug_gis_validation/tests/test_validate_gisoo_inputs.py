@@ -15,9 +15,11 @@ for path in (_SERVICE_SRC, _SABU_CHASSIS_SRC):
 
 _DEPS_SKIP_REASON = None
 try:
+    import geopandas as gpd
     import pandas as pd
     from jug_gis_validation import __main__ as validation_cli
     from jug_gis_validation.application import (
+        AreaCalculationMode,
         GISValidationApplicationService,
         GISValidationOutputMode,
         GISValidationPlotMetric,
@@ -26,6 +28,7 @@ try:
     from jug_gis_validation.errors import (
         GISValidationCalculationError,
         GISValidationDataContractError,
+        GISValidationInputError,
     )
 except ModuleNotFoundError as exc:
     if exc.name in {'pandas', 'geopandas', 'matplotlib', 'numpy'}:
@@ -33,12 +36,15 @@ except ModuleNotFoundError as exc:
             f'jug_gis_validation test dependency is not installed: {exc.name}'
         )
         pd = None
+        gpd = None
         ValidateGISOO = None
         GISValidationCalculationError = None
         GISValidationDataContractError = None
+        GISValidationInputError = None
         GISValidationApplicationService = None
         GISValidationOutputMode = None
         GISValidationPlotMetric = None
+        AreaCalculationMode = None
         validation_cli = None
     else:
         raise
@@ -116,6 +122,9 @@ def _duplicate_buildings_feature_collection():
     buildings = _default_buildings_feature_collection()
     first = buildings['features'][0]
     first['properties']['roll_provincial_id'] = 'ROLL-A'
+    first['properties']['citygisoo_area'] = 300
+    first['properties']['roll_area'] = 10
+    first['properties']['main_floor_area'] = None
     second = {
         'type': 'Feature',
         'properties': dict(first['properties']),
@@ -125,6 +134,9 @@ def _duplicate_buildings_feature_collection():
         },
     }
     second['properties']['area'] = 200
+    second['properties']['citygisoo_area'] = 200
+    second['properties']['roll_area'] = 1000
+    second['properties']['main_floor_area'] = 200
     missing_id = {
         'type': 'Feature',
         'properties': dict(first['properties']),
@@ -135,6 +147,9 @@ def _duplicate_buildings_feature_collection():
     }
     missing_id['properties']['roll_provincial_id'] = None
     missing_id['properties']['area'] = 50
+    missing_id['properties']['citygisoo_area'] = 50
+    missing_id['properties']['roll_area'] = 20
+    missing_id['properties']['main_floor_area'] = 40
     buildings['features'].extend([second, missing_id])
     return buildings
 
@@ -171,9 +186,27 @@ class TestValidateGISOOInputs(unittest.TestCase):
             'buildings.geojson',
             '--unique-attribute-key',
             'roll_provincial_id',
+            '--uniquification-area-key',
+            'citygisoo_area',
+            '--area-calculation-mode',
+            'area-only',
+            '--include-height-proxy',
+            '--height-proxy-area-key',
+            'citygisoo_area',
+            '--height-proxy-area-fallback-key',
+            'roll_area',
+            '--uniquified-output-path',
+            'uniquified.geojson',
         ])
 
         self.assertEqual(args.unique_attribute_key, 'roll_provincial_id')
+        self.assertEqual(args.uniquification_area_key, 'citygisoo_area')
+        self.assertEqual(args.area_calculation_mode, 'area-only')
+        self.assertTrue(args.include_height_proxy)
+        self.assertEqual(args.height_proxy_area_key, 'citygisoo_area')
+        self.assertEqual(args.height_proxy_area_fallback_key, 'roll_area')
+        self.assertIsNone(args.height_proxy_area_fallback_value)
+        self.assertEqual(args.uniquified_output_path, 'uniquified.geojson')
 
     def test_geojson_dict_and_custom_census_dataframe(self):
         validator = ValidateGISOO(
@@ -257,6 +290,202 @@ class TestValidateGISOOInputs(unittest.TestCase):
         self.assertIn('FSA', output_lines[0])
         self.assertFalse(result.uniquification_stats.applied)
         self.assertEqual(result.uniquification_stats.input_features, 1)
+        self.assertEqual(
+            result.area_calculation_mode,
+            AreaCalculationMode.AREA_TIMES_FLOOR)
+        self.assertFalse(result.height_proxy_included)
+        self.assertEqual(
+            result.comparison_table['Cleaned Total Area'],
+            [200.0])
+        self.assertNotIn(
+            'Cleaned Total Area (height proxy)',
+            result.comparison_table)
+
+    def test_area_only_does_not_require_floor_or_height(self):
+        buildings = _default_buildings_feature_collection()
+        properties = buildings['features'][0]['properties']
+        del properties['floor_num']
+        del properties['height']
+
+        result = GISValidationApplicationService.run_validation(
+            buildings,
+            census_data_csv=_default_census_dataframe(),
+            area_calculation_mode=AreaCalculationMode.AREA_ONLY,
+            output_mode=GISValidationOutputMode.NONE,
+        )
+
+        self.assertEqual(
+            result.comparison_table['Cleaned Total Area'],
+            [100.0])
+        self.assertFalse(result.height_proxy_included)
+
+    def test_height_proxy_is_opt_in_and_clearly_labeled(self):
+        result = GISValidationApplicationService.run_validation(
+            _default_buildings_feature_collection(),
+            census_data_csv=_default_census_dataframe(),
+            include_height_proxy=True,
+            output_mode=GISValidationOutputMode.NONE,
+        )
+
+        self.assertTrue(result.height_proxy_included)
+        self.assertEqual(
+            result.comparison_table['Cleaned Total Area (height proxy)'],
+            [200.0])
+
+    def test_height_proxy_can_use_a_different_area_field(self):
+        result = GISValidationApplicationService.run_validation(
+            _duplicate_buildings_feature_collection(),
+            census_data_csv=_default_census_dataframe(),
+            area_key='roll_area',
+            area_calculation_mode=AreaCalculationMode.AREA_ONLY,
+            unique_attribute_key='roll_provincial_id',
+            uniquification_area_key='citygisoo_area',
+            include_height_proxy=True,
+            height_proxy_area_key='citygisoo_area',
+            output_mode=GISValidationOutputMode.NONE,
+        )
+
+        self.assertEqual(
+            result.comparison_table['Cleaned Total Area'],
+            [30.0])
+        self.assertEqual(
+            result.comparison_table['Cleaned Total Area (height proxy)'],
+            [700.0])
+        self.assertEqual(result.height_proxy_area_key, 'citygisoo_area')
+
+    def test_height_proxy_area_can_fall_back_to_another_field(self):
+        buildings = _duplicate_buildings_feature_collection()
+
+        result = GISValidationApplicationService.run_validation(
+            buildings,
+            census_data_csv=_default_census_dataframe(),
+            unique_attribute_key='roll_provincial_id',
+            uniquification_area_key='citygisoo_area',
+            include_height_proxy=True,
+            height_proxy_area_key='main_floor_area',
+            height_proxy_area_fallback_key='citygisoo_area',
+            output_mode=GISValidationOutputMode.NONE,
+        )
+
+        self.assertEqual(
+            result.comparison_table['Cleaned Total Area (height proxy)'],
+            [680.0])
+        stats = result.height_proxy_area_resolution_stats
+        self.assertEqual(stats.fallback_type, 'field')
+        self.assertEqual(stats.fallback_key, 'citygisoo_area')
+        self.assertEqual(stats.fallback_features, 1)
+        self.assertEqual(stats.fallback_percentage, 50.0)
+        self.assertIsNone(
+            buildings['features'][0]['properties']['main_floor_area'])
+
+    def test_height_proxy_area_uses_explicit_constant_fallback(self):
+        result = GISValidationApplicationService.run_validation(
+            _duplicate_buildings_feature_collection(),
+            census_data_csv=_default_census_dataframe(),
+            unique_attribute_key='roll_provincial_id',
+            uniquification_area_key='citygisoo_area',
+            include_height_proxy=True,
+            height_proxy_area_key='main_floor_area',
+            height_proxy_area_fallback_value=90,
+            output_mode=GISValidationOutputMode.NONE,
+        )
+
+        self.assertEqual(
+            result.comparison_table['Cleaned Total Area (height proxy)'],
+            [260.0])
+        stats = result.height_proxy_area_resolution_stats
+        self.assertEqual(stats.fallback_type, 'constant')
+        self.assertEqual(stats.fallback_value, 90.0)
+        self.assertEqual(stats.fallback_features, 1)
+
+    def test_height_proxy_area_constant_defaults_to_eighty(self):
+        result = GISValidationApplicationService.run_validation(
+            _duplicate_buildings_feature_collection(),
+            census_data_csv=_default_census_dataframe(),
+            unique_attribute_key='roll_provincial_id',
+            uniquification_area_key='citygisoo_area',
+            include_height_proxy=True,
+            height_proxy_area_key='main_floor_area',
+            output_mode=GISValidationOutputMode.NONE,
+        )
+
+        self.assertEqual(
+            result.comparison_table['Cleaned Total Area (height proxy)'],
+            [240.0])
+        self.assertEqual(
+            result.height_proxy_area_resolution_stats.fallback_value,
+            80.0)
+
+    def test_height_proxy_fallback_options_are_mutually_exclusive(self):
+        with self.assertRaisesRegex(ValueError, 'mutually exclusive'):
+            GISValidationApplicationService.run_validation(
+                _default_buildings_feature_collection(),
+                census_data_csv=_default_census_dataframe(),
+                include_height_proxy=True,
+                height_proxy_area_fallback_key='area',
+                height_proxy_area_fallback_value=80,
+                output_mode=GISValidationOutputMode.NONE,
+            )
+
+    def test_height_proxy_fallback_value_must_be_positive(self):
+        with self.assertRaisesRegex(ValueError, 'greater than zero'):
+            GISValidationApplicationService.run_validation(
+                _default_buildings_feature_collection(),
+                census_data_csv=_default_census_dataframe(),
+                include_height_proxy=True,
+                height_proxy_area_fallback_value=0,
+                output_mode=GISValidationOutputMode.NONE,
+            )
+
+    def test_unusable_fallback_field_value_raises_contract_error(self):
+        buildings = _duplicate_buildings_feature_collection()
+        buildings['features'][0]['properties']['roll_area'] = None
+
+        with self.assertRaisesRegex(
+                GISValidationDataContractError,
+                'fallback field'):
+            GISValidationApplicationService.run_validation(
+                buildings,
+                census_data_csv=_default_census_dataframe(),
+                unique_attribute_key='roll_provincial_id',
+                uniquification_area_key='citygisoo_area',
+                include_height_proxy=True,
+                height_proxy_area_key='main_floor_area',
+                height_proxy_area_fallback_key='roll_area',
+                output_mode=GISValidationOutputMode.NONE,
+            )
+
+    def test_application_exports_exact_uniquified_snapshot(self):
+        import tempfile
+
+        buildings = _duplicate_buildings_feature_collection()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_path = os.path.join(tmpdir, 'H2X_uniquified.geojson')
+
+            result = GISValidationApplicationService.run_validation(
+                buildings,
+                census_data_csv=_default_census_dataframe(),
+                unique_attribute_key='roll_provincial_id',
+                uniquification_area_key='citygisoo_area',
+                uniquified_output_path=output_path,
+                output_mode=GISValidationOutputMode.NONE,
+            )
+
+            exported = gpd.read_file(output_path)
+            self.assertEqual(len(exported), 2)
+            self.assertEqual(set(exported['roll_area']), {10, 20})
+            self.assertEqual(result.uniquified_output_path.name,
+                             'H2X_uniquified.geojson')
+            self.assertEqual(len(buildings['features']), 3)
+
+    def test_uniquified_output_requires_uniquification(self):
+        with self.assertRaises(GISValidationInputError):
+            GISValidationApplicationService.run_validation(
+                _default_buildings_feature_collection(),
+                census_data_csv=_default_census_dataframe(),
+                uniquified_output_path='unused.geojson',
+                output_mode=GISValidationOutputMode.NONE,
+            )
 
     def test_application_uniquifies_only_its_validation_snapshot(self):
         buildings = _duplicate_buildings_feature_collection()
@@ -277,6 +506,25 @@ class TestValidateGISOOInputs(unittest.TestCase):
         self.assertEqual(
             result.validator.clean_district_and_census_unit('H2X'),
             (2, 8.0))
+
+    def test_application_can_rank_and_validate_with_different_area_fields(self):
+        buildings = _duplicate_buildings_feature_collection()
+
+        result = GISValidationApplicationService.run_validation(
+            buildings,
+            census_data_csv=_default_census_dataframe(),
+            area_key='roll_area',
+            unique_attribute_key='roll_provincial_id',
+            uniquification_area_key='citygisoo_area',
+            output_mode=GISValidationOutputMode.NONE,
+        )
+
+        self.assertEqual(
+            result.uniquification_stats.ranking_area_key,
+            'citygisoo_area')
+        self.assertEqual(
+            result.validator.district_codes_info['H2X'],
+            (2, 60.0))
 
     def test_application_writes_csv_when_requested(self):
         import tempfile

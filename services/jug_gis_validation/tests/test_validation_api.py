@@ -1,4 +1,5 @@
 import importlib.util
+import json
 import os
 import sys
 import unittest
@@ -75,6 +76,12 @@ def _geojson_payload():
 
 
 class _FakeValidator:
+    validation_features = SimpleNamespace(
+        to_json=lambda: json.dumps({
+            'type': 'FeatureCollection',
+            'features': [],
+        }))
+
     @staticmethod
     def plot_area_comparison(
             codes_info,
@@ -91,7 +98,7 @@ class _FakeValidator:
         return fig, ax
 
 
-def _fake_result():
+def _fake_result(*, uniquification_applied=False):
     dataframe = pd.DataFrame(
         [
             {
@@ -99,7 +106,6 @@ def _fake_result():
                 'Cleaned Units Num': 1,
                 'Census Units Num': 8,
                 'Cleaned Total Area': 200.0,
-                'Cleaned Total Area (with proxy)': 200.0,
                 'Census Total Area (by type)': 320.0,
             },
         ]
@@ -108,10 +114,16 @@ def _fake_result():
         validator=_FakeValidator(),
         codes=('H2X',),
         comparison_dataframe=dataframe,
+        area_calculation_mode=SimpleNamespace(value='area-times-floor'),
+        height_proxy_included=False,
+        height_proxy_area_key=None,
+        height_proxy_area_resolution_stats=None,
         uniquification_stats=SimpleNamespace(
+            applied=uniquification_applied,
             as_dict=lambda: {
-                'applied': False,
+                'applied': uniquification_applied,
                 'unique_attribute_key': None,
+                'ranking_area_key': None,
                 'input_features': 1,
                 'retained_features': 1,
                 'removed_features': 0,
@@ -141,6 +153,10 @@ class TestValidationApi(unittest.TestCase):
         body = response.get_json()
         self.assertEqual(body['codes'], ['H2X'])
         self.assertEqual(body['rows_count'], 1)
+        self.assertEqual(body['area_calculation_mode'], 'area-times-floor')
+        self.assertFalse(body['height_proxy_included'])
+        self.assertIsNone(body['height_proxy_area_key'])
+        self.assertIsNone(body['height_proxy_area_resolution'])
         self.assertFalse(body['uniquification']['applied'])
         run_validation_mock.assert_called_once()
         self.assertEqual(
@@ -155,6 +171,11 @@ class TestValidationApi(unittest.TestCase):
         payload = {
             'buildings_set': _geojson_payload(),
             'unique_attribute_key': 'roll_provincial_id',
+            'uniquification_area_key': 'citygisoo_area',
+            'area_calculation_mode': 'area-only',
+            'include_height_proxy': True,
+            'height_proxy_area_key': 'citygisoo_area',
+            'height_proxy_area_fallback_key': 'roll_area',
         }
 
         response = self.client.post('/validations', json=payload)
@@ -163,6 +184,21 @@ class TestValidationApi(unittest.TestCase):
         self.assertEqual(
             run_validation_mock.call_args.kwargs['unique_attribute_key'],
             'roll_provincial_id')
+        self.assertEqual(
+            run_validation_mock.call_args.kwargs['uniquification_area_key'],
+            'citygisoo_area')
+        self.assertEqual(
+            run_validation_mock.call_args.kwargs['area_calculation_mode'],
+            'area-only')
+        self.assertTrue(
+            run_validation_mock.call_args.kwargs['include_height_proxy'])
+        self.assertEqual(
+            run_validation_mock.call_args.kwargs['height_proxy_area_key'],
+            'citygisoo_area')
+        self.assertEqual(
+            run_validation_mock.call_args.kwargs[
+                'height_proxy_area_fallback_key'],
+            'roll_area')
 
     def test_duplicate_with_invalid_area_returns_contract_error(self):
         buildings = _geojson_payload()
@@ -233,6 +269,45 @@ class TestValidationApi(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.mimetype, 'image/png')
         self.assertTrue(response.get_data().startswith(b'\x89PNG'))
+
+    @patch(
+        'jug_gis_validation.resources.validations.'
+        'GISValidationApplicationService.run_validation')
+    def test_geojson_export_returns_uniquified_snapshot(
+            self,
+            run_validation_mock):
+        run_validation_mock.return_value = _fake_result(
+            uniquification_applied=True)
+
+        response = self.client.post(
+            '/validations?export=geojson',
+            json={
+                'buildings_set': _geojson_payload(),
+                'unique_attribute_key': 'roll_provincial_id',
+                'district_name': 'H2X',
+            })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.mimetype, 'application/geo+json')
+        self.assertEqual(response.get_json()['type'], 'FeatureCollection')
+        self.assertIn(
+            'H2X_uniquified.geojson',
+            response.headers['Content-Disposition'])
+
+    @patch(
+        'jug_gis_validation.resources.validations.'
+        'GISValidationApplicationService.run_validation')
+    def test_geojson_export_requires_uniquification(
+            self,
+            run_validation_mock):
+        run_validation_mock.return_value = _fake_result()
+
+        response = self.client.post(
+            '/validations?export=geojson',
+            json=_geojson_payload())
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('unique_attribute_key', response.get_json()['message'])
 
 
 if __name__ == '__main__':

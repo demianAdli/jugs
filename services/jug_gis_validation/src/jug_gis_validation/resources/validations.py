@@ -86,10 +86,12 @@ def _run_validation_workflow(
     export_format = (request.args.get('export') or '').strip().lower()
     if export_format == 'json':
         export_format = ''
-    if export_format and export_format not in {'csv', 'plot'}:
+    if export_format and export_format not in {'csv', 'plot', 'geojson'}:
         abort(
             400,
-            message='Unsupported export format. Supported values: csv, plot')
+            message=(
+                'Unsupported export format. Supported values: '
+                'csv, plot, geojson'))
 
     logger.info(request_received_log)
     try:
@@ -102,8 +104,17 @@ def _run_validation_workflow(
             function_value=request_data['function_value'],
             area_key=request_data['area_key'],
             floor_num_key=request_data['floor_num_key'],
+            area_calculation_mode=request_data['area_calculation_mode'],
             height_key=request_data['height_key'],
+            include_height_proxy=request_data['include_height_proxy'],
+            height_proxy_area_key=request_data.get('height_proxy_area_key'),
+            height_proxy_area_fallback_key=request_data.get(
+                'height_proxy_area_fallback_key'),
+            height_proxy_area_fallback_value=request_data.get(
+                'height_proxy_area_fallback_value'),
             unique_attribute_key=request_data.get('unique_attribute_key'),
+            uniquification_area_key=request_data.get(
+                'uniquification_area_key'),
             census_avg_area_by_type=request_data.get(
                 'census_avg_area_by_type'),
             output_mode='none',
@@ -146,6 +157,14 @@ def _run_validation_workflow(
         return _csv_response(result, request_data['district_name'])
     if export_format == 'plot':
         return _plot_response(result, request_data)
+    if export_format == 'geojson':
+        if not result.uniquification_stats.applied:
+            abort(
+                400,
+                message=(
+                    'GeoJSON uniquification export requires '
+                    'unique_attribute_key.'))
+        return _geojson_response(result, request_data['district_name'])
     return jsonify(_result_to_response(result)), 201
 
 
@@ -157,6 +176,13 @@ def _result_to_response(result):
         'rows_count': len(records),
         'comparison_table': records,
         'uniquification': result.uniquification_stats.as_dict(),
+        'area_calculation_mode': result.area_calculation_mode.value,
+        'height_proxy_included': result.height_proxy_included,
+        'height_proxy_area_key': result.height_proxy_area_key,
+        'height_proxy_area_resolution': (
+            result.height_proxy_area_resolution_stats.as_dict()
+            if result.height_proxy_area_resolution_stats is not None
+            else None),
     }
 
 
@@ -173,7 +199,7 @@ def _plot_response(result, request_data):
     dataframe = result.comparison_dataframe
     fig, _ = result.validator.plot_area_comparison(
         codes_info=dataframe['FSA'],
-        areas=dataframe['Cleaned Total Area (with proxy)'],
+        areas=dataframe['Cleaned Total Area'],
         census_areas=dataframe['Census Total Area (by type)'],
         title=(
             request_data.get('plot_title')
@@ -199,6 +225,17 @@ def _plot_response(result, request_data):
         mimetype='image/png',
         as_attachment=False,
         download_name=filename)
+
+
+def _geojson_response(result, district_name):
+    geojson_text = result.validator.validation_features.to_json()
+    filename = f'{district_name}_uniquified.geojson'
+    return Response(
+        geojson_text,
+        mimetype='application/geo+json',
+        headers={
+            'Content-Disposition': f'attachment; filename={filename}',
+        })
 
 
 @blp.route('/validations')

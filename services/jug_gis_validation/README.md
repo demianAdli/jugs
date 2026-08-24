@@ -67,7 +67,8 @@ Provides auxiliary district-level preprocessing:
 
 - Prefix-based validation (first 3 characters of postal code)
 - Flexible choice of validation fields (units, area, custom)
-- Floor-adjusted metrics where applicable
+- Explicit `area-only` or `area-times-floor` calculation modes
+- Optional height-derived floor proxy diagnostic
 - Optional filtering by building function
 - Missing and zero-value detection
 - Optional validation-only feature uniquification by an attribute, retaining
@@ -76,9 +77,28 @@ Provides auxiliary district-level preprocessing:
 - Designed to be highly extensible within the CityGISOO ecosystem
 
 Uniquification is disabled by default. For Montreal standardized data, set
-`unique_attribute_key` to `roll_provincial_id` and `area_key` to
-`citygisoo_area`. This filters only the validator's in-memory snapshot; it does
-not rewrite or delete features from the cleaned GeoJSON.
+`unique_attribute_key` to `roll_provincial_id`. By default, duplicate ranking
+uses `area_key`; set `uniquification_area_key` when ranking should use a
+different field. For example, validation can calculate with `roll_area` while
+duplicate selection uses `citygisoo_area`. This filters only the validator's
+in-memory snapshot; it does not rewrite or delete cleaned GeoJSON features.
+
+The default area calculation mode is `area-times-floor`, which preserves the
+existing `area_key * floor_num_key` behavior. Use `area-only` when `area_key`
+already represents total building area; in that mode `floor_num_key` is not
+required. Height-proxy output is disabled by default and can be requested with
+`include_height_proxy` or the CLI flag `--include-height-proxy`. Its base area
+defaults to `area_key`; use `height_proxy_area_key` or
+`--height-proxy-area-key` to select a different field. Unusable proxy-area
+values can fall back to either `height_proxy_area_fallback_key` or
+`height_proxy_area_fallback_value`. The choices are mutually exclusive; when
+neither is supplied, the constant fallback defaults to `80.0`. Results report
+the number and percentage of evaluated features that used the fallback.
+
+Python and CLI callers can persist the exact post-uniquification validation
+snapshot with `uniquified_output_path` or `--uniquified-output-path`. The REST
+API returns the same snapshot with `?export=geojson`. GeoJSON export requires
+`unique_attribute_key`; the source dataset is never modified.
 
 ---
 

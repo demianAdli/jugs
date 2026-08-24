@@ -15,6 +15,8 @@ Update considerations:
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
+from enum import Enum
 from functools import cached_property
 from importlib.resources import as_file, files
 from os import PathLike
@@ -44,6 +46,57 @@ from .uniquify_features import (
 logger = get_logger(__name__)
 DEFAULT_CENSUS_RESOURCE = 'filtered_census.csv'
 DEFAULT_CENSUS_DATA_CSV = f'data/{DEFAULT_CENSUS_RESOURCE}'
+DEFAULT_HEIGHT_PROXY_AREA_FALLBACK_VALUE = 80.0
+
+
+class AreaCalculationMode(str, Enum):
+  """Supported ways to derive each feature's validation area."""
+
+  AREA_ONLY = 'area-only'
+  AREA_TIMES_FLOOR = 'area-times-floor'
+
+  @classmethod
+  def normalize(cls, value):
+    if isinstance(value, cls):
+      return value
+    if isinstance(value, str):
+      try:
+        return cls(value.strip().lower())
+      except ValueError as exc:
+        valid_modes = ', '.join(mode.value for mode in cls)
+        raise ValueError(
+          f'Unsupported area calculation mode: {value}. '
+          f'Supported modes: {valid_modes}.') from exc
+    raise TypeError(
+      'area_calculation_mode must be a string or AreaCalculationMode.')
+
+
+@dataclass(frozen=True)
+class HeightProxyAreaResolutionStats:
+  """Audit statistics for height-proxy base-area resolution."""
+
+  primary_area_key: str
+  fallback_type: str
+  fallback_key: str | None
+  fallback_value: float | None
+  evaluated_features: int
+  primary_features: int
+  fallback_features: int
+  fallback_percentage: float
+  unresolved_features: int
+
+  def as_dict(self):
+    return {
+      'primary_area_key': self.primary_area_key,
+      'fallback_type': self.fallback_type,
+      'fallback_key': self.fallback_key,
+      'fallback_value': self.fallback_value,
+      'evaluated_features': self.evaluated_features,
+      'primary_features': self.primary_features,
+      'fallback_features': self.fallback_features,
+      'fallback_percentage': self.fallback_percentage,
+      'unresolved_features': self.unresolved_features,
+    }
 
 
 class ValidateGISOO:
@@ -54,7 +107,13 @@ class ValidateGISOO:
                census_data_csv=DEFAULT_CENSUS_DATA_CSV,
                census_avg_area_by_type=None,
                height_key='height',
-               unique_attribute_key=None):
+               unique_attribute_key=None,
+               uniquification_area_key=None,
+               area_calculation_mode=AreaCalculationMode.AREA_TIMES_FLOOR,
+               include_height_proxy=False,
+               height_proxy_area_key=None,
+               height_proxy_area_fallback_key=None,
+               height_proxy_area_fallback_value=None):
     # Configuration
     self.postal_code_key = postal_code_key
     self.function_key = function_key
@@ -63,6 +122,45 @@ class ValidateGISOO:
     self.floor_num_key = floor_num_key
     self.height_key = height_key
     self.unique_attribute_key = unique_attribute_key
+    self.uniquification_area_key = (
+      self.area_key
+      if uniquification_area_key is None
+      else uniquification_area_key)
+    self.area_calculation_mode = AreaCalculationMode.normalize(
+      area_calculation_mode)
+    if not isinstance(include_height_proxy, bool):
+      raise TypeError('include_height_proxy must be a boolean.')
+    self.include_height_proxy = include_height_proxy
+    self.height_proxy_area_key = (
+      self.area_key
+      if height_proxy_area_key is None
+      else height_proxy_area_key)
+    if (
+      height_proxy_area_fallback_key is not None
+      and height_proxy_area_fallback_value is not None
+    ):
+      raise ValueError(
+        'height_proxy_area_fallback_key and '
+        'height_proxy_area_fallback_value are mutually exclusive.')
+    self.height_proxy_area_fallback_key = height_proxy_area_fallback_key
+    if self.height_proxy_area_fallback_key is None:
+      fallback_value = (
+        DEFAULT_HEIGHT_PROXY_AREA_FALLBACK_VALUE
+        if height_proxy_area_fallback_value is None
+        else height_proxy_area_fallback_value)
+      try:
+        fallback_value = float(fallback_value)
+      except (TypeError, ValueError) as exc:
+        raise ValueError(
+          'height_proxy_area_fallback_value must be numeric.') from exc
+      if not np.isfinite(fallback_value) or fallback_value <= 0:
+        raise ValueError(
+          'height_proxy_area_fallback_value must be finite and greater '
+          'than zero.')
+      self.height_proxy_area_fallback_value = fallback_value
+    else:
+      self.height_proxy_area_fallback_value = None
+    self._height_proxy_area_resolution_stats = None
     self.census_code_field_title = census_code_field_title
     self.census_units_num_title = census_units_num_title
 
@@ -80,12 +178,13 @@ class ValidateGISOO:
       self._load_district, self._uniquification_stats = uniquify_features(
         self._load_district,
         unique_attribute_key=self.unique_attribute_key,
-        area_key=self.area_key)
+        area_key=self.uniquification_area_key)
     logger.info(
       'Validation feature uniquification. Applied=%s UniqueAttribute=%s '
-      'Input=%s Retained=%s Removed=%s DuplicateGroups=%s',
+      'RankingArea=%s Input=%s Retained=%s Removed=%s DuplicateGroups=%s',
       self._uniquification_stats.applied,
       self._uniquification_stats.unique_attribute_key,
+      self._uniquification_stats.ranking_area_key,
       self._uniquification_stats.input_features,
       self._uniquification_stats.retained_features,
       self._uniquification_stats.removed_features,
@@ -121,11 +220,18 @@ class ValidateGISOO:
 
     logger.info(
       'Initialized GISOO validator. BuildingsSource=%s CensusSource=%s '
-      'Features=%s DistrictCodes=%s',
+      'Features=%s DistrictCodes=%s AreaCalculationMode=%s '
+      'IncludeHeightProxy=%s HeightProxyArea=%s HeightProxyFallbackKey=%s '
+      'HeightProxyFallbackValue=%s',
       self._buildings_source,
       self._census_source,
       len(self._load_district),
-      len(self._district_codes))
+      len(self._district_codes),
+      self.area_calculation_mode.value,
+      self.include_height_proxy,
+      self.height_proxy_area_key if self.include_height_proxy else None,
+      self.height_proxy_area_fallback_key,
+      self.height_proxy_area_fallback_value)
 
   @staticmethod
   def _load_buildings_set(buildings_set) -> tuple[gpd.GeoDataFrame, str]:
@@ -273,18 +379,100 @@ class ValidateGISOO:
     required_columns = [
       self.postal_code_key,
       self.area_key,
-      self.floor_num_key,
     ]
+    if self.area_calculation_mode is AreaCalculationMode.AREA_TIMES_FLOOR:
+      required_columns.append(self.floor_num_key)
+    if self.include_height_proxy:
+      required_columns.append(self.height_key)
+      required_columns.append(self.height_proxy_area_key)
+      if self.height_proxy_area_fallback_key is not None:
+        required_columns.append(self.height_proxy_area_fallback_key)
     if self.function_key is not None:
       required_columns.append(self.function_key)
     if self.unique_attribute_key is not None:
       required_columns.append(self.unique_attribute_key)
+      required_columns.append(self.uniquification_area_key)
     return required_columns
 
   @property
   def uniquification_stats(self) -> FeatureUniquificationStats:
     """Statistics for validation-only feature uniquification."""
     return self._uniquification_stats
+
+  @property
+  def validation_features(self) -> gpd.GeoDataFrame:
+    """Return a copy of the feature snapshot used by validation."""
+    return self._load_district.copy()
+
+  @property
+  def height_proxy_area_resolution_stats(
+          self) -> HeightProxyAreaResolutionStats | None:
+    """Area fallback statistics, populated when height proxy is calculated."""
+    return self._height_proxy_area_resolution_stats
+
+  def _resolve_height_proxy_areas(self):
+    primary_areas = pd.to_numeric(
+      self._load_district[self.height_proxy_area_key],
+      errors='coerce')
+    primary_valid = (
+      primary_areas.notna()
+      & np.isfinite(primary_areas)
+      & primary_areas.gt(0))
+
+    relevant = pd.Series(True, index=self._load_district.index)
+    if self.function_key is not None:
+      relevant = self._load_district[self.function_key].eq(
+        self.function_value)
+
+    fallback_needed = relevant & ~primary_valid
+    resolved_areas = primary_areas.copy()
+    if self.height_proxy_area_fallback_key is not None:
+      fallback_areas = pd.to_numeric(
+        self._load_district[self.height_proxy_area_fallback_key],
+        errors='coerce')
+      fallback_valid = (
+        fallback_areas.notna()
+        & np.isfinite(fallback_areas)
+        & fallback_areas.gt(0))
+      unresolved = fallback_needed & ~fallback_valid
+      if unresolved.any():
+        unresolved_indexes = self._load_district.index[unresolved].tolist()
+        raise GISValidationDataContractError(
+          'Height-proxy area fallback field '
+          f'{self.height_proxy_area_fallback_key!r} contains unusable values '
+          'where the primary area is unusable. Input index sample: '
+          f'{unresolved_indexes[:10]}')
+      resolved_areas.loc[fallback_needed] = fallback_areas.loc[fallback_needed]
+      fallback_type = 'field'
+      fallback_key = self.height_proxy_area_fallback_key
+      fallback_value = None
+    else:
+      resolved_areas.loc[fallback_needed] = (
+        self.height_proxy_area_fallback_value)
+      unresolved = pd.Series(False, index=self._load_district.index)
+      fallback_type = 'constant'
+      fallback_key = None
+      fallback_value = self.height_proxy_area_fallback_value
+
+    evaluated_features = int(relevant.sum())
+    fallback_features = int(fallback_needed.sum())
+    primary_features = evaluated_features - fallback_features
+    fallback_percentage = (
+      fallback_features * 100.0 / evaluated_features
+      if evaluated_features
+      else 0.0)
+    stats = HeightProxyAreaResolutionStats(
+      primary_area_key=self.height_proxy_area_key,
+      fallback_type=fallback_type,
+      fallback_key=fallback_key,
+      fallback_value=fallback_value,
+      evaluated_features=evaluated_features,
+      primary_features=primary_features,
+      fallback_features=fallback_features,
+      fallback_percentage=round(fallback_percentage, 2),
+      unresolved_features=int(unresolved.sum()),
+    )
+    return resolved_areas, stats
 
   @staticmethod
   def _ensure_columns(dataframe, required_columns, dataset_name):
@@ -311,27 +499,41 @@ class ValidateGISOO:
   @cached_property
   def _codes_info(self):
     """
-    Internal cached (info, nones_info) for height-from-floor_num workflow.
+    Internal cached (info, nones_info) for the selected area workflow.
 
     info: dict[FSA] -> (units_num, total_area)
     nones_info: tuple(units_num_with_None_or_zero, area_with_None_or_zero)
     """
-    logger.debug('Computing district code summaries with floor number.')
+    logger.debug(
+      'Computing district code summaries. AreaCalculationMode=%s',
+      self.area_calculation_mode.value)
     try:
-      info = self._district.summarize_all_codes_dict(
-        postal_code_key=self.postal_code_key,
-        return_key=self.area_key,
-        floor_num_key=self.floor_num_key,
-        codes=self._district_codes,
-        prefix_len=3,
-        function_key=self.function_key,
-        function_value=self.function_value,
-      )
+      if self.area_calculation_mode is AreaCalculationMode.AREA_ONLY:
+        info = self._district.summarize_all_codes_with_multipliers(
+          postal_code_key=self.postal_code_key,
+          return_key=self.area_key,
+          multipliers=[1.0] * len(self._load_district),
+          codes=self._district_codes,
+          prefix_len=3,
+          function_key=self.function_key,
+          function_value=self.function_value,
+        )
+      else:
+        info = self._district.summarize_all_codes_dict(
+          postal_code_key=self.postal_code_key,
+          return_key=self.area_key,
+          floor_num_key=self.floor_num_key,
+          codes=self._district_codes,
+          prefix_len=3,
+          function_key=self.function_key,
+          function_value=self.function_value,
+        )
     except GISValidationDataContractError:
       raise
     except Exception as exc:
       raise GISValidationCalculationError(
-        'Unable to summarize district codes with floor number.') from exc
+        'Unable to summarize district codes using area calculation mode '
+        f'{self.area_calculation_mode.value}.') from exc
 
     nones_info = (0, 0)
     if "Non" in info:
@@ -346,14 +548,12 @@ class ValidateGISOO:
 
   @property
   def district_codes_info(self):
-    """dict[FSA] -> (units_num, total_area) using floor_num."""
+    """dict[FSA] -> (units_num, total_area) using the selected area mode."""
     return self._codes_info[0]
 
   @property
   def district_nones(self):
-    """(units_with_none_or_zero, area_with_none_or_zero)
-    For floor_num workflow.
-    """
+    """(units_with_none_or_zero, area_with_none_or_zero)."""
     return self._codes_info[1]
 
   @cached_property
@@ -365,6 +565,7 @@ class ValidateGISOO:
     self._ensure_columns(self._load_district, [self.height_key],
                          'buildings_set')
     try:
+      resolved_areas, resolution_stats = self._resolve_height_proxy_areas()
       proxy_info = self._district.height_to_floor_proxy(self.height_key, 3.5)
       multipliers, num_nones, pct_nones, num_zeros, pct_zeros = proxy_info
       if num_nones or num_zeros:
@@ -375,15 +576,29 @@ class ValidateGISOO:
           pct_nones,
           num_zeros,
           pct_zeros)
-      info = self._district.summarize_all_codes_with_multipliers(
+      resolved_area_field = '__height_proxy_resolved_area__'
+      proxy_district_frame = self._load_district.copy()
+      proxy_district_frame[resolved_area_field] = resolved_areas
+      proxy_district = DistrictGeoJSONAnalysis(proxy_district_frame)
+      info = proxy_district.summarize_all_codes_with_multipliers(
         postal_code_key=self.postal_code_key,
-        return_key=self.area_key,
+        return_key=resolved_area_field,
         multipliers=multipliers,
         codes=self._district_codes,
         prefix_len=3,
         function_key=self.function_key,
         function_value=self.function_value,
       )
+      self._height_proxy_area_resolution_stats = resolution_stats
+      logger.info(
+        'Resolved height-proxy base areas. Primary=%s Fallback=%s '
+        'FallbackPct=%.2f FallbackType=%s FallbackKey=%s FallbackValue=%s',
+        resolution_stats.primary_features,
+        resolution_stats.fallback_features,
+        resolution_stats.fallback_percentage,
+        resolution_stats.fallback_type,
+        resolution_stats.fallback_key,
+        resolution_stats.fallback_value)
     except GISValidationDataContractError:
       raise
     except Exception as exc:
@@ -545,8 +760,8 @@ class ValidateGISOO:
     width = 0.39
 
     fig, ax = plt.subplots(figsize=(max(5.0, n * 1.2), 4.5))
-    rects1 = ax.bar(x - width / 2, areas, width, label=x_label)
-    rects2 = ax.bar(x + width / 2, census_areas, width, label='Census')
+    ax.bar(x - width / 2, areas, width, label=x_label)
+    ax.bar(x + width / 2, census_areas, width, label='Census')
 
     ax.set_xlabel('Code')
     ax.set_ylabel(y_label)
@@ -560,21 +775,35 @@ class ValidateGISOO:
     return fig, ax
 
   def comparison_table(self, codes) -> dict:
-    return {'FSA': codes,
-            'Cleaned Units Num':
-              [self.district_codes_info[code][0] for code in codes],
-            'Census Units Num':
-              [self.census_units_num_all_dict[code] for code in codes],
-            'Cleaned vs. Census Units':
-              [value[0] for value in
-               self.clean_districts_vs_census_unit(codes).values()],
-            'Cleaned Total Area':
-              [self.district_codes_info_proxy[code][1] for code in codes],
-            'Cleaned Total Area (with proxy)':
-              [self.district_codes_info[code][1] for code in codes],
-            'Census Total Area (by type)':
-              [self.census_total_area_all_dict[code] for code in codes],
-            }
+    table = {
+      'FSA': codes,
+      'Cleaned Units Num':
+        [self.district_codes_info[code][0] for code in codes],
+      'Census Units Num':
+        [self.census_units_num_all_dict[code] for code in codes],
+      'Cleaned vs. Census Units':
+        [value[0] for value in
+         self.clean_districts_vs_census_unit(codes).values()],
+      'Cleaned Total Area':
+        [self.district_codes_info[code][1] for code in codes],
+      'Census Total Area (by type)':
+        [self.census_total_area_all_dict[code] for code in codes],
+    }
+    if self.include_height_proxy:
+      table['Cleaned Total Area (height proxy)'] = [
+        self.district_codes_info_proxy[code][1] for code in codes
+      ]
+      resolution_stats = self.height_proxy_area_resolution_stats
+      table['Height Proxy Area Fallback Type'] = [
+        resolution_stats.fallback_type for _ in codes
+      ]
+      table['Height Proxy Area Fallback Features'] = [
+        resolution_stats.fallback_features for _ in codes
+      ]
+      table['Height Proxy Area Fallback Percentage'] = [
+        resolution_stats.fallback_percentage for _ in codes
+      ]
+    return table
 
   def comparison_csv(self, codes, distric_name):
     comparison_df = pd.DataFrame(self.comparison_table(codes))

@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
+import math
 from pathlib import Path
 from time import perf_counter
 from typing import Any, Callable, Mapping
@@ -23,13 +24,18 @@ import pandas as pd
 from sabu_chassis.logging import get_logger
 
 from jug_gis_validation.domain_validation.validate_gisoo import (
+    AreaCalculationMode,
     DEFAULT_CENSUS_DATA_CSV,
+    HeightProxyAreaResolutionStats,
     ValidateGISOO,
 )
 from jug_gis_validation.domain_validation.uniquify_features import (
     FeatureUniquificationStats,
 )
-from jug_gis_validation.errors import GISValidationError
+from jug_gis_validation.errors import (
+    GISValidationError,
+    GISValidationInputError,
+)
 
 
 logger = get_logger(__name__)
@@ -83,6 +89,12 @@ class GISValidationRunResult:
     comparison_table: dict[str, Any]
     comparison_dataframe: pd.DataFrame
     uniquification_stats: FeatureUniquificationStats
+    area_calculation_mode: AreaCalculationMode
+    height_proxy_included: bool
+    height_proxy_area_key: str | None
+    height_proxy_area_resolution_stats: (
+        HeightProxyAreaResolutionStats | None)
+    uniquified_output_path: Path | None = None
     csv_path: Path | None = None
     plot_path: Path | None = None
 
@@ -105,6 +117,13 @@ class GISValidationApplicationService:
             floor_num_key=DEFAULT_FLOOR_NUM_KEY,
             height_key=DEFAULT_HEIGHT_KEY,
             unique_attribute_key=None,
+            uniquification_area_key=None,
+            area_calculation_mode=AreaCalculationMode.AREA_TIMES_FLOOR,
+            include_height_proxy=False,
+            height_proxy_area_key=None,
+            height_proxy_area_fallback_key=None,
+            height_proxy_area_fallback_value=None,
+            uniquified_output_path=None,
             census_avg_area_by_type: Mapping[str, float] | None = None,
             output_mode=GISValidationOutputMode.CONSOLE,
             district_name=DEFAULT_DISTRICT_NAME,
@@ -119,6 +138,29 @@ class GISValidationApplicationService:
         """Run validation and optionally write console, CSV, and plot outputs."""
         normalized_output_mode = cls._normalize_output_mode(output_mode)
         normalized_plot_metric = cls._normalize_plot_metric(plot_metric)
+        normalized_area_calculation_mode = AreaCalculationMode.normalize(
+            area_calculation_mode)
+        if (
+                height_proxy_area_fallback_key is not None
+                and height_proxy_area_fallback_value is not None):
+            raise ValueError(
+                'height_proxy_area_fallback_key and '
+                'height_proxy_area_fallback_value are mutually exclusive.')
+        normalized_height_proxy_area_fallback_value = None
+        if height_proxy_area_fallback_value is not None:
+            try:
+                normalized_height_proxy_area_fallback_value = float(
+                    height_proxy_area_fallback_value)
+            except (TypeError, ValueError) as exc:
+                raise ValueError(
+                    'height_proxy_area_fallback_value must be numeric.') from exc
+            if (
+                    not math.isfinite(
+                        normalized_height_proxy_area_fallback_value)
+                    or normalized_height_proxy_area_fallback_value <= 0):
+                raise ValueError(
+                    'height_proxy_area_fallback_value must be finite and '
+                    'greater than zero.')
         normalized_census_avg_area = cls._normalize_census_avg_area(
             census_avg_area_by_type)
 
@@ -129,6 +171,12 @@ class GISValidationApplicationService:
             include_plot or plot_path is not None)
 
         try:
+            if (
+                    uniquified_output_path is not None
+                    and unique_attribute_key is None):
+                raise GISValidationInputError(
+                    'uniquified_output_path requires unique_attribute_key.')
+
             validator = ValidateGISOO(
                 buildings_set,
                 census_code_field_title,
@@ -141,11 +189,27 @@ class GISValidationApplicationService:
                 census_data_csv=census_data_csv,
                 census_avg_area_by_type=normalized_census_avg_area,
                 height_key=height_key,
-                unique_attribute_key=unique_attribute_key)
+                unique_attribute_key=unique_attribute_key,
+                uniquification_area_key=uniquification_area_key,
+                area_calculation_mode=normalized_area_calculation_mode,
+                include_height_proxy=include_height_proxy,
+                height_proxy_area_key=height_proxy_area_key,
+                height_proxy_area_fallback_key=(
+                    height_proxy_area_fallback_key),
+                height_proxy_area_fallback_value=(
+                    normalized_height_proxy_area_fallback_value))
 
             codes = validator.district_codes
             comparison_table = validator.comparison_table(codes)
             comparison_dataframe = pd.DataFrame(comparison_table)
+
+            resolved_uniquified_output_path = None
+            if uniquified_output_path is not None:
+                resolved_uniquified_output_path = (
+                    cls._write_uniquified_output(
+                        validator.validation_features,
+                        uniquified_output_path,
+                        source=buildings_set))
 
             if normalized_output_mode in (
                     GISValidationOutputMode.CONSOLE,
@@ -180,7 +244,7 @@ class GISValidationApplicationService:
                     default_title = f'Unit comparison - {district_name}'
                     y_label = 'Number of units'
                 else:
-                    cleaned_column = 'Cleaned Total Area (with proxy)'
+                    cleaned_column = 'Cleaned Total Area'
                     census_column = 'Census Total Area (by type)'
                     default_title = f'Area comparison - {district_name}'
                     y_label = 'Area (m^2)'
@@ -210,15 +274,25 @@ class GISValidationApplicationService:
             comparison_table=comparison_table,
             comparison_dataframe=comparison_dataframe,
             uniquification_stats=validator.uniquification_stats,
+            area_calculation_mode=validator.area_calculation_mode,
+            height_proxy_included=validator.include_height_proxy,
+            height_proxy_area_key=(
+                validator.height_proxy_area_key
+                if validator.include_height_proxy
+                else None),
+            height_proxy_area_resolution_stats=(
+                validator.height_proxy_area_resolution_stats),
+            uniquified_output_path=resolved_uniquified_output_path,
             csv_path=resolved_csv_path,
             plot_path=resolved_plot_path)
 
         logger.info(
             'Completed GISOO validation. DistrictCodes=%s CsvPath=%s '
-            'PlotPath=%s Elapsed=%.3fs',
+            'PlotPath=%s UniquifiedOutputPath=%s Elapsed=%.3fs',
             len(result.codes),
             result.csv_path,
             result.plot_path,
+            result.uniquified_output_path,
             perf_counter() - run_t0)
         return result
 
@@ -274,3 +348,33 @@ class GISValidationApplicationService:
         if plot_path is not None:
             return Path(plot_path)
         return Path(output_dir) / f'{district_name}_area_comparison.png'
+
+    @staticmethod
+    def _write_uniquified_output(
+            validation_features,
+            output_path,
+            *,
+            source=None) -> Path:
+        resolved_path = Path(output_path)
+        if resolved_path.suffix.lower() not in {'.geojson', '.json'}:
+            raise GISValidationInputError(
+                'uniquified_output_path must end with .geojson or .json.')
+        if isinstance(source, (str, Path)):
+            source_text = str(source).strip()
+            if (
+                    not source_text.startswith(('{', '['))
+                    and Path(source).resolve() == resolved_path.resolve()):
+                raise GISValidationInputError(
+                    'uniquified_output_path must not overwrite the input '
+                    'buildings_set path.')
+        resolved_path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            validation_features.to_file(
+                resolved_path,
+                driver='GeoJSON',
+                index=False)
+        except Exception as exc:
+            raise GISValidationError(
+                f'Unable to write uniquified GeoJSON: {resolved_path}') from exc
+        logger.info('Uniquified validation GeoJSON written: %s', resolved_path)
+        return resolved_path

@@ -61,6 +61,7 @@ class TestUniquifyFeatures(unittest.TestCase):
         self.assertEqual(stats.retained_features, 4)
         self.assertEqual(stats.removed_features, 2)
         self.assertEqual(stats.duplicate_groups, 2)
+        self.assertEqual(stats.ranking_area_key, 'area')
 
     def test_invalid_area_in_duplicate_group_raises_contract_error(self):
         buildings = _frame([
