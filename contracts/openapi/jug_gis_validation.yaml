@@ -10,8 +10,8 @@ info:
     `data/filtered_census.csv`, owned and packaged by `jug_gis_validation`.
 
     The primary input mode is a pasted GeoJSON FeatureCollection, following the
-    `jug_lca_buildings` building-input pattern and adding validation fields:
-    `fsa`, `area`, and `floor_num`.
+    `jug_lca_buildings` building-input pattern and adding validation fields.
+    `fsa` is required; area fields are required only by the selected area mode.
 servers:
   - url: http://localhost:5000
     description: Local Flask development
@@ -27,10 +27,10 @@ paths:
         - in: query
           name: export
           required: false
-          description: Optional export format. Use `csv` for a CSV download or `plot` for a PNG area-comparison plot.
+          description: Optional export format. Use `csv`, `plot`, or `geojson` for the uniquified feature snapshot.
           schema:
             type: string
-            enum: [csv, plot]
+            enum: [csv, plot, geojson]
       requestBody:
         required: true
         content:
@@ -80,13 +80,17 @@ paths:
                 csvReport:
                   summary: Validation CSV report
                   value: |
-                    FSA,Cleaned Units Num,Census Units Num,Cleaned vs. Census Units,Cleaned Total Area,Cleaned Total Area (with proxy),Census Total Area (by type)
-                    G1A,1,8,-7,360.0,360.0,320.0
+                    FSA,Cleaned Units Num,Census Units Num,Cleaned vs. Census Units,Cleaned Total Area,Census Total Area (by type)
+                    G1A,1,8,-7,360.0,320.0
             image/png:
               schema:
                 type: string
                 format: binary
               description: PNG area-comparison plot.
+            application/geo+json:
+              schema:
+                $ref: '#/components/schemas/BuildingsSet'
+              description: Uniquified feature snapshot. Requires unique_attribute_key.
         '201':
           description: Validation completed successfully.
           content:
@@ -99,13 +103,24 @@ paths:
                   value:
                     codes: [G1A]
                     rows_count: 1
+                    area_calculation_mode: area-times-floor
+                    height_proxy_included: false
+                    height_proxy_area_key: null
+                    height_proxy_area_resolution: null
+                    uniquification:
+                      applied: false
+                      unique_attribute_key: null
+                      ranking_area_key: null
+                      input_features: 1
+                      retained_features: 1
+                      removed_features: 0
+                      duplicate_groups: 0
                     comparison_table:
                       - FSA: G1A
                         Cleaned Units Num: 1
                         Census Units Num: 8
                         Cleaned vs. Census Units: -7
                         Cleaned Total Area: 360.0
-                        Cleaned Total Area (with proxy): 360.0
                         Census Total Area (by type): 320.0
         '400':
           description: Bad request, including invalid JSON or unsupported export format.
@@ -134,10 +149,10 @@ paths:
         - in: query
           name: export
           required: false
-          description: Optional export format. Use `csv` for a CSV download or `plot` for a PNG area-comparison plot.
+          description: Optional export format. Use `csv`, `plot`, or `geojson` for the uniquified feature snapshot.
           schema:
             type: string
-            enum: [csv, plot]
+            enum: [csv, plot, geojson]
       requestBody:
         required: true
         content:
@@ -165,15 +180,50 @@ paths:
                 function_value:
                   type: string
                   default: '1000'
+                cleaned_units_num_key:
+                  type: string
+                  nullable: true
+                  description: Optional feature property containing unit counts. NULL values contribute one; when omitted, each retained feature contributes one.
                 area_key:
                   type: string
                   default: area
                 floor_num_key:
                   type: string
                   default: floor_num
+                area_calculation_mode:
+                  type: string
+                  enum: [none, area-only, area-times-floor]
+                  default: area-times-floor
                 height_key:
                   type: string
                   default: height
+                include_height_proxy:
+                  type: boolean
+                  default: false
+                  description: Include a separate height-derived area diagnostic. Cannot be true when area_calculation_mode is none.
+                height_proxy_area_key:
+                  type: string
+                  nullable: true
+                  description: Optional base-area field used only by the height proxy. Defaults to area_key.
+                height_proxy_area_fallback_key:
+                  type: string
+                  nullable: true
+                  description: Optional fallback field; mutually exclusive with height_proxy_area_fallback_value.
+                height_proxy_area_fallback_value:
+                  type: number
+                  format: float
+                  nullable: true
+                  minimum: 0
+                  exclusiveMinimum: true
+                  description: Positive constant fallback. Defaults internally to 80 when neither fallback option is supplied.
+                unique_attribute_key:
+                  type: string
+                  nullable: true
+                  description: Optional attribute to uniquify for validation.
+                uniquification_area_key:
+                  type: string
+                  nullable: true
+                  description: Optional area field used only to rank duplicate features. Defaults to area_key.
                 district_name:
                   type: string
                   default: validation
@@ -191,6 +241,10 @@ paths:
                 type: string
                 format: binary
               description: PNG area-comparison plot.
+            application/geo+json:
+              schema:
+                $ref: '#/components/schemas/BuildingsSet'
+              description: Uniquified feature snapshot. Requires unique_attribute_key.
         '201':
           description: Validation completed successfully.
           content:
@@ -262,11 +316,8 @@ components:
       required:
         - name
         - function
-        - height
         - year_of_construction
         - fsa
-        - area
-        - floor_num
       additionalProperties: true
       properties:
         name:
@@ -280,6 +331,7 @@ components:
         height:
           type: number
           format: float
+          description: Required only when the height-proxy diagnostic is enabled.
         year_of_construction:
           oneOf:
             - type: integer
@@ -290,11 +342,16 @@ components:
         area:
           type: number
           format: float
-          description: Building footprint or base area used by validation.
+          description: Feature area, interpreted according to area_calculation_mode.
         floor_num:
           type: number
           format: float
-          description: Number of floors used for floor-adjusted area validation.
+          description: Required by the area-times-floor calculation mode.
+        unit_num:
+          type: integer
+          minimum: 0
+          nullable: true
+          description: Example per-feature unit count selectable through cleaned_units_num_key. NULL contributes one unit.
     ValidationRequest:
       type: object
       description: Wrapped validation request. The API also accepts a raw BuildingsSet directly.
@@ -327,15 +384,51 @@ components:
             - type: integer
             - type: number
           default: '1000'
+        cleaned_units_num_key:
+          type: string
+          nullable: true
+          description: Optional feature property containing unit counts. NULL values contribute one; when omitted, each retained feature contributes one.
         area_key:
           type: string
           default: area
         floor_num_key:
           type: string
           default: floor_num
+        area_calculation_mode:
+          type: string
+          enum: [none, area-only, area-times-floor]
+          default: area-times-floor
+          description: Disable area comparison, use area_key directly, or multiply it by floor_num_key.
         height_key:
           type: string
           default: height
+        include_height_proxy:
+          type: boolean
+          default: false
+          description: Include a separate height-derived area diagnostic. Cannot be true when area_calculation_mode is none.
+        height_proxy_area_key:
+          type: string
+          nullable: true
+          description: Optional base-area field used only by the height proxy. Defaults to area_key.
+        height_proxy_area_fallback_key:
+          type: string
+          nullable: true
+          description: Optional fallback field; mutually exclusive with height_proxy_area_fallback_value.
+        height_proxy_area_fallback_value:
+          type: number
+          format: float
+          nullable: true
+          minimum: 0
+          exclusiveMinimum: true
+          description: Positive constant fallback. Defaults internally to 80 when neither fallback option is supplied.
+        unique_attribute_key:
+          type: string
+          nullable: true
+          description: Optional attribute to uniquify for validation.
+        uniquification_area_key:
+          type: string
+          nullable: true
+          description: Optional area field used only to rank duplicate features. Defaults to area_key.
         census_avg_area_by_type:
           type: object
           additionalProperties:
@@ -349,7 +442,15 @@ components:
           nullable: true
     ValidationResponse:
       type: object
-      required: [codes, rows_count, comparison_table]
+      required:
+        - codes
+        - rows_count
+        - comparison_table
+        - uniquification
+        - area_calculation_mode
+        - height_proxy_included
+        - height_proxy_area_key
+        - height_proxy_area_resolution
       additionalProperties: false
       properties:
         codes:
@@ -363,6 +464,94 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ValidationComparisonRow'
+        uniquification:
+          $ref: '#/components/schemas/FeatureUniquificationStats'
+        area_calculation_mode:
+          type: string
+          enum: [none, area-only, area-times-floor]
+        height_proxy_included:
+          type: boolean
+        height_proxy_area_key:
+          type: string
+          nullable: true
+        height_proxy_area_resolution:
+          allOf:
+            - $ref: '#/components/schemas/HeightProxyAreaResolution'
+          nullable: true
+    HeightProxyAreaResolution:
+      type: object
+      additionalProperties: false
+      required:
+        - primary_area_key
+        - fallback_type
+        - fallback_key
+        - fallback_value
+        - evaluated_features
+        - primary_features
+        - fallback_features
+        - fallback_percentage
+        - unresolved_features
+      properties:
+        primary_area_key:
+          type: string
+        fallback_type:
+          type: string
+          enum: [field, constant]
+        fallback_key:
+          type: string
+          nullable: true
+        fallback_value:
+          type: number
+          format: float
+          nullable: true
+        evaluated_features:
+          type: integer
+          minimum: 0
+        primary_features:
+          type: integer
+          minimum: 0
+        fallback_features:
+          type: integer
+          minimum: 0
+        fallback_percentage:
+          type: number
+          minimum: 0
+          maximum: 100
+        unresolved_features:
+          type: integer
+          minimum: 0
+    FeatureUniquificationStats:
+      type: object
+      additionalProperties: false
+      required:
+        - applied
+        - unique_attribute_key
+        - ranking_area_key
+        - input_features
+        - retained_features
+        - removed_features
+        - duplicate_groups
+      properties:
+        applied:
+          type: boolean
+        unique_attribute_key:
+          type: string
+          nullable: true
+        ranking_area_key:
+          type: string
+          nullable: true
+        input_features:
+          type: integer
+          minimum: 0
+        retained_features:
+          type: integer
+          minimum: 0
+        removed_features:
+          type: integer
+          minimum: 0
+        duplicate_groups:
+          type: integer
+          minimum: 0
     ValidationComparisonRow:
       type: object
       required:
@@ -370,9 +559,6 @@ components:
         - Cleaned Units Num
         - Census Units Num
         - Cleaned vs. Census Units
-        - Cleaned Total Area
-        - Cleaned Total Area (with proxy)
-        - Census Total Area (by type)
       additionalProperties: true
       properties:
         FSA:
@@ -389,9 +575,19 @@ components:
         Cleaned Total Area:
           type: number
           nullable: true
-        Cleaned Total Area (with proxy):
+        Cleaned Total Area (height proxy):
           type: number
           nullable: true
+        Height Proxy Area Fallback Type:
+          type: string
+          enum: [field, constant]
+        Height Proxy Area Fallback Features:
+          type: integer
+          minimum: 0
+        Height Proxy Area Fallback Percentage:
+          type: number
+          minimum: 0
+          maximum: 100
         Census Total Area (by type):
           type: number
           nullable: true

@@ -25,11 +25,20 @@
           "year_of_construction": 1995,
           "fsa": "G1A",
           "area": 120.0,
-          "floor_num": 3
+          "floor_num": 3,
+          "unit_num": 3,
+          "roll_provincial_id": "ROLL-EXAMPLE-1"
         }
       }
     ]
   },
+  "cleaned_units_num_key": "unit_num",
+  "area_calculation_mode": "area-times-floor",
+  "include_height_proxy": false,
+  "height_proxy_area_key": null,
+  "height_proxy_area_fallback_value": 80.0,
+  "unique_attribute_key": "roll_provincial_id",
+  "uniquification_area_key": "area",
   "district_name": "quebec_city",
   "plot_title": "Area comparison - Quebec City"
 }

@@ -37,6 +37,11 @@
       "type": ["string", "integer", "number"],
       "default": "1000"
     },
+    "cleaned_units_num_key": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "Optional feature property containing the number of cleaned units. NULL values contribute one; when omitted, every retained feature contributes one."
+    },
     "area_key": {
       "type": "string",
       "default": "area"
@@ -45,9 +50,46 @@
       "type": "string",
       "default": "floor_num"
     },
+    "area_calculation_mode": {
+      "type": "string",
+      "enum": ["none", "area-only", "area-times-floor"],
+      "default": "area-times-floor",
+      "description": "Use none to disable area comparison, area-only when area_key is already total building area, or area-times-floor to multiply by floor_num_key."
+    },
     "height_key": {
       "type": "string",
       "default": "height"
+    },
+    "include_height_proxy": {
+      "type": "boolean",
+      "default": false,
+      "description": "Include a separate total-area diagnostic using height divided by 3.5 as the floor multiplier."
+    },
+    "height_proxy_area_key": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "Optional base-area field used only by the height proxy. Defaults to area_key."
+    },
+    "height_proxy_area_fallback_key": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "Optional field used when height_proxy_area_key is unusable. Mutually exclusive with height_proxy_area_fallback_value."
+    },
+    "height_proxy_area_fallback_value": {
+      "type": ["number", "null"],
+      "exclusiveMinimum": 0,
+      "default": null,
+      "description": "Optional positive constant fallback. When neither fallback option is supplied, the service uses 80."
+    },
+    "unique_attribute_key": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "Optional feature attribute to uniquify for validation. For each non-missing value, the feature with the greatest ranking-area value is retained."
+    },
+    "uniquification_area_key": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "Optional area field used only to rank duplicate features. Defaults to area_key."
     },
     "census_avg_area_by_type": {
       "type": "object",
@@ -63,5 +105,28 @@
     "plot_title": {
       "type": ["string", "null"]
     }
-  }
+  },
+  "allOf": [
+    {
+      "not": {
+        "properties": {
+          "height_proxy_area_fallback_key": { "type": "string" },
+          "height_proxy_area_fallback_value": { "type": "number" }
+        },
+        "required": [
+          "height_proxy_area_fallback_key",
+          "height_proxy_area_fallback_value"
+        ]
+      }
+    },
+    {
+      "not": {
+        "properties": {
+          "area_calculation_mode": { "const": "none" },
+          "include_height_proxy": { "const": true }
+        },
+        "required": ["area_calculation_mode", "include_height_proxy"]
+      }
+    }
+  ]
 }

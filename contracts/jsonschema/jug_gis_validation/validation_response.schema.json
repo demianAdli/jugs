@@ -4,7 +4,16 @@
   "title": "JUG GIS Validation JSON Response",
   "description": "JSON response returned by POST /validations when no export query parameter is requested.",
   "type": "object",
-  "required": ["codes", "rows_count", "comparison_table"],
+  "required": [
+    "codes",
+    "rows_count",
+    "comparison_table",
+    "uniquification",
+    "area_calculation_mode",
+    "height_proxy_included",
+    "height_proxy_area_key",
+    "height_proxy_area_resolution"
+  ],
   "additionalProperties": false,
   "properties": {
     "codes": {
@@ -18,11 +27,78 @@
     "comparison_table": {
       "type": "array",
       "items": { "$ref": "#/$defs/comparisonRow" }
+    },
+    "uniquification": {
+      "$ref": "#/$defs/uniquificationStats"
+    },
+    "area_calculation_mode": {
+      "type": "string",
+      "enum": ["none", "area-only", "area-times-floor"]
+    },
+    "height_proxy_included": {
+      "type": "boolean"
+    },
+    "height_proxy_area_key": {
+      "type": ["string", "null"]
+    },
+    "height_proxy_area_resolution": {
+      "oneOf": [
+        { "$ref": "#/$defs/heightProxyAreaResolution" },
+        { "type": "null" }
+      ]
     }
   },
   "$defs": {
     "nullableNumber": {
       "type": ["number", "null"]
+    },
+    "heightProxyAreaResolution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "primary_area_key",
+        "fallback_type",
+        "fallback_key",
+        "fallback_value",
+        "evaluated_features",
+        "primary_features",
+        "fallback_features",
+        "fallback_percentage",
+        "unresolved_features"
+      ],
+      "properties": {
+        "primary_area_key": { "type": "string" },
+        "fallback_type": { "type": "string", "enum": ["field", "constant"] },
+        "fallback_key": { "type": ["string", "null"] },
+        "fallback_value": { "type": ["number", "null"] },
+        "evaluated_features": { "type": "integer", "minimum": 0 },
+        "primary_features": { "type": "integer", "minimum": 0 },
+        "fallback_features": { "type": "integer", "minimum": 0 },
+        "fallback_percentage": { "type": "number", "minimum": 0, "maximum": 100 },
+        "unresolved_features": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "uniquificationStats": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "applied",
+        "unique_attribute_key",
+        "ranking_area_key",
+        "input_features",
+        "retained_features",
+        "removed_features",
+        "duplicate_groups"
+      ],
+      "properties": {
+        "applied": { "type": "boolean" },
+        "unique_attribute_key": { "type": ["string", "null"] },
+        "ranking_area_key": { "type": ["string", "null"] },
+        "input_features": { "type": "integer", "minimum": 0 },
+        "retained_features": { "type": "integer", "minimum": 0 },
+        "removed_features": { "type": "integer", "minimum": 0 },
+        "duplicate_groups": { "type": "integer", "minimum": 0 }
+      }
     },
     "comparisonRow": {
       "type": "object",
@@ -30,10 +106,7 @@
         "FSA",
         "Cleaned Units Num",
         "Census Units Num",
-        "Cleaned vs. Census Units",
-        "Cleaned Total Area",
-        "Cleaned Total Area (with proxy)",
-        "Census Total Area (by type)"
+        "Cleaned vs. Census Units"
       ],
       "additionalProperties": true,
       "properties": {
@@ -42,7 +115,10 @@
         "Census Units Num": { "$ref": "#/$defs/nullableNumber" },
         "Cleaned vs. Census Units": { "$ref": "#/$defs/nullableNumber" },
         "Cleaned Total Area": { "$ref": "#/$defs/nullableNumber" },
-        "Cleaned Total Area (with proxy)": { "$ref": "#/$defs/nullableNumber" },
+        "Cleaned Total Area (height proxy)": { "$ref": "#/$defs/nullableNumber" },
+        "Height Proxy Area Fallback Type": { "type": "string", "enum": ["field", "constant"] },
+        "Height Proxy Area Fallback Features": { "type": "integer", "minimum": 0 },
+        "Height Proxy Area Fallback Percentage": { "type": "number", "minimum": 0, "maximum": 100 },
         "Census Total Area (by type)": { "$ref": "#/$defs/nullableNumber" }
       }
     }

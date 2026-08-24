@@ -59,11 +59,8 @@
       "required": [
         "name",
         "function",
-        "height",
         "year_of_construction",
-        "fsa",
-        "area",
-        "floor_num"
+        "fsa"
       ],
       "additionalProperties": true,
       "properties": {
@@ -78,11 +75,16 @@
         },
         "area": {
           "type": "number",
-          "description": "Building footprint or base area used by validation."
+          "description": "Feature area, interpreted according to area_calculation_mode."
         },
         "floor_num": {
           "type": ["integer", "number"],
-          "description": "Number of floors used for floor-adjusted area validation."
+          "description": "Number of floors required by the area-times-floor calculation mode."
+        },
+        "unit_num": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Example per-feature unit count selectable through cleaned_units_num_key. NULL contributes one unit."
         }
       }
     }

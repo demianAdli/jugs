@@ -1,14 +1,26 @@
 {
   "codes": ["G1A"],
   "rows_count": 1,
+  "area_calculation_mode": "area-times-floor",
+  "height_proxy_included": false,
+  "height_proxy_area_key": null,
+  "height_proxy_area_resolution": null,
+  "uniquification": {
+    "applied": true,
+    "unique_attribute_key": "roll_provincial_id",
+    "ranking_area_key": "area",
+    "input_features": 1,
+    "retained_features": 1,
+    "removed_features": 0,
+    "duplicate_groups": 0
+  },
   "comparison_table": [
     {
       "FSA": "G1A",
-      "Cleaned Units Num": 1,
+      "Cleaned Units Num": 3,
       "Census Units Num": 8,
-      "Cleaned vs. Census Units": -7,
+      "Cleaned vs. Census Units": -5,
       "Cleaned Total Area": 360.0,
-      "Cleaned Total Area (with proxy)": 360.0,
       "Census Total Area (by type)": 320.0
     }
   ]
