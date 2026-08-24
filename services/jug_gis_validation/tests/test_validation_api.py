@@ -172,6 +172,7 @@ class TestValidationApi(unittest.TestCase):
             'buildings_set': _geojson_payload(),
             'unique_attribute_key': 'roll_provincial_id',
             'uniquification_area_key': 'citygisoo_area',
+            'cleaned_units_num_key': 'unit_num',
             'area_calculation_mode': 'area-only',
             'include_height_proxy': True,
             'height_proxy_area_key': 'citygisoo_area',
@@ -188,6 +189,9 @@ class TestValidationApi(unittest.TestCase):
             run_validation_mock.call_args.kwargs['uniquification_area_key'],
             'citygisoo_area')
         self.assertEqual(
+            run_validation_mock.call_args.kwargs['cleaned_units_num_key'],
+            'unit_num')
+        self.assertEqual(
             run_validation_mock.call_args.kwargs['area_calculation_mode'],
             'area-only')
         self.assertTrue(
@@ -199,6 +203,18 @@ class TestValidationApi(unittest.TestCase):
             run_validation_mock.call_args.kwargs[
                 'height_proxy_area_fallback_key'],
             'roll_area')
+
+    def test_post_rejects_height_proxy_with_no_area_mode(self):
+        response = self.client.post(
+            '/validations',
+            json={
+                'buildings_set': _geojson_payload(),
+                'area_calculation_mode': 'none',
+                'include_height_proxy': True,
+            })
+
+        self.assertEqual(response.status_code, 422)
+        self.assertIn('include_height_proxy', str(response.get_json()))
 
     def test_duplicate_with_invalid_area_returns_contract_error(self):
         buildings = _geojson_payload()

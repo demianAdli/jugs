@@ -139,6 +139,71 @@ class DistrictGeoJSONAnalysis:
             uniq = np.sort(uniq)
         return uniq.tolist()
 
+    def summarize_all_codes_units(
+        self,
+        postal_code_key: str,
+        codes: list[str] | None,
+        units_num_key: str | None = None,
+        prefix_len: int = 3,
+        function_key: str | None = None,
+        function_value: object | None = None,
+    ) -> dict[str, int]:
+        """Aggregate unit counts by postal-code prefix.
+
+        When ``units_num_key`` is omitted, every selected feature contributes
+        one unit. When it is supplied, NULL values contribute one and all
+        other values must be finite, non-negative integers.
+        """
+        the_district = self._load_district
+        required_columns = [postal_code_key]
+        if units_num_key is not None:
+            required_columns.append(units_num_key)
+        self._ensure_columns(required_columns)
+
+        prefix = self._postal_prefix_series(postal_code_key, prefix_len)
+
+        # Keep this filter identical to the existing area aggregations.
+        if function_key is not None:
+            self._ensure_columns([function_key])
+            selected = the_district[function_key].eq(function_value)
+            the_district = the_district.loc[selected]
+            prefix = prefix.loc[selected]
+
+        if units_num_key is None:
+            units = pd.Series(1, index=the_district.index, dtype='int64')
+        else:
+            raw_units = the_district[units_num_key]
+            numeric_units = pd.to_numeric(raw_units, errors='coerce')
+            invalid = raw_units.notna() & (
+                numeric_units.isna()
+                | ~np.isfinite(numeric_units)
+                | numeric_units.lt(0)
+                | numeric_units.mod(1).ne(0)
+            )
+            if invalid.any():
+                invalid_indexes = the_district.index[invalid].tolist()
+                raise GISValidationDataContractError(
+                    f'Unit-count field {units_num_key!r} must contain finite, '
+                    'non-negative integers or NULL. Input index sample: '
+                    f'{invalid_indexes[:10]}'
+                )
+            units = numeric_units.fillna(1).astype('int64')
+
+        grouped = pd.DataFrame(
+            {
+                '_prefix': prefix,
+                '_units': units,
+            }
+        ).dropna(subset=['_prefix']).groupby('_prefix')['_units'].sum()
+
+        if codes is not None:
+            grouped = grouped.reindex(pd.Index(codes), fill_value=0)
+
+        return {
+            code: int(value)
+            for code, value in grouped.to_dict().items()
+        }
+
     def summarize_all_codes_dict(
         self,
         postal_code_key: str,

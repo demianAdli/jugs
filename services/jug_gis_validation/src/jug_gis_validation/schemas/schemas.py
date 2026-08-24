@@ -49,6 +49,7 @@ class GISValidationRequestSchema(Schema):
     postal_code_key = fields.String(load_default=DEFAULT_POSTAL_CODE_KEY)
     function_key = fields.String(load_default=DEFAULT_FUNCTION_KEY)
     function_value = fields.Raw(load_default=DEFAULT_FUNCTION_VALUE)
+    cleaned_units_num_key = fields.String(load_default=None, allow_none=True)
     area_key = fields.String(load_default=DEFAULT_AREA_KEY)
     floor_num_key = fields.String(load_default=DEFAULT_FLOOR_NUM_KEY)
     area_calculation_mode = fields.String(
@@ -89,6 +90,13 @@ class GISValidationRequestSchema(Schema):
             raise ValidationError(
                 'Provide only one of height_proxy_area_fallback_key or '
                 'height_proxy_area_fallback_value.')
+        if (
+                data.get('area_calculation_mode')
+                == AreaCalculationMode.NONE.value
+                and data.get('include_height_proxy')):
+            raise ValidationError(
+                'include_height_proxy cannot be enabled when '
+                'area_calculation_mode is none.')
 
 
 class GeoJSONUploadSchema(Schema):

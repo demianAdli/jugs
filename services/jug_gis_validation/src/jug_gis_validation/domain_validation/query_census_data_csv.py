@@ -44,6 +44,7 @@ class QueryCensusDataCSV:
           characteristic_name_field: str = 'CHARACTERISTIC_NAME',
           area_by_characteristic: Optional[Mapping[str, float]] = None,
           config: Optional[CensusAreaConfig] = None,
+          calculate_total_area: bool = True,
   ):
     self.code_field = census_code_field_title
     self.count_field = census_code_units_num_field_title
@@ -119,14 +120,16 @@ class QueryCensusDataCSV:
       total_households.to_numpy())
     units_num = pd.Series(units_num, index=wide.index).astype(float)
 
-    area = pd.Series(0.0, index=wide.index)
+    area = None
+    if calculate_total_area:
+      area = pd.Series(0.0, index=wide.index)
 
-    for typ, avg in self.cfg.avg_area_by_characteristic.items():
-      if typ == self.cfg.remaining_dwellings_label:
-        continue
-      area = area.add(col_or_zeros(typ) * float(avg), fill_value=0)
+      for typ, avg in self.cfg.avg_area_by_characteristic.items():
+        if typ == self.cfg.remaining_dwellings_label:
+          continue
+        area = area.add(col_or_zeros(typ) * float(avg), fill_value=0)
 
-    area = area + remaining * remaining_avg
+      area = area + remaining * remaining_avg
 
     self._wide = wide
     self.remaining_dwellings = remaining
@@ -148,6 +151,9 @@ class QueryCensusDataCSV:
     return self.units_num.get(census_code)
 
   def census_code_total_area(self, census_code):
+    if self.total_area is None:
+      raise GISValidationDataContractError(
+        'Census total area was not calculated for this validation run.')
     return self.total_area.get(census_code)
 
   @property
@@ -156,6 +162,9 @@ class QueryCensusDataCSV:
 
   @property
   def total_area_all_dict(self) -> Dict[str, float]:
+    if self.total_area is None:
+      raise GISValidationDataContractError(
+        'Census total area was not calculated for this validation run.')
     return self.total_area.to_dict()
 
   @property

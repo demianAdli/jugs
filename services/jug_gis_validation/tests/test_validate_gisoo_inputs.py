@@ -178,6 +178,25 @@ def _default_census_dataframe(code='H2X'):
     )
 
 
+def _unit_count_buildings(unit_values):
+    buildings = _default_buildings_feature_collection()
+    template = buildings['features'][0]
+    features = []
+    for index, unit_value in enumerate(unit_values):
+        feature = {
+            'type': 'Feature',
+            'properties': dict(template['properties']),
+            'geometry': {
+                'type': 'Point',
+                'coordinates': [-73.56 - index * 0.001, 45.51],
+            },
+        }
+        feature['properties']['unit_num'] = unit_value
+        features.append(feature)
+    buildings['features'] = features
+    return buildings
+
+
 @unittest.skipIf(_DEPS_SKIP_REASON is not None, _DEPS_SKIP_REASON)
 class TestValidateGISOOInputs(unittest.TestCase):
     def test_cli_accepts_unique_attribute_key(self):
@@ -190,6 +209,8 @@ class TestValidateGISOOInputs(unittest.TestCase):
             'citygisoo_area',
             '--area-calculation-mode',
             'area-only',
+            '--cleaned-units-num-key',
+            'unit_num',
             '--include-height-proxy',
             '--height-proxy-area-key',
             'citygisoo_area',
@@ -202,6 +223,7 @@ class TestValidateGISOOInputs(unittest.TestCase):
         self.assertEqual(args.unique_attribute_key, 'roll_provincial_id')
         self.assertEqual(args.uniquification_area_key, 'citygisoo_area')
         self.assertEqual(args.area_calculation_mode, 'area-only')
+        self.assertEqual(args.cleaned_units_num_key, 'unit_num')
         self.assertTrue(args.include_height_proxy)
         self.assertEqual(args.height_proxy_area_key, 'citygisoo_area')
         self.assertEqual(args.height_proxy_area_fallback_key, 'roll_area')
@@ -300,6 +322,124 @@ class TestValidateGISOOInputs(unittest.TestCase):
         self.assertNotIn(
             'Cleaned Total Area (height proxy)',
             result.comparison_table)
+
+    def test_cleaned_units_can_sum_configured_feature_field(self):
+        buildings = _unit_count_buildings([1, 1, 1, 1, 1, 2, 2, 2, 3, 3])
+
+        result = GISValidationApplicationService.run_validation(
+            buildings,
+            census_data_csv=_default_census_dataframe(),
+            cleaned_units_num_key='unit_num',
+            output_mode=GISValidationOutputMode.NONE,
+        )
+
+        self.assertEqual(result.comparison_table['Cleaned Units Num'], [17])
+
+    def test_cleaned_units_null_defaults_to_one(self):
+        result = GISValidationApplicationService.run_validation(
+            _unit_count_buildings([None, 2]),
+            census_data_csv=_default_census_dataframe(),
+            cleaned_units_num_key='unit_num',
+            output_mode=GISValidationOutputMode.NONE,
+        )
+
+        self.assertEqual(result.comparison_table['Cleaned Units Num'], [3])
+
+    def test_cleaned_units_legacy_mode_still_counts_features(self):
+        buildings = _unit_count_buildings([5] * 10)
+
+        result = GISValidationApplicationService.run_validation(
+            buildings,
+            census_data_csv=_default_census_dataframe(),
+            output_mode=GISValidationOutputMode.NONE,
+        )
+
+        self.assertEqual(result.comparison_table['Cleaned Units Num'], [10])
+
+    def test_cleaned_units_keep_existing_function_filter(self):
+        buildings = _unit_count_buildings([1, 2])
+        buildings['features'][1]['properties']['function'] = '2000'
+        buildings['features'][1]['properties']['unit_num'] = 100
+
+        result = GISValidationApplicationService.run_validation(
+            buildings,
+            census_data_csv=_default_census_dataframe(),
+            cleaned_units_num_key='unit_num',
+            output_mode=GISValidationOutputMode.NONE,
+        )
+
+        self.assertEqual(result.comparison_table['Cleaned Units Num'], [1])
+
+    def test_invalid_cleaned_unit_value_raises_contract_error(self):
+        with self.assertRaisesRegex(
+                GISValidationDataContractError,
+                'finite, non-negative integers'):
+            GISValidationApplicationService.run_validation(
+                _unit_count_buildings([1.5]),
+                census_data_csv=_default_census_dataframe(),
+                cleaned_units_num_key='unit_num',
+                output_mode=GISValidationOutputMode.NONE,
+            )
+
+    def test_missing_cleaned_unit_field_raises_contract_error(self):
+        with self.assertRaisesRegex(
+                GISValidationDataContractError,
+                'unit_num'):
+            GISValidationApplicationService.run_validation(
+                _default_buildings_feature_collection(),
+                census_data_csv=_default_census_dataframe(),
+                cleaned_units_num_key='unit_num',
+                output_mode=GISValidationOutputMode.NONE,
+            )
+
+    def test_no_area_mode_does_not_require_area_floor_or_height(self):
+        buildings = _unit_count_buildings([3])
+        properties = buildings['features'][0]['properties']
+        del properties['area']
+        del properties['floor_num']
+        del properties['height']
+
+        result = GISValidationApplicationService.run_validation(
+            buildings,
+            census_data_csv=_default_census_dataframe(),
+            cleaned_units_num_key='unit_num',
+            area_calculation_mode=AreaCalculationMode.NONE,
+            output_mode=GISValidationOutputMode.NONE,
+        )
+
+        self.assertEqual(result.comparison_table['Cleaned Units Num'], [3])
+        self.assertNotIn('Cleaned Total Area', result.comparison_table)
+        self.assertNotIn(
+            'Census Total Area (by type)',
+            result.comparison_table)
+        self.assertIsNone(result.validator._census_data.total_area)
+
+    def test_no_area_mode_rejects_height_proxy(self):
+        with self.assertRaisesRegex(ValueError, 'cannot be enabled'):
+            GISValidationApplicationService.run_validation(
+                _default_buildings_feature_collection(),
+                census_data_csv=_default_census_dataframe(),
+                area_calculation_mode=AreaCalculationMode.NONE,
+                include_height_proxy=True,
+                output_mode=GISValidationOutputMode.NONE,
+            )
+
+    def test_cleaned_units_are_summed_after_uniquification(self):
+        buildings = _duplicate_buildings_feature_collection()
+        buildings['features'][0]['properties']['unit_num'] = 4
+        buildings['features'][1]['properties']['unit_num'] = 50
+        buildings['features'][2]['properties']['unit_num'] = None
+
+        result = GISValidationApplicationService.run_validation(
+            buildings,
+            census_data_csv=_default_census_dataframe(),
+            cleaned_units_num_key='unit_num',
+            unique_attribute_key='roll_provincial_id',
+            uniquification_area_key='citygisoo_area',
+            output_mode=GISValidationOutputMode.NONE,
+        )
+
+        self.assertEqual(result.comparison_table['Cleaned Units Num'], [5])
 
     def test_area_only_does_not_require_floor_or_height(self):
         buildings = _default_buildings_feature_collection()

@@ -67,7 +67,8 @@ Provides auxiliary district-level preprocessing:
 
 - Prefix-based validation (first 3 characters of postal code)
 - Flexible choice of validation fields (units, area, custom)
-- Explicit `area-only` or `area-times-floor` calculation modes
+- Optional feature-based or attribute-based cleaned-unit counting
+- Explicit `none`, `area-only`, or `area-times-floor` calculation modes
 - Optional height-derived floor proxy diagnostic
 - Optional filtering by building function
 - Missing and zero-value detection
@@ -86,7 +87,10 @@ in-memory snapshot; it does not rewrite or delete cleaned GeoJSON features.
 The default area calculation mode is `area-times-floor`, which preserves the
 existing `area_key * floor_num_key` behavior. Use `area-only` when `area_key`
 already represents total building area; in that mode `floor_num_key` is not
-required. Height-proxy output is disabled by default and can be requested with
+required. Use `none` to omit area comparison entirely; building area, floor,
+and height fields are then not required unless an area field is separately
+needed to rank duplicates during uniquification. `none` cannot be combined
+with the height proxy. Height-proxy output is disabled by default and can be requested with
 `include_height_proxy` or the CLI flag `--include-height-proxy`. Its base area
 defaults to `area_key`; use `height_proxy_area_key` or
 `--height-proxy-area-key` to select a different field. Unusable proxy-area
@@ -94,6 +98,13 @@ values can fall back to either `height_proxy_area_fallback_key` or
 `height_proxy_area_fallback_value`. The choices are mutually exclusive; when
 neither is supplied, the constant fallback defaults to `80.0`. Results report
 the number and percentage of evaluated features that used the fallback.
+
+By default, `Cleaned Units Num` remains the number of retained features. Set
+`cleaned_units_num_key` (or CLI option `--cleaned-units-num-key`) to sum a
+feature property such as `unit_num` instead. A NULL value contributes one unit;
+other values must be finite, non-negative integers. Unit aggregation happens
+after optional uniquification and uses the same building-function filter as the
+existing validation workflow.
 
 Python and CLI callers can persist the exact post-uniquification validation
 snapshot with `uniquified_output_path` or `--uniquified-output-path`. The REST

@@ -118,6 +118,7 @@ class GISValidationApplicationService:
             height_key=DEFAULT_HEIGHT_KEY,
             unique_attribute_key=None,
             uniquification_area_key=None,
+            cleaned_units_num_key=None,
             area_calculation_mode=AreaCalculationMode.AREA_TIMES_FLOOR,
             include_height_proxy=False,
             height_proxy_area_key=None,
@@ -140,6 +141,12 @@ class GISValidationApplicationService:
         normalized_plot_metric = cls._normalize_plot_metric(plot_metric)
         normalized_area_calculation_mode = AreaCalculationMode.normalize(
             area_calculation_mode)
+        if (
+                normalized_area_calculation_mode is AreaCalculationMode.NONE
+                and include_height_proxy):
+            raise ValueError(
+                'include_height_proxy cannot be enabled when '
+                'area_calculation_mode is none.')
         if (
                 height_proxy_area_fallback_key is not None
                 and height_proxy_area_fallback_value is not None):
@@ -191,6 +198,7 @@ class GISValidationApplicationService:
                 height_key=height_key,
                 unique_attribute_key=unique_attribute_key,
                 uniquification_area_key=uniquification_area_key,
+                cleaned_units_num_key=cleaned_units_num_key,
                 area_calculation_mode=normalized_area_calculation_mode,
                 include_height_proxy=include_height_proxy,
                 height_proxy_area_key=height_proxy_area_key,
@@ -233,6 +241,14 @@ class GISValidationApplicationService:
 
             resolved_plot_path = None
             if include_plot or plot_path is not None:
+                if (
+                        normalized_plot_metric is GISValidationPlotMetric.AREA
+                        and normalized_area_calculation_mode
+                        is AreaCalculationMode.NONE):
+                    raise GISValidationInputError(
+                        'Area plots are unavailable when '
+                        'area_calculation_mode is none. Use the units plot '
+                        'metric or enable an area calculation mode.')
                 resolved_plot_path = cls._resolve_plot_path(
                     plot_path=plot_path,
                     output_dir=output_dir,

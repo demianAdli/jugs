@@ -102,6 +102,7 @@ def _run_validation_workflow(
             postal_code_key=request_data['postal_code_key'],
             function_key=request_data['function_key'],
             function_value=request_data['function_value'],
+            cleaned_units_num_key=request_data.get('cleaned_units_num_key'),
             area_key=request_data['area_key'],
             floor_num_key=request_data['floor_num_key'],
             area_calculation_mode=request_data['area_calculation_mode'],
@@ -156,6 +157,12 @@ def _run_validation_workflow(
     if export_format == 'csv':
         return _csv_response(result, request_data['district_name'])
     if export_format == 'plot':
+        if result.area_calculation_mode.value == 'none':
+            abort(
+                400,
+                message=(
+                    'Area plot export is unavailable when '
+                    'area_calculation_mode is none.'))
         return _plot_response(result, request_data)
     if export_format == 'geojson':
         if not result.uniquification_stats.applied:

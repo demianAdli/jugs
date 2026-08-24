@@ -65,6 +65,12 @@ def _build_parser():
         default=DEFAULT_FUNCTION_VALUE,
         help='Function value to keep during validation.')
     parser.add_argument(
+        '--cleaned-units-num-key',
+        help=(
+            'Optional buildings_set field containing the number of units per '
+            'feature. NULL values count as one; when omitted, every feature '
+            'counts as one unit.'))
+    parser.add_argument(
         '--area-key',
         default=DEFAULT_AREA_KEY,
         help='buildings_set field containing area values.')
@@ -189,6 +195,7 @@ def main(argv=None):
             postal_code_key=args.postal_code_key,
             function_key=args.function_key,
             function_value=args.function_value,
+            cleaned_units_num_key=args.cleaned_units_num_key,
             area_key=args.area_key,
             floor_num_key=args.floor_num_key,
             height_key=args.height_key,

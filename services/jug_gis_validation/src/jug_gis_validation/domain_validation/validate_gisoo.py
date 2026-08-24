@@ -52,6 +52,7 @@ DEFAULT_HEIGHT_PROXY_AREA_FALLBACK_VALUE = 80.0
 class AreaCalculationMode(str, Enum):
   """Supported ways to derive each feature's validation area."""
 
+  NONE = 'none'
   AREA_ONLY = 'area-only'
   AREA_TIMES_FLOOR = 'area-times-floor'
 
@@ -109,6 +110,7 @@ class ValidateGISOO:
                height_key='height',
                unique_attribute_key=None,
                uniquification_area_key=None,
+               cleaned_units_num_key=None,
                area_calculation_mode=AreaCalculationMode.AREA_TIMES_FLOOR,
                include_height_proxy=False,
                height_proxy_area_key=None,
@@ -122,6 +124,7 @@ class ValidateGISOO:
     self.floor_num_key = floor_num_key
     self.height_key = height_key
     self.unique_attribute_key = unique_attribute_key
+    self.cleaned_units_num_key = cleaned_units_num_key
     self.uniquification_area_key = (
       self.area_key
       if uniquification_area_key is None
@@ -130,6 +133,13 @@ class ValidateGISOO:
       area_calculation_mode)
     if not isinstance(include_height_proxy, bool):
       raise TypeError('include_height_proxy must be a boolean.')
+    if (
+      self.area_calculation_mode is AreaCalculationMode.NONE
+      and include_height_proxy
+    ):
+      raise ValueError(
+        'include_height_proxy cannot be enabled when '
+        'area_calculation_mode is none.')
     self.include_height_proxy = include_height_proxy
     self.height_proxy_area_key = (
       self.area_key
@@ -204,7 +214,9 @@ class ValidateGISOO:
       self._load_census_data,
       self.census_code_field_title,
       self.census_units_num_title,
-      area_by_characteristic=census_avg_area_by_type
+      area_by_characteristic=census_avg_area_by_type,
+      calculate_total_area=(
+        self.area_calculation_mode is not AreaCalculationMode.NONE),
     )
 
     missing_census_codes = sorted(
@@ -376,10 +388,9 @@ class ValidateGISOO:
         f'Unable to read census_data_csv file: {path}') from exc
 
   def _required_district_columns(self):
-    required_columns = [
-      self.postal_code_key,
-      self.area_key,
-    ]
+    required_columns = [self.postal_code_key]
+    if self.area_calculation_mode is not AreaCalculationMode.NONE:
+      required_columns.append(self.area_key)
     if self.area_calculation_mode is AreaCalculationMode.AREA_TIMES_FLOOR:
       required_columns.append(self.floor_num_key)
     if self.include_height_proxy:
@@ -392,6 +403,8 @@ class ValidateGISOO:
     if self.unique_attribute_key is not None:
       required_columns.append(self.unique_attribute_key)
       required_columns.append(self.uniquification_area_key)
+    if self.cleaned_units_num_key is not None:
+      required_columns.append(self.cleaned_units_num_key)
     return required_columns
 
   @property
@@ -497,6 +510,18 @@ class ValidateGISOO:
     return tuple(self._district_codes)
 
   @cached_property
+  def district_units_num_all_dict(self):
+    """dict[FSA] -> cleaned units using feature or configured-field counts."""
+    return self._district.summarize_all_codes_units(
+      postal_code_key=self.postal_code_key,
+      codes=self._district_codes,
+      units_num_key=self.cleaned_units_num_key,
+      prefix_len=3,
+      function_key=self.function_key,
+      function_value=self.function_value,
+    )
+
+  @cached_property
   def _codes_info(self):
     """
     Internal cached (info, nones_info) for the selected area workflow.
@@ -508,8 +533,13 @@ class ValidateGISOO:
       'Computing district code summaries. AreaCalculationMode=%s',
       self.area_calculation_mode.value)
     try:
-      if self.area_calculation_mode is AreaCalculationMode.AREA_ONLY:
-        info = self._district.summarize_all_codes_with_multipliers(
+      if self.area_calculation_mode is AreaCalculationMode.NONE:
+        info = {
+          code: (units_num, 0.0)
+          for code, units_num in self.district_units_num_all_dict.items()
+        }
+      elif self.area_calculation_mode is AreaCalculationMode.AREA_ONLY:
+        area_info = self._district.summarize_all_codes_with_multipliers(
           postal_code_key=self.postal_code_key,
           return_key=self.area_key,
           multipliers=[1.0] * len(self._load_district),
@@ -519,7 +549,7 @@ class ValidateGISOO:
           function_value=self.function_value,
         )
       else:
-        info = self._district.summarize_all_codes_dict(
+        area_info = self._district.summarize_all_codes_dict(
           postal_code_key=self.postal_code_key,
           return_key=self.area_key,
           floor_num_key=self.floor_num_key,
@@ -528,6 +558,14 @@ class ValidateGISOO:
           function_key=self.function_key,
           function_value=self.function_value,
         )
+      if self.area_calculation_mode is not AreaCalculationMode.NONE:
+        info = {
+          code: (
+            self.district_units_num_all_dict[code],
+            area_info[code][1],
+          )
+          for code in area_info
+        }
     except GISValidationDataContractError:
       raise
     except Exception as exc:
@@ -580,7 +618,7 @@ class ValidateGISOO:
       proxy_district_frame = self._load_district.copy()
       proxy_district_frame[resolved_area_field] = resolved_areas
       proxy_district = DistrictGeoJSONAnalysis(proxy_district_frame)
-      info = proxy_district.summarize_all_codes_with_multipliers(
+      area_info = proxy_district.summarize_all_codes_with_multipliers(
         postal_code_key=self.postal_code_key,
         return_key=resolved_area_field,
         multipliers=multipliers,
@@ -589,6 +627,13 @@ class ValidateGISOO:
         function_key=self.function_key,
         function_value=self.function_value,
       )
+      info = {
+        code: (
+          self.district_units_num_all_dict[code],
+          area_info[code][1],
+        )
+        for code in area_info
+      }
       self._height_proxy_area_resolution_stats = resolution_stats
       logger.info(
         'Resolved height-proxy base areas. Primary=%s Fallback=%s '
@@ -618,6 +663,9 @@ class ValidateGISOO:
 
   @cached_property
   def census_total_area_all_dict(self):
+    if self.area_calculation_mode is AreaCalculationMode.NONE:
+      raise GISValidationCalculationError(
+        'Area comparison is disabled for this validation run.')
     areas = self._census_data.total_area.reindex(self._district_codes)
     missing = sorted(areas[areas.isna()].index.tolist())
     if missing:
@@ -784,11 +832,14 @@ class ValidateGISOO:
       'Cleaned vs. Census Units':
         [value[0] for value in
          self.clean_districts_vs_census_unit(codes).values()],
-      'Cleaned Total Area':
-        [self.district_codes_info[code][1] for code in codes],
-      'Census Total Area (by type)':
-        [self.census_total_area_all_dict[code] for code in codes],
     }
+    if self.area_calculation_mode is not AreaCalculationMode.NONE:
+      table['Cleaned Total Area'] = [
+        self.district_codes_info[code][1] for code in codes
+      ]
+      table['Census Total Area (by type)'] = [
+        self.census_total_area_all_dict[code] for code in codes
+      ]
     if self.include_height_proxy:
       table['Cleaned Total Area (height proxy)'] = [
         self.district_codes_info_proxy[code][1] for code in codes
