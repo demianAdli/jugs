@@ -230,7 +230,23 @@ class TestValidateGISOOInputs(unittest.TestCase):
             self.assertTrue(result.csv_path.exists())
             self.assertEqual(
                 result.csv_path.name,
-                'validate_test_district_gi.csv')
+                'validate_test_district_gisoo.csv')
+
+    def test_application_writes_plot_when_requested(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            plot_path = os.path.join(tmpdir, 'comparison.png')
+            result = GISValidationApplicationService.run_validation(
+                _default_buildings_feature_collection(),
+                census_data_csv=_default_census_dataframe(),
+                output_mode=GISValidationOutputMode.NONE,
+                include_plot=True,
+                plot_path=plot_path,
+            )
+
+            self.assertEqual(str(result.plot_path), os.path.abspath(plot_path))
+            self.assertTrue(result.plot_path.exists())
 
 
 if __name__ == '__main__':
