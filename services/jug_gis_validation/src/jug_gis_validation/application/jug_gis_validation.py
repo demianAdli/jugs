@@ -64,6 +64,13 @@ class GISValidationOutputMode(str, Enum):
     CONSOLE_AND_CSV = 'console-and-csv'
 
 
+class GISValidationPlotMetric(str, Enum):
+    """Metrics supported by the comparison plot."""
+
+    AREA = 'area'
+    UNITS = 'units'
+
+
 @dataclass(frozen=True)
 class GISValidationRunResult:
     """Result envelope for a GISOO validation run."""
@@ -101,10 +108,12 @@ class GISValidationApplicationService:
             include_plot=False,
             plot_path=None,
             plot_title=None,
+            plot_metric=GISValidationPlotMetric.AREA,
             console_writer: Callable[[str], None] = print,
     ) -> GISValidationRunResult:
         """Run validation and optionally write console, CSV, and plot outputs."""
         normalized_output_mode = cls._normalize_output_mode(output_mode)
+        normalized_plot_metric = cls._normalize_plot_metric(plot_metric)
         normalized_census_avg_area = cls._normalize_census_avg_area(
             census_avg_area_by_type)
 
@@ -159,16 +168,24 @@ class GISValidationApplicationService:
                     output_dir=output_dir,
                     district_name=district_name)
                 resolved_plot_path.parent.mkdir(parents=True, exist_ok=True)
+                if normalized_plot_metric is GISValidationPlotMetric.UNITS:
+                    cleaned_column = 'Cleaned Units Num'
+                    census_column = 'Census Units Num'
+                    default_title = f'Unit comparison - {district_name}'
+                    y_label = 'Number of units'
+                else:
+                    cleaned_column = 'Cleaned Total Area (with proxy)'
+                    census_column = 'Census Total Area (by type)'
+                    default_title = f'Area comparison - {district_name}'
+                    y_label = 'Area (m^2)'
+
                 fig, _ = validator.plot_area_comparison(
                     codes_info=comparison_dataframe['FSA'],
-                    areas=(
-                        comparison_dataframe[
-                            'Cleaned Total Area (with proxy)']),
-                    census_areas=(
-                        comparison_dataframe['Census Total Area (by type)']),
-                    title=plot_title or f'Area comparison - {district_name}',
-                    y_label='Area (m^2)',
-                    x_label='Processed')
+                    areas=comparison_dataframe[cleaned_column],
+                    census_areas=comparison_dataframe[census_column],
+                    title=plot_title or default_title,
+                    y_label=y_label,
+                    x_label='Cleaned')
                 fig.savefig(resolved_plot_path, dpi=150)
                 logger.info('GISOO comparison plot written: %s',
                             resolved_plot_path)
@@ -214,6 +231,23 @@ class GISValidationApplicationService:
                     f'Supported modes: {valid_modes}.') from exc
         raise TypeError(
             'output_mode must be a string or GISValidationOutputMode.')
+
+    @staticmethod
+    def _normalize_plot_metric(plot_metric) -> GISValidationPlotMetric:
+        if isinstance(plot_metric, GISValidationPlotMetric):
+            return plot_metric
+        if isinstance(plot_metric, str):
+            normalized_plot_metric = plot_metric.strip().lower()
+            try:
+                return GISValidationPlotMetric(normalized_plot_metric)
+            except ValueError as exc:
+                valid_metrics = ', '.join(
+                    item.value for item in GISValidationPlotMetric)
+                raise ValueError(
+                    f'Unsupported GIS validation plot metric: {plot_metric}. '
+                    f'Supported metrics: {valid_metrics}.') from exc
+        raise TypeError(
+            'plot_metric must be a string or GISValidationPlotMetric.')
 
     @staticmethod
     def _normalize_census_avg_area(

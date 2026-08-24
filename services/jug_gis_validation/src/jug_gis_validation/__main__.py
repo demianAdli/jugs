@@ -11,6 +11,7 @@ from sabu_chassis.logging import get_logger
 from .application import (
     GISValidationApplicationService,
     GISValidationOutputMode,
+    GISValidationPlotMetric,
 )
 from .application.jug_gis_validation import (
     DEFAULT_AREA_KEY,
@@ -98,7 +99,12 @@ def _build_parser():
     parser.add_argument(
         '--plot',
         action='store_true',
-        help='Save an area comparison plot.')
+        help='Save a comparison plot.')
+    parser.add_argument(
+        '--plot-metric',
+        default=GISValidationPlotMetric.AREA.value,
+        choices=[metric.value for metric in GISValidationPlotMetric],
+        help='Metric to compare in the plot (default: area).')
     parser.add_argument(
         '--plot-path',
         help='Optional explicit plot output path.')
@@ -152,7 +158,8 @@ def main(argv=None):
             csv_path=args.csv_path,
             include_plot=args.plot,
             plot_path=args.plot_path,
-            plot_title=args.plot_title)
+            plot_title=args.plot_title,
+            plot_metric=args.plot_metric)
     except Exception as exc:
         logger.error('Direct jug_gis_validation execution failed. Error=%s',
                      exc)

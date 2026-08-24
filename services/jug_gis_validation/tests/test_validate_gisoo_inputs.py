@@ -1,6 +1,7 @@
 import os
 import sys
 import unittest
+from unittest.mock import patch
 
 
 _REPO_ROOT = os.path.abspath(
@@ -18,6 +19,7 @@ try:
     from jug_gis_validation.application import (
         GISValidationApplicationService,
         GISValidationOutputMode,
+        GISValidationPlotMetric,
     )
     from jug_gis_validation.domain_validation.validate_gisoo import ValidateGISOO
     from jug_gis_validation.errors import (
@@ -35,6 +37,7 @@ except ModuleNotFoundError as exc:
         GISValidationDataContractError = None
         GISValidationApplicationService = None
         GISValidationOutputMode = None
+        GISValidationPlotMetric = None
     else:
         raise
 
@@ -246,6 +249,32 @@ class TestValidateGISOOInputs(unittest.TestCase):
             )
 
             self.assertEqual(str(result.plot_path), os.path.abspath(plot_path))
+            self.assertTrue(result.plot_path.exists())
+
+    def test_application_can_plot_unit_counts(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            plot_path = os.path.join(tmpdir, 'unit_comparison.png')
+            with patch.object(
+                    ValidateGISOO,
+                    'plot_area_comparison',
+                    wraps=ValidateGISOO.plot_area_comparison) as plot_mock:
+                result = GISValidationApplicationService.run_validation(
+                    _default_buildings_feature_collection(),
+                    census_data_csv=_default_census_dataframe(),
+                    output_mode=GISValidationOutputMode.NONE,
+                    include_plot=True,
+                    plot_path=plot_path,
+                    plot_metric=GISValidationPlotMetric.UNITS,
+                    district_name='H2X',
+                )
+
+            plot_args = plot_mock.call_args.kwargs
+            self.assertEqual(plot_args['areas'].name, 'Cleaned Units Num')
+            self.assertEqual(plot_args['census_areas'].name, 'Census Units Num')
+            self.assertEqual(plot_args['y_label'], 'Number of units')
+            self.assertEqual(plot_args['title'], 'Unit comparison - H2X')
             self.assertTrue(result.plot_path.exists())
 
 
