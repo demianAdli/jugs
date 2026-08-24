@@ -35,6 +35,10 @@ from jug_gis_validation.errors import (
 )
 from .query_census_data_csv import QueryCensusDataCSV
 from .district_geojson_analysis import DistrictGeoJSONAnalysis
+from .uniquify_features import (
+  FeatureUniquificationStats,
+  uniquify_features,
+)
 
 
 logger = get_logger(__name__)
@@ -49,7 +53,8 @@ class ValidateGISOO:
                area_key, floor_num_key,
                census_data_csv=DEFAULT_CENSUS_DATA_CSV,
                census_avg_area_by_type=None,
-               height_key='height'):
+               height_key='height',
+               unique_attribute_key=None):
     # Configuration
     self.postal_code_key = postal_code_key
     self.function_key = function_key
@@ -57,6 +62,7 @@ class ValidateGISOO:
     self.area_key = area_key
     self.floor_num_key = floor_num_key
     self.height_key = height_key
+    self.unique_attribute_key = unique_attribute_key
     self.census_code_field_title = census_code_field_title
     self.census_units_num_title = census_units_num_title
 
@@ -67,6 +73,23 @@ class ValidateGISOO:
       self._load_district,
       self._required_district_columns(),
       'buildings_set')
+    if self.unique_attribute_key is None:
+      self._uniquification_stats = FeatureUniquificationStats.not_applied(
+        len(self._load_district))
+    else:
+      self._load_district, self._uniquification_stats = uniquify_features(
+        self._load_district,
+        unique_attribute_key=self.unique_attribute_key,
+        area_key=self.area_key)
+    logger.info(
+      'Validation feature uniquification. Applied=%s UniqueAttribute=%s '
+      'Input=%s Retained=%s Removed=%s DuplicateGroups=%s',
+      self._uniquification_stats.applied,
+      self._uniquification_stats.unique_attribute_key,
+      self._uniquification_stats.input_features,
+      self._uniquification_stats.retained_features,
+      self._uniquification_stats.removed_features,
+      self._uniquification_stats.duplicate_groups)
     self._district = DistrictGeoJSONAnalysis(self._load_district)
 
     district_codes = self._district.return_all_codes(self.postal_code_key)
@@ -254,7 +277,14 @@ class ValidateGISOO:
     ]
     if self.function_key is not None:
       required_columns.append(self.function_key)
+    if self.unique_attribute_key is not None:
+      required_columns.append(self.unique_attribute_key)
     return required_columns
+
+  @property
+  def uniquification_stats(self) -> FeatureUniquificationStats:
+    """Statistics for validation-only feature uniquification."""
+    return self._uniquification_stats
 
   @staticmethod
   def _ensure_columns(dataframe, required_columns, dataset_name):

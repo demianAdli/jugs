@@ -103,6 +103,7 @@ def _run_validation_workflow(
             area_key=request_data['area_key'],
             floor_num_key=request_data['floor_num_key'],
             height_key=request_data['height_key'],
+            unique_attribute_key=request_data.get('unique_attribute_key'),
             census_avg_area_by_type=request_data.get(
                 'census_avg_area_by_type'),
             output_mode='none',
@@ -155,6 +156,7 @@ def _result_to_response(result):
         'codes': list(result.codes),
         'rows_count': len(records),
         'comparison_table': records,
+        'uniquification': result.uniquification_stats.as_dict(),
     }
 
 

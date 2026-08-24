@@ -44,6 +44,7 @@ class GISValidationRequestSchema(Schema):
     area_key = fields.String(load_default=DEFAULT_AREA_KEY)
     floor_num_key = fields.String(load_default=DEFAULT_FLOOR_NUM_KEY)
     height_key = fields.String(load_default=DEFAULT_HEIGHT_KEY)
+    unique_attribute_key = fields.String(load_default=None, allow_none=True)
     census_avg_area_by_type = fields.Dict(
         keys=fields.String(),
         values=fields.Float(),
@@ -77,3 +78,4 @@ class GISValidationResultSchema(Schema):
     codes = fields.List(fields.String(), required=True)
     rows_count = fields.Integer(required=True)
     comparison_table = fields.List(fields.Dict(), required=True)
+    uniquification = fields.Dict(required=True)

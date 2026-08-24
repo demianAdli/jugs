@@ -70,8 +70,15 @@ Provides auxiliary district-level preprocessing:
 - Floor-adjusted metrics where applicable
 - Optional filtering by building function
 - Missing and zero-value detection
+- Optional validation-only feature uniquification by an attribute, retaining
+  the feature with the greatest configured area
 - Extremely fast validation even for large datasets
 - Designed to be highly extensible within the CityGISOO ecosystem
+
+Uniquification is disabled by default. For Montreal standardized data, set
+`unique_attribute_key` to `roll_provincial_id` and `area_key` to
+`citygisoo_area`. This filters only the validator's in-memory snapshot; it does
+not rewrite or delete features from the cleaned GeoJSON.
 
 ---
 

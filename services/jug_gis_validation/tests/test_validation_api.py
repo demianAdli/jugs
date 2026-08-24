@@ -108,6 +108,15 @@ def _fake_result():
         validator=_FakeValidator(),
         codes=('H2X',),
         comparison_dataframe=dataframe,
+        uniquification_stats=SimpleNamespace(
+            as_dict=lambda: {
+                'applied': False,
+                'unique_attribute_key': None,
+                'input_features': 1,
+                'retained_features': 1,
+                'removed_features': 0,
+                'duplicate_groups': 0,
+            }),
     )
 
 
@@ -132,10 +141,53 @@ class TestValidationApi(unittest.TestCase):
         body = response.get_json()
         self.assertEqual(body['codes'], ['H2X'])
         self.assertEqual(body['rows_count'], 1)
+        self.assertFalse(body['uniquification']['applied'])
         run_validation_mock.assert_called_once()
         self.assertEqual(
             run_validation_mock.call_args.kwargs['buildings_set']['type'],
             'FeatureCollection')
+
+    @patch(
+        'jug_gis_validation.resources.validations.'
+        'GISValidationApplicationService.run_validation')
+    def test_post_passes_unique_attribute_key(self, run_validation_mock):
+        run_validation_mock.return_value = _fake_result()
+        payload = {
+            'buildings_set': _geojson_payload(),
+            'unique_attribute_key': 'roll_provincial_id',
+        }
+
+        response = self.client.post('/validations', json=payload)
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(
+            run_validation_mock.call_args.kwargs['unique_attribute_key'],
+            'roll_provincial_id')
+
+    def test_duplicate_with_invalid_area_returns_contract_error(self):
+        buildings = _geojson_payload()
+        first = buildings['features'][0]
+        first['properties']['roll_provincial_id'] = 'ROLL-A'
+        duplicate = {
+            'type': 'Feature',
+            'properties': dict(first['properties']),
+            'geometry': {
+                'type': 'Point',
+                'coordinates': [-73.57, 45.52],
+            },
+        }
+        duplicate['properties']['area'] = None
+        buildings['features'].append(duplicate)
+
+        response = self.client.post(
+            '/validations',
+            json={
+                'buildings_set': buildings,
+                'unique_attribute_key': 'roll_provincial_id',
+            })
+
+        self.assertEqual(response.status_code, 422)
+        self.assertIn('Duplicate', response.get_json()['message'])
 
     @patch(
         'jug_gis_validation.resources.validations.'

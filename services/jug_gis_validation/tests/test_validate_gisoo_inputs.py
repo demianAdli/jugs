@@ -16,6 +16,7 @@ for path in (_SERVICE_SRC, _SABU_CHASSIS_SRC):
 _DEPS_SKIP_REASON = None
 try:
     import pandas as pd
+    from jug_gis_validation import __main__ as validation_cli
     from jug_gis_validation.application import (
         GISValidationApplicationService,
         GISValidationOutputMode,
@@ -38,6 +39,7 @@ except ModuleNotFoundError as exc:
         GISValidationApplicationService = None
         GISValidationOutputMode = None
         GISValidationPlotMetric = None
+        validation_cli = None
     else:
         raise
 
@@ -110,6 +112,33 @@ def _default_buildings_feature_collection(postal_code='H2X 1A1'):
     }
 
 
+def _duplicate_buildings_feature_collection():
+    buildings = _default_buildings_feature_collection()
+    first = buildings['features'][0]
+    first['properties']['roll_provincial_id'] = 'ROLL-A'
+    second = {
+        'type': 'Feature',
+        'properties': dict(first['properties']),
+        'geometry': {
+            'type': 'Point',
+            'coordinates': [-73.57, 45.52],
+        },
+    }
+    second['properties']['area'] = 200
+    missing_id = {
+        'type': 'Feature',
+        'properties': dict(first['properties']),
+        'geometry': {
+            'type': 'Point',
+            'coordinates': [-73.58, 45.53],
+        },
+    }
+    missing_id['properties']['roll_provincial_id'] = None
+    missing_id['properties']['area'] = 50
+    buildings['features'].extend([second, missing_id])
+    return buildings
+
+
 def _default_census_dataframe(code='H2X'):
     return pd.DataFrame(
         [
@@ -136,6 +165,16 @@ def _default_census_dataframe(code='H2X'):
 
 @unittest.skipIf(_DEPS_SKIP_REASON is not None, _DEPS_SKIP_REASON)
 class TestValidateGISOOInputs(unittest.TestCase):
+    def test_cli_accepts_unique_attribute_key(self):
+        args = validation_cli._build_parser().parse_args([
+            '--buildings-set',
+            'buildings.geojson',
+            '--unique-attribute-key',
+            'roll_provincial_id',
+        ])
+
+        self.assertEqual(args.unique_attribute_key, 'roll_provincial_id')
+
     def test_geojson_dict_and_custom_census_dataframe(self):
         validator = ValidateGISOO(
             _buildings_feature_collection(),
@@ -216,6 +255,28 @@ class TestValidateGISOOInputs(unittest.TestCase):
         self.assertIsNone(result.plot_path)
         self.assertEqual(len(output_lines), 1)
         self.assertIn('FSA', output_lines[0])
+        self.assertFalse(result.uniquification_stats.applied)
+        self.assertEqual(result.uniquification_stats.input_features, 1)
+
+    def test_application_uniquifies_only_its_validation_snapshot(self):
+        buildings = _duplicate_buildings_feature_collection()
+
+        result = GISValidationApplicationService.run_validation(
+            buildings,
+            census_data_csv=_default_census_dataframe(),
+            unique_attribute_key='roll_provincial_id',
+            output_mode=GISValidationOutputMode.NONE,
+        )
+
+        self.assertEqual(len(buildings['features']), 3)
+        self.assertTrue(result.uniquification_stats.applied)
+        self.assertEqual(result.uniquification_stats.input_features, 3)
+        self.assertEqual(result.uniquification_stats.retained_features, 2)
+        self.assertEqual(result.uniquification_stats.removed_features, 1)
+        self.assertEqual(result.uniquification_stats.duplicate_groups, 1)
+        self.assertEqual(
+            result.validator.clean_district_and_census_unit('H2X'),
+            (2, 8.0))
 
     def test_application_writes_csv_when_requested(self):
         import tempfile

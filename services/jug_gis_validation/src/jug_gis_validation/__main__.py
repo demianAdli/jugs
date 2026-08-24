@@ -76,6 +76,11 @@ def _build_parser():
         default=DEFAULT_HEIGHT_KEY,
         help='buildings_set field containing height values for proxy output.')
     parser.add_argument(
+        '--unique-attribute-key',
+        help=(
+            'Optional buildings_set field to uniquify for validation. The '
+            'feature with the greatest --area-key value is retained.'))
+    parser.add_argument(
         '--census-avg-area-json',
         help=(
             'Optional JSON object or path to a JSON file with average area '
@@ -150,6 +155,7 @@ def main(argv=None):
             area_key=args.area_key,
             floor_num_key=args.floor_num_key,
             height_key=args.height_key,
+            unique_attribute_key=args.unique_attribute_key,
             census_avg_area_by_type=_load_census_avg_area(
                 args.census_avg_area_json),
             output_mode=args.output_mode,
@@ -166,6 +172,13 @@ def main(argv=None):
         return 1
 
     print(f'District codes: {len(result.codes)}')
+    stats = result.uniquification_stats
+    print(
+        'Feature uniquification: '
+        f'applied={stats.applied}, input={stats.input_features}, '
+        f'retained={stats.retained_features}, '
+        f'removed={stats.removed_features}, '
+        f'duplicate_groups={stats.duplicate_groups}')
     if result.csv_path is not None:
         print(f'CSV output: {result.csv_path}')
     if result.plot_path is not None:

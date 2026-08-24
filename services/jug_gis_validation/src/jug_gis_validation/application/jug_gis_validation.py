@@ -26,6 +26,9 @@ from jug_gis_validation.domain_validation.validate_gisoo import (
     DEFAULT_CENSUS_DATA_CSV,
     ValidateGISOO,
 )
+from jug_gis_validation.domain_validation.uniquify_features import (
+    FeatureUniquificationStats,
+)
 from jug_gis_validation.errors import GISValidationError
 
 
@@ -79,6 +82,7 @@ class GISValidationRunResult:
     codes: tuple[str, ...]
     comparison_table: dict[str, Any]
     comparison_dataframe: pd.DataFrame
+    uniquification_stats: FeatureUniquificationStats
     csv_path: Path | None = None
     plot_path: Path | None = None
 
@@ -100,6 +104,7 @@ class GISValidationApplicationService:
             area_key=DEFAULT_AREA_KEY,
             floor_num_key=DEFAULT_FLOOR_NUM_KEY,
             height_key=DEFAULT_HEIGHT_KEY,
+            unique_attribute_key=None,
             census_avg_area_by_type: Mapping[str, float] | None = None,
             output_mode=GISValidationOutputMode.CONSOLE,
             district_name=DEFAULT_DISTRICT_NAME,
@@ -135,7 +140,8 @@ class GISValidationApplicationService:
                 floor_num_key,
                 census_data_csv=census_data_csv,
                 census_avg_area_by_type=normalized_census_avg_area,
-                height_key=height_key)
+                height_key=height_key,
+                unique_attribute_key=unique_attribute_key)
 
             codes = validator.district_codes
             comparison_table = validator.comparison_table(codes)
@@ -203,6 +209,7 @@ class GISValidationApplicationService:
             codes=codes,
             comparison_table=comparison_table,
             comparison_dataframe=comparison_dataframe,
+            uniquification_stats=validator.uniquification_stats,
             csv_path=resolved_csv_path,
             plot_path=resolved_plot_path)
 
