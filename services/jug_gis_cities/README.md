@@ -263,10 +263,9 @@ run_fsa_batch(
 
 FSA-capable components expose `run_workflow(fsa)` and define `qgis_path`,
 `input_paths["fsa"]`, and `fsa_field_name` in `workflow_config.py`. Passing an
-explicit `fsas` iterable skips boundary-layer discovery. The legacy
-`run_mtl_fsa_batch()` interface remains available as a deprecated Montreal
-compatibility wrapper for this release. CLI, API, worker, Docker, and new code
-use the generic runner so the facade can be removed in the following version.
+explicit `fsas` iterable skips boundary-layer discovery. CLI, API, worker,
+Docker, and programmatic execution use the generic runner for every
+FSA-capable component.
 
 ## Docker API Run
 
