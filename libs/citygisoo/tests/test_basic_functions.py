@@ -59,6 +59,8 @@ def _load_basic_functions_module():
 basic_functions = _load_basic_functions_module()
 gather_district_geojson_files = (
   basic_functions.gather_district_geojson_files)
+gather_district_geopackage_files = (
+  basic_functions.gather_district_geopackage_files)
 
 
 def _create_standardized_geojson(
@@ -72,6 +74,19 @@ def _create_standardized_geojson(
   source_directory.mkdir(parents=True)
   source_file = source_directory / f'{standardized_name}.geojson'
   source_file.write_text(content, encoding='utf-8')
+  return source_file
+
+
+def _create_gisoo_geopackage(
+        root: Path,
+        district_name: str,
+        subdistrict_name: str,
+        content: bytes) -> Path:
+  result_name = f'{district_name}_{subdistrict_name}_gisoo'
+  source_directory = root / subdistrict_name / result_name
+  source_directory.mkdir(parents=True)
+  source_file = source_directory / f'{result_name}.gpkg'
+  source_file.write_bytes(content)
   return source_file
 
 
@@ -172,6 +187,46 @@ class TestGatherDistrictGeojsonFiles(unittest.TestCase):
         gather_district_geojson_files(root, 'mtl', output_file)
       with self.assertRaises(ValueError):
         gather_district_geojson_files(root, 'mtl', root)
+
+
+class TestGatherDistrictGeopackageFiles(unittest.TestCase):
+  def test_gathers_geopackages_using_gisoo_names(self):
+    with tempfile.TemporaryDirectory() as temporary_directory:
+      root = Path(temporary_directory) / 'results'
+      output = Path(temporary_directory) / 'district_geopackages'
+      root.mkdir()
+      _create_gisoo_geopackage(root, 'mtl', 'H1A', b'gpkg-H1A')
+      _create_gisoo_geopackage(root, 'mtl', 'H2B', b'gpkg-H2B')
+      (root / 'fsa').mkdir()
+
+      result = gather_district_geopackage_files(root, 'mtl', output)
+
+      self.assertIsNone(result)
+      self.assertEqual(
+        sorted(path.name for path in output.iterdir()),
+        [
+          'mtl_H1A_gisoo.gpkg',
+          'mtl_H2B_gisoo.gpkg',
+        ])
+      self.assertEqual(
+        (output / 'mtl_H1A_gisoo.gpkg').read_bytes(),
+        b'gpkg-H1A')
+
+  def test_validates_all_geopackages_before_creating_output(self):
+    with tempfile.TemporaryDirectory() as temporary_directory:
+      root = Path(temporary_directory) / 'results'
+      output = Path(temporary_directory) / 'district_geopackages'
+      root.mkdir()
+      _create_gisoo_geopackage(root, 'mtl', 'H1A', b'gpkg-H1A')
+      (root / 'H2B').mkdir()
+
+      with self.assertRaises(FileNotFoundError) as context:
+        gather_district_geopackage_files(root, 'mtl', output)
+
+      self.assertIn(
+        'mtl_H2B_gisoo.gpkg',
+        str(context.exception))
+      self.assertFalse(output.exists())
 
 
 if __name__ == '__main__':

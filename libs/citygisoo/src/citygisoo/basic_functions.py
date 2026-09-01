@@ -12,6 +12,7 @@ www.demianadli.com
 
 import os
 import glob
+import re
 import shutil
 from pathlib import Path
 
@@ -41,7 +42,7 @@ def gather_district_geojson_files(
 
   Args:
     input_path: Directory containing the subdistrict result directories.
-    district_name: District prefix used in standardized folder and file names.
+    district_name: District prefix used in the result folder and file names.
     output_path: Directory into which the GeoJSON files will be copied.
 
   Raises:
@@ -52,6 +53,66 @@ def gather_district_geojson_files(
       missing.
     NotADirectoryError: If an input or existing output path is not a directory.
   """
+  _gather_district_result_files(
+    input_path,
+    district_name,
+    output_path,
+    result_name_suffix='_gisoo_standardized',
+    file_extension='.geojson',
+    format_name='GeoJSON',
+    subdistrict_name_pattern=None)
+
+
+def gather_district_geopackage_files(
+        input_path: str | os.PathLike,
+        district_name: str,
+        output_path: str | os.PathLike) -> None:
+  """Gather subdistrict GeoPackage files into one directory.
+
+  Each immediate child directory of ``input_path`` is treated as an FSA. Its
+  directory name is inserted into the GeoPackage folder and filename. For
+  example, an immediate child directory named ``H1A`` is expected to contain::
+
+    H1A/
+      <district_name>_H1A_gisoo/
+        <district_name>_H1A_gisoo.gpkg
+
+  Immediate child directories whose names are not three-character FSA codes
+  are ignored.
+
+  The source layout is validated in full before any files are copied.
+
+  Args:
+    input_path: Directory containing the subdistrict result directories.
+    district_name: District prefix used in the result folder and file names.
+    output_path: Directory into which the GeoPackage files will be copied.
+
+  Raises:
+    TypeError: If ``district_name`` is not a string.
+    ValueError: If ``district_name`` is empty or contains a path separator, or
+      if the input and output directories are the same.
+    FileNotFoundError: If the input directory or any expected GeoPackage file
+      is missing.
+    NotADirectoryError: If an input or existing output path is not a directory.
+  """
+  _gather_district_result_files(
+    input_path,
+    district_name,
+    output_path,
+    result_name_suffix='_gisoo',
+    file_extension='.gpkg',
+    format_name='GeoPackage',
+    subdistrict_name_pattern=r'[A-Za-z][0-9][A-Za-z]')
+
+
+def _gather_district_result_files(
+        input_path: str | os.PathLike,
+        district_name: str,
+        output_path: str | os.PathLike,
+        result_name_suffix: str,
+        file_extension: str,
+        format_name: str,
+        subdistrict_name_pattern: str | None) -> None:
   if not isinstance(district_name, str):
     raise TypeError('district_name must be a string')
   if not district_name.strip():
@@ -80,7 +141,14 @@ def gather_district_geojson_files(
   subdistrict_directories = sorted(
     (
       directory for directory in input_directory.iterdir()
-      if directory.is_dir() and directory.resolve() != resolved_output
+      if (
+        directory.is_dir()
+        and directory.resolve() != resolved_output
+        and (
+          subdistrict_name_pattern is None
+          or re.fullmatch(subdistrict_name_pattern, directory.name)
+        )
+      )
     ),
     key=lambda directory: directory.name)
 
@@ -91,12 +159,13 @@ def gather_district_geojson_files(
   source_files = []
   missing_files = []
   for subdistrict_directory in subdistrict_directories:
-    standardized_name = (
-      f'{district_name}_{subdistrict_directory.name}_gisoo_standardized')
+    subdistrict_name = subdistrict_directory.name
+    result_name = (
+      f'{district_name}_{subdistrict_name}{result_name_suffix}')
     source_file = (
       subdistrict_directory
-      / standardized_name
-      / f'{standardized_name}.geojson')
+      / result_name
+      / f'{result_name}{file_extension}')
     if source_file.is_file():
       source_files.append(source_file)
     else:
@@ -105,7 +174,7 @@ def gather_district_geojson_files(
   if missing_files:
     missing_list = '\n'.join(f'- {path}' for path in missing_files)
     raise FileNotFoundError(
-      'Expected standardized GeoJSON files are missing:\n'
+      f'Expected {format_name} files are missing:\n'
       f'{missing_list}')
 
   output_directory.mkdir(parents=True, exist_ok=True)
@@ -113,8 +182,9 @@ def gather_district_geojson_files(
     shutil.copy2(source_file, output_directory / source_file.name)
 
   logger.info(
-    'Copied %d standardized GeoJSON files for district %s to %s',
+    'Copied %d %s files for district %s to %s',
     len(source_files),
+    format_name,
     district_name,
     output_directory)
 

@@ -3,6 +3,8 @@
 ## [Unreleased]
 
 ### Added
+- Added `gather_district_geopackage_files()` for collecting subdistrict
+  GeoPackage outputs into a single district-level directory.
 - Added `gather_district_geojson_files()` for collecting standardized
   subdistrict GeoJSON outputs into a single district-level directory.
 - Added `GeoPackageFeatureProcessor` for Python-first GeoPackage attribute
