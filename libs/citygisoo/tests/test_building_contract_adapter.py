@@ -203,6 +203,16 @@ class TestBuildingContractAdapter(unittest.TestCase):
         output_geojson_path='output/standardized.shp',
         field_rename_map={'old_name': 'name'})
 
+  def test_rejects_invalid_output_geopackage_path(self):
+    with self.assertRaises(ValueError):
+      BuildingContractAdapter(
+        qgis_path='C:/QGIS',
+        input_layer_path='input.shp',
+        input_layer_name='input_layer',
+        output_geojson_path='output/standardized.geojson',
+        field_rename_map={'old_name': 'name'},
+        output_geopackage_path='output/standardized.shp')
+
   def test_rejects_empty_required_fields(self):
     with self.assertRaises(ValueError):
       BuildingContractAdapter(
@@ -336,6 +346,64 @@ class TestBuildingContractAdapter(unittest.TestCase):
     standardized_manager.drop_null_features.assert_called_once_with(['name'])
     standardized_manager.find_null_feature_ids.assert_called_once_with(
       ['name'])
+
+  @patch('src.citygisoo.building_contract_adapter.FieldSchemaManager')
+  def test_run_creates_geopackage_then_exports_geojson(
+          self,
+          manager_cls_mock):
+    with tempfile.TemporaryDirectory() as tmp_dir:
+      input_layer_path = os.path.join(tmp_dir, 'input.gpkg')
+      with open(input_layer_path, 'w', encoding='utf-8') as input_layer_file:
+        input_layer_file.write('')
+
+      output_geojson_path = os.path.join(
+        tmp_dir, 'standardized', 'buildings.geojson')
+      output_geopackage_path = os.path.join(
+        tmp_dir, 'standardized', 'buildings.gpkg')
+      input_manager = Mock()
+      input_manager.layer.isValid.return_value = True
+      input_manager.find_missing_fields.return_value = []
+      standardized_scrub_layer = Mock()
+      input_manager.standardize_fields.return_value = standardized_scrub_layer
+
+      geopackage_manager = Mock()
+      geopackage_manager.find_missing_fields.return_value = []
+      geopackage_manager.layer.featureCount.return_value = 2
+      geojson_manager = Mock()
+      geojson_manager.layer.isValid.return_value = True
+      manager_cls_mock.side_effect = [
+        input_manager,
+        geopackage_manager,
+        geojson_manager,
+      ]
+
+      adapter = BuildingContractAdapter(
+        qgis_path='C:/QGIS',
+        input_layer_path=input_layer_path,
+        input_layer_name='input_layer',
+        output_geojson_path=output_geojson_path,
+        output_geopackage_path=output_geopackage_path,
+        field_rename_map={'raw_name': 'name'},
+        required_fields=['name'],
+        id_start_value=100)
+
+      result = adapter.run()
+
+    self.assertEqual(result, output_geojson_path)
+    input_manager.standardize_fields.assert_called_once_with(
+      field_rename_map={'raw_name': 'name'},
+      fields_to_keep=['name'],
+      field_order=None,
+      output_path=output_geopackage_path,
+      output_layer_name='buildings')
+    geopackage_manager.add_id_field.assert_called_once()
+    id_values = geopackage_manager.add_id_field.call_args.kwargs['id_values']
+    self.assertEqual(list(id_values), [100, 101])
+    geopackage_manager.scrub_layer.create_spatial_index.assert_called_once_with()
+    geopackage_manager.export_to_geojson.assert_called_once_with(
+      output_geojson_path)
+    geojson_manager.promote_feature_id.assert_called_once_with('id')
+    geopackage_manager.promote_feature_id.assert_not_called()
 
   def test_rejects_non_null_fields_outside_required_fields(self):
     with self.assertRaisesRegex(ValueError, 'outside required_fields'):

@@ -41,11 +41,13 @@ class BuildingContractAdapter:
           id_field_name='id',
           id_start_value=1,
           output_layer_name=None,
-          field_order=None):
+          field_order=None,
+          output_geopackage_path=None):
     self.qgis_path = qgis_path
     self.input_layer_path = input_layer_path
     self.input_layer_name = input_layer_name
     self.output_geojson_path = output_geojson_path
+    self.output_geopackage_path = output_geopackage_path
     self.field_rename_map = field_rename_map
     if required_fields is None and isinstance(field_rename_map, dict):
       self.required_fields = list(field_rename_map.values())
@@ -80,6 +82,10 @@ class BuildingContractAdapter:
   def _is_geojson_path(path):
     return Path(path).suffix.lower() in ('.geojson', '.json')
 
+  @staticmethod
+  def _is_geopackage_path(path):
+    return Path(path).suffix.lower() == '.gpkg'
+
   def _validate_config(self):
     if not self.qgis_path:
       raise ValueError('qgis_path is required.')
@@ -91,6 +97,15 @@ class BuildingContractAdapter:
       raise ValueError(
         'BuildingContractAdapter output_geojson_path must end with '
         '.geojson or .json.')
+    if self.output_geopackage_path:
+      if not self._is_geopackage_path(self.output_geopackage_path):
+        raise ValueError(
+          'BuildingContractAdapter output_geopackage_path must end with '
+          '.gpkg.')
+      if os.path.abspath(self.output_geopackage_path) == os.path.abspath(
+              self.output_geojson_path):
+        raise ValueError(
+          'output_geopackage_path must differ from output_geojson_path.')
     if not isinstance(self.field_rename_map, dict) or not self.field_rename_map:
       raise ValueError('field_rename_map must be a non-empty dictionary.')
     if not isinstance(self.required_fields, (list, tuple, set)):
@@ -152,17 +167,27 @@ class BuildingContractAdapter:
       logger.info(
         'Skipping null-feature deletion because no non-null contract fields '
         'were configured.')
-    self._add_and_promote_feature_ids(standardized_manager)
+    self._add_feature_ids(standardized_manager)
+    if self.output_geopackage_path:
+      self._finalize_geopackage_and_geojson(standardized_manager)
+    else:
+      self._promote_geojson_feature_id(standardized_manager)
 
     logger.info(
-      'Completed building contract adapter. GeoJSON output=%s',
-      self.output_geojson_path)
+      'Completed building contract adapter. GeoJSON output=%s '
+      'GeoPackage output=%s',
+      self.output_geojson_path,
+      self.output_geopackage_path)
     return self.output_geojson_path
 
   def _prepare_output_directories(self):
-    output_dir = os.path.dirname(self.output_geojson_path)
-    if output_dir:
-      os.makedirs(output_dir, exist_ok=True)
+    output_paths = [self.output_geojson_path]
+    if self.output_geopackage_path:
+      output_paths.append(self.output_geopackage_path)
+    for output_path in output_paths:
+      output_dir = os.path.dirname(output_path)
+      if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
 
   def _require_existing_input_layer(self):
     if not self.input_layer_path:
@@ -209,7 +234,8 @@ class BuildingContractAdapter:
         field_rename_map=self.field_rename_map,
         fields_to_keep=list(self.required_fields),
         field_order=self.field_order,
-        output_path=self.output_geojson_path,
+        output_path=(
+          self.output_geopackage_path or self.output_geojson_path),
         output_layer_name=self.output_layer_name)
       standardized_manager = FieldSchemaManager(standardized_scrub_layer)
       missing_standard_fields = standardized_manager.find_missing_fields(
@@ -221,10 +247,11 @@ class BuildingContractAdapter:
       return standardized_manager
     except Exception as exc:
       logger.exception(
-        'Failed field standardization for contract GeoJSON %s.',
-        self.output_geojson_path)
+        'Failed field standardization for contract output %s.',
+        self.output_geopackage_path or self.output_geojson_path)
       raise RuntimeError(
-        f'Failed field standardization: {self.output_geojson_path}') from exc
+        'Failed field standardization: '
+        f'{self.output_geopackage_path or self.output_geojson_path}') from exc
 
   def _drop_null_contract_features(self, schema_manager):
     try:
@@ -241,7 +268,7 @@ class BuildingContractAdapter:
         self.non_null_required_fields)
       raise RuntimeError('Failed null-feature removal.') from exc
 
-  def _add_and_promote_feature_ids(self, schema_manager):
+  def _add_feature_ids(self, schema_manager):
     try:
       feature_count = schema_manager.layer.featureCount()
       schema_manager.add_id_field(
@@ -249,9 +276,30 @@ class BuildingContractAdapter:
           self.id_start_value,
           self.id_start_value + feature_count),
         field_name=self.id_field_name)
-      schema_manager.promote_feature_id(self.id_field_name)
+    except Exception as exc:
+      logger.exception('Failed id-field creation.')
+      raise RuntimeError('Failed id-field creation.') from exc
+
+  def _finalize_geopackage_and_geojson(self, geopackage_manager):
+    try:
+      geopackage_manager.scrub_layer.create_spatial_index()
+      geopackage_manager.export_to_geojson(self.output_geojson_path)
+      geojson_manager = self._load_layer(
+        self.output_geojson_path,
+        self.output_layer_name)
+      self._promote_geojson_feature_id(geojson_manager)
     except Exception as exc:
       logger.exception(
-        'Failed id-field creation or GeoJSON feature id promotion.')
+        'Failed GeoPackage finalization or GeoJSON export. '
+        'GeoPackage=%s GeoJSON=%s',
+        self.output_geopackage_path,
+        self.output_geojson_path)
       raise RuntimeError(
-        'Failed id-field creation or GeoJSON feature id promotion.') from exc
+        'Failed GeoPackage finalization or GeoJSON export.') from exc
+
+  def _promote_geojson_feature_id(self, geojson_manager):
+    try:
+      geojson_manager.promote_feature_id(self.id_field_name)
+    except Exception as exc:
+      logger.exception('Failed GeoJSON feature id promotion.')
+      raise RuntimeError('Failed GeoJSON feature id promotion.') from exc
