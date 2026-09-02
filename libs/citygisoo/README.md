@@ -110,41 +110,92 @@ This class is intended for repeatable city-specific building-data preparation, w
 
 ## Setting up an environment to use standalone PyQGIS - How to import qgis.core
 
-To use PyQGIS without having the QGIS application run in the background, one needs to add the python path to the environment variables. Here is how to do it on Windows:
+On Windows, run standalone PyQGIS code with the Python interpreter bundled with
+QGIS. Use a custom batch-file command so that this interpreter remains distinct
+from other Python installations.
 
-1. Install QGIS.
+> [!IMPORTANT]
+> Do not rename `python.exe` inside a QGIS or OSGeo4W installation. QGIS tools may
+> expect that executable name. Also, do not combine paths from different QGIS
+> installations or versions in one environment.
 
-2. Assign a specific name to the QGIS Python executable.
-   This is done to access QGIS Python from command prompt without mixing with the system Python installation(s).
+The examples below use an OSGeo4W installation at `C:\OSGeo4W`, QGIS LTR, and
+Python 3.12. Check the directories in your installation and adjust
+`OSGEO4W_ROOT`, `QGIS_RELEASE`, and `QGIS_PYTHON` as needed. For example, a
+standalone QGIS installation might use `C:\Program Files\QGIS 3.44.0` as its
+root and `qgis` instead of `qgis-ltr` as its release directory.
 
-   a. Go to the QGIS installation directory's Python folder (for example: `C:\Program Files\QGIS 3.34.1\apps\Python39`).  
-   b. Rename the Python executable (`python.exe`) to a specific desired name, for example `pythonqgis.exe`.
+1. Install QGIS with the standalone installer or OSGeo4W.
 
-3. Update environment variables.
+2. Create a directory for custom commands. For example:
 
-   a. Open Environment Variables from Windows Start.  
-   b. Edit `Path` and add:
+   ```text
+   C:\Users\<your-user>\qgis_scripts
+   ```
 
-   > `C:\Program Files\QGIS 3.34.1\apps\Python39`
+3. In that directory, create `pythonqgis.bat` with the following content:
 
-   c. Create/Edit `PYTHONPATH` and add (separated by semicolons):
+   ```bat
+   @echo off
+   setlocal
+   set "OSGEO4W_ROOT=C:\OSGeo4W"
+   set "QGIS_RELEASE=qgis-ltr"
+   set "QGIS_PYTHON=Python312"
+   set "PATH=%OSGEO4W_ROOT%\bin;%OSGEO4W_ROOT%\apps\%QGIS_RELEASE%\bin;%OSGEO4W_ROOT%\apps\%QGIS_PYTHON%;%PATH%"
+   set "PYTHONPATH=%OSGEO4W_ROOT%\apps\%QGIS_RELEASE%\python;%OSGEO4W_ROOT%\apps\%QGIS_RELEASE%\python\plugins"
+   "%OSGEO4W_ROOT%\apps\%QGIS_PYTHON%\python.exe" %*
+   endlocal
+   ```
 
-   > i. `C:\Program Files\QGIS 3.34.1\apps\qgis\python`  
-   > ii. `C:\Program Files\QGIS 3.34.1\apps\qgis\python\plugins`  
-   > iii. `C:\Program Files\QGIS 3.34.1\apps\Qt5\plugins`  
-   > iv. `C:\Program Files\QGIS 3.34.1\apps\gdal\share\gdal`  
-   > v. Or all together: `C:\Program Files\QGIS 3.34.1\apps\qgis\python;C:\Program Files\QGIS 3.34.1\apps\qgis\python\plugins;C:\Program Files\QGIS 3.34.1\apps\Qt5\plugins;C:\Program Files\QGIS 3.34.1\apps\gdal\share\gdal`
+   The launcher sets the QGIS environment only for the process it starts. This
+   avoids changing `PATH` and `PYTHONPATH` globally. The Qt plugin and GDAL data
+   directories are resources, not Python module directories, so they should not
+   be added to `PYTHONPATH`.
 
-4. Validate importing `qgis.core`.
+4. Add the custom-command directory—not QGIS's `python.exe` directory—to your
+   Windows user `Path`:
 
-   a. Open a command prompt window.
-   b. Run `pythonqgis`.
-   c. If setup is correct, there should be no import error.
-   d. In Python, run:
+   ```text
+   C:\Users\<your-user>\qgis_scripts
+   ```
 
-   > `import qgis.core`
+   Open a new Command Prompt after saving the change so that it receives the
+   updated `Path`.
 
-`citygisoo` must be installed with `pip` in the interpreter configured above.
+5. Validate the launcher and the `qgis.core` import:
+
+   ```bat
+   where pythonqgis
+   pythonqgis --version
+   pythonqgis -c "import qgis.core; print(qgis.core.Qgis.QGIS_VERSION)"
+   ```
+
+6. Install `citygisoo` with the same interpreter:
+
+   ```bat
+   pythonqgis -m pip install citygisoo
+   ```
+
+Use `pythonqgis your_script.py` to run a standalone script. Importing
+`qgis.core` confirms that Python can find the bindings; a script that uses QGIS
+providers and layers should also initialize and shut down `QgsApplication`, as
+shown in the [official PyQGIS standalone-script documentation](https://docs.qgis.org/latest/en/docs/pyqgis_developer_cookbook/intro.html#using-pyqgis-in-standalone-scripts).
+Do not name the script `qgis.py`, because that would shadow the installed `qgis`
+package.
+
+```python
+from qgis.core import QgsApplication
+
+QgsApplication.setPrefixPath(r"C:\OSGeo4W\apps\qgis-ltr", True)
+qgs = QgsApplication([], False)
+qgs.initQgis()
+
+try:
+    # Import citygisoo and run the PyQGIS workflow here.
+    pass
+finally:
+    qgs.exitQgis()
+```
 
 ## Name and Dedication
 
