@@ -29,7 +29,8 @@ workflow_output_layer_name = 'mtl_{fsa}_gisoo'
 workflow_output_layer_suffix = '.gpkg'
 
 output_layer_name = 'mtl_{fsa}_gisoo_standardized'
-output_layer_suffix = '.geojson'
+output_geojson_suffix = '.geojson'
+output_geopackage_suffix = '.gpkg'
 
 id_field_name = 'id'
 id_start_value = 100000
@@ -71,13 +72,19 @@ def _build_adapter_paths(fsa):
         resolved_workflow_output_layer_name,
         resolved_workflow_output_layer_name + workflow_output_layer_suffix)
     resolved_output_layer_name = output_layer_name.format(fsa=fsa)
-    output_layer_path = os.path.join(
+    output_layer_dir = os.path.join(
         output_paths_dir,
-        resolved_output_layer_name,
-        resolved_output_layer_name + output_layer_suffix)
+        resolved_output_layer_name)
+    output_geojson_path = os.path.join(
+        output_layer_dir,
+        resolved_output_layer_name + output_geojson_suffix)
+    output_geopackage_path = os.path.join(
+        output_layer_dir,
+        resolved_output_layer_name + output_geopackage_suffix)
     return (
         workflow_output_layer_path,
-        output_layer_path,
+        output_geojson_path,
+        output_geopackage_path,
         resolved_output_layer_name,
     )
 
@@ -87,7 +94,8 @@ def run_contract_adapter(fsa, non_null_required_fields=None):
     normalized_fsa = paths.normalize_fsa(fsa)
     (
         workflow_output_layer_path,
-        output_layer_path,
+        output_geojson_path,
+        output_geopackage_path,
         resolved_output_layer_name,
     ) = _build_adapter_paths(normalized_fsa)
     adapter_t0 = perf_counter()
@@ -95,21 +103,22 @@ def run_contract_adapter(fsa, non_null_required_fields=None):
         'Starting Montreal FSA contract adapter. FSA=%s Input=%s Output=%s',
         normalized_fsa,
         workflow_output_layer_path,
-        output_layer_path)
+        output_geojson_path)
 
     adapter = BuildingContractAdapter(
         qgis_path=paths.qgis_path,
         input_layer_path=workflow_output_layer_path,
         input_layer_name=workflow_output_layer_name.format(
             fsa=normalized_fsa),
-        output_geojson_path=output_layer_path,
+        output_geojson_path=output_geojson_path,
         field_rename_map=rename_fields,
         required_fields=required_fields,
         non_null_required_fields=non_null_required_fields,
         id_field_name=id_field_name,
         id_start_value=id_start_value,
         output_layer_name=resolved_output_layer_name,
-        field_order=field_order)
+        field_order=field_order,
+        output_geopackage_path=output_geopackage_path)
 
     try:
         standardized_output_path = adapter.run()

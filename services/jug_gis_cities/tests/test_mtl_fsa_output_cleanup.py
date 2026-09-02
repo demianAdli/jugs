@@ -41,7 +41,6 @@ class TestMtlFsaOutputCleanup(unittest.TestCase):
 
                 standardized_directory = (
                     fsa_root / 'mtl_H3H_gisoo_standardized')
-                standardized_directory.mkdir()
                 (standardized_directory /
                  'mtl_H3H_gisoo_standardized.geojson').touch()
 
@@ -58,6 +57,12 @@ class TestMtlFsaOutputCleanup(unittest.TestCase):
                         (fsa_root / resolved_key).exists(),
                         output_key in retained_keys)
                 self.assertTrue(standardized_directory.exists())
+                self.assertTrue(
+                    (standardized_directory /
+                     'mtl_H3H_gisoo_standardized.gpkg').exists())
+                self.assertTrue(
+                    (standardized_directory /
+                     'mtl_H3H_gisoo_standardized.geojson').exists())
                 self.assertEqual(
                     len(deleted_paths),
                     len(output_cleanup.paths.output_paths) -

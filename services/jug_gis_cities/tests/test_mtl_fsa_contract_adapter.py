@@ -33,6 +33,11 @@ def _import_contract_adapter(adapter_cls, output_dir):
                 'JUG_GIS_CITIES_QGIS_PATH': 'C:/QGIS',
             }):
         with patch.dict(sys.modules, {'citygisoo': fake_citygisoo}):
+            package = sys.modules.get(
+                'src.jug_gis_cities.mtl_fsa_gisoo')
+            if package is not None:
+                package.__dict__.pop('contract_adapter', None)
+                package.__dict__.pop('workflow_config', None)
             for module_name in module_names:
                 sys.modules.pop(module_name, None)
             return importlib.import_module(module_names[0])
@@ -61,6 +66,11 @@ class TestMtlFsaContractAdapter(unittest.TestCase):
             os.path.join(
                 tmp_dir, 'H3H', 'mtl_H3H_gisoo_standardized',
                 'mtl_H3H_gisoo_standardized.geojson'))
+        self.assertEqual(
+            kwargs['output_geopackage_path'],
+            os.path.join(
+                tmp_dir, 'H3H', 'mtl_H3H_gisoo_standardized',
+                'mtl_H3H_gisoo_standardized.gpkg'))
         self.assertEqual(
             kwargs['output_layer_name'],
             'mtl_H3H_gisoo_standardized')
