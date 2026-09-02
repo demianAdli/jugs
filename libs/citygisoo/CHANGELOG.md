@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+---
+
+## [0.3] - 2026-09-02
+
 ### Added
 - Added `gather_district_geopackage_files()` for collecting subdistrict
   GeoPackage outputs into a single district-level directory.
@@ -15,16 +19,26 @@
 - Added `ScrubLayer.extract_by_expression()`.
 - Added `ScrubLayer.extract_by_aggregate_membership()`.
 - Added `ScrubLayer.difference_layer()`.
-- Added `ScrubLayer.spatial_join_with_predicate()`.
+- Added `ScrubLayer.spatial_join_with_predicate()`, including support for
+  multiple predicates.
 - Added `ScrubLayer.extract_unique_by_field()`.
 - Added `ScrubLayer.duplicate_text_field()`.
 - Added `ScrubLayer.delete_duplicate_geometries()` for QGIS Delete Duplicate
   Geometries.
 - Added `ScrubLayer.intersection_layer()` for QGIS vector overlay
   Intersection.
+- Added layer-property joins, field joins with additional processing options,
+  explicit-path layer merging, and aggregate-table generation.
+- Added expression-based field assignment, ratio calculation, area
+  calculation, geometry-by-expression, and point-on-surface operations.
 
-### Planned
-- Extend spatial join to support multiple predicates.
+### Changed
+- Expanded building-contract preparation with configurable field ordering,
+  grouped field handling, selective required-field removal, optional null-value
+  filtering, and optional GeoPackage output before GeoJSON export.
+- Improved QGIS null-value handling and expanded spatial-join configuration.
+- Replaced the standalone PyQGIS setup instructions with a safer custom-launcher
+  workflow that does not rename QGIS's bundled Python executable.
 
 ---
 

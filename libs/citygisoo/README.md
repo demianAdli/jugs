@@ -9,6 +9,7 @@ Project Developer: Alireza Adli
 ## Table of Contents
 
 - [What Is citygisoo](#what-is-citygisoo)
+- [What's New in Version 0.3](#whats-new-in-version-03)
 - [Approach and Scope](#approach-and-scope)
 - [citygisoo in Sabu](#citygisoo-in-sabu)
 - [Testing and Publication Context](#testing-and-publication-context)
@@ -27,6 +28,22 @@ Project Developer: Alireza Adli
 The name `citygisoo` stands for **Object-Oriented Geographic Information System for Cities**.
 
 The package follows an object-oriented design. Its central component is the `ScrubLayer` class, which consolidates key cleaning and transformation operations commonly used in city-scale workflows.
+
+## What's New in Version 0.3
+
+Version 0.3 broadens `citygisoo` beyond direct PyQGIS layer-cleaning
+operations. PyQGIS remains its geospatial processing engine, while the package
+now also coordinates higher-level, repeatable dataset-preparation workflows.
+
+The expanded functionality supports standardizing building datasets into
+consistent GeoJSON and GeoPackage outputs for downstream systems such as
+urban-scale carbon accounting and building-archetype assignment. It also helps
+organize results produced across subdistrict and district pipelines and adds
+more options for filtering, enriching, aggregating, joining, and overlaying
+geospatial records.
+
+For detailed component descriptions and API guidance, see the
+[citygisoo documentation](https://sabu.demianadli.com/libraries/citygisoo/).
 
 ## Approach and Scope
 
